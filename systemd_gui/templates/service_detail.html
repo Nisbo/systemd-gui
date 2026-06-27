@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>{{ info.name }}</h2>
+        <p>{{ info.description or 'No description available.' }}</p>
+      </div>
+      <form method="post" action="{{ url_for('toggle_favorite', name=info.name) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="ghost-button" type="submit">Toggle favorite</button>
+      </form>
+    </div>
+    <dl class="detail-grid">
+      <div><dt>Status</dt><dd>{{ info.active }} / {{ info.sub }}</dd></div>
+      <div><dt>Autostart</dt><dd>{{ info.enabled }}</dd></div>
+      <div><dt>Unit file</dt><dd>{{ info.fragment_path or 'Unknown' }}</dd></div>
+      <div><dt>Protected</dt><dd>{{ 'Yes' if info.protected else 'No' }}</dd></div>
+    </dl>
+    <div class="action-bar">
+      {% for action in ['start', 'stop', 'restart', 'reload', 'enable', 'disable'] %}
+        <form method="post" action="{{ url_for('service_action', name=info.name, action=action) }}" data-confirm="Run systemctl {{ action }} {{ info.name }}?">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="{% if action in ['stop', 'disable'] %}danger-button{% elif action == 'restart' %}primary-button{% else %}ghost-button{% endif %}" type="submit">{{ action|capitalize }}</button>
+        </form>
+      {% endfor %}
+      {% if editable %}<a class="ghost-button" href="{{ url_for('edit_service', name=info.name) }}">Edit unit</a>{% endif %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><div><h2>Start command</h2><p>Important systemd properties for this service.</p></div></div>
+    <dl class="detail-grid two">
+      <div><dt>ExecStart</dt><dd>{{ info.exec_start or '-' }}</dd></div>
+      <div><dt>ExecReload</dt><dd>{{ info.exec_reload or '-' }}</dd></div>
+      <div><dt>Restart</dt><dd>{{ info.restart or '-' }}</dd></div>
+      <div><dt>Drop-ins</dt><dd>{{ info.drop_in_paths or 'None' }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><div><h2>Unit file</h2><p>Read-only preview from <code>systemctl cat</code>.</p></div></div>
+    <pre class="config-preview"><code>{{ content }}</code></pre>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><div><h2>Logs</h2><p>Last 200 lines from <code>journalctl -u {{ info.name }}</code>.</p></div></div>
+    <pre class="config-preview log-preview"><code>{{ logs.output or 'No logs available.' }}</code></pre>
+  </section>
+{% endblock %}

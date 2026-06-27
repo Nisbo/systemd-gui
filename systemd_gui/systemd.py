@@ -1,0 +1,224 @@
+from __future__ import annotations
+
+import json
+import re
+import shutil
+import subprocess
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+
+PROTECTED_EXACT = {
+    "dbus.service",
+    "networking.service",
+    "NetworkManager.service",
+    "ssh.service",
+    "sshd.service",
+    "systemd-journald.service",
+    "systemd-logind.service",
+    "systemd-networkd.service",
+    "systemd-resolved.service",
+    "systemd-timesyncd.service",
+    "systemd-udevd.service",
+}
+PROTECTED_PREFIXES = ("systemd-",)
+VALID_SERVICE_RE = re.compile(r"^[A-Za-z0-9_.@:-]+\.service$")
+
+
+@dataclass
+class CommandResult:
+    ok: bool
+    output: str
+    returncode: int
+
+
+def systemctl_available() -> bool:
+    return bool(shutil.which("systemctl"))
+
+
+def journalctl_available() -> bool:
+    return bool(shutil.which("journalctl"))
+
+
+def valid_service_name(name: str) -> bool:
+    return bool(VALID_SERVICE_RE.match(name or ""))
+
+
+def is_protected_service(name: str) -> bool:
+    if name in PROTECTED_EXACT:
+        return True
+    return any(name.startswith(prefix) for prefix in PROTECTED_PREFIXES)
+
+
+def run_systemctl(args: list[str], timeout: int = 12) -> CommandResult:
+    systemctl = shutil.which("systemctl")
+    if not systemctl:
+        return CommandResult(False, "systemctl is not available in this environment.", 127)
+    try:
+        result = subprocess.run([systemctl, *args], check=False, capture_output=True, text=True, timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return CommandResult(False, str(exc), 1)
+    output = (result.stdout + "\n" + result.stderr).strip()
+    return CommandResult(result.returncode == 0, output, result.returncode)
+
+
+def run_journalctl(service: str, lines: int = 200) -> CommandResult:
+    journalctl = shutil.which("journalctl")
+    if not journalctl:
+        return CommandResult(False, "journalctl is not available in this environment.", 127)
+    try:
+        result = subprocess.run(
+            [journalctl, "-u", service, "-n", str(lines), "--no-pager", "--output=short-iso"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=12,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return CommandResult(False, str(exc), 1)
+    output = (result.stdout + "\n" + result.stderr).strip()
+    return CommandResult(result.returncode == 0, output, result.returncode)
+
+
+def list_services(query: str = "", favorites: set[str] | None = None) -> list[dict[str, str | bool]]:
+    favorites = favorites or set()
+    units = _active_units()
+    files = _unit_files()
+    names = sorted(set(units) | set(files))
+    if query:
+        q = query.lower()
+        names = [name for name in names if q in name.lower() or q in str(units.get(name, {}).get("description", "")).lower()]
+
+    services = []
+    for name in names:
+        unit = units.get(name, {})
+        file_state = files.get(name, {})
+        services.append({
+            "name": name,
+            "load": unit.get("load", "-"),
+            "active": unit.get("active", "inactive"),
+            "sub": unit.get("sub", "-"),
+            "description": unit.get("description", ""),
+            "enabled": file_state.get("state", "unknown"),
+            "preset": file_state.get("preset", ""),
+            "favorite": name in favorites,
+            "protected": is_protected_service(name),
+        })
+    services.sort(key=lambda item: (not item["favorite"], str(item["name"]).lower()))
+    return services
+
+
+def service_info(name: str) -> dict[str, str | bool]:
+    if not valid_service_name(name):
+        raise ValueError("Only .service units are supported.")
+    result = run_systemctl([
+        "show",
+        name,
+        "--property=Id,Description,LoadState,ActiveState,SubState,UnitFileState,FragmentPath,DropInPaths,ExecStart,ExecReload,Restart",
+        "--no-pager",
+    ])
+    values = _parse_properties(result.output if result.ok else "")
+    return {
+        "name": name,
+        "description": values.get("Description", ""),
+        "load": values.get("LoadState", "unknown"),
+        "active": values.get("ActiveState", "unknown"),
+        "sub": values.get("SubState", "unknown"),
+        "enabled": values.get("UnitFileState", "unknown"),
+        "fragment_path": values.get("FragmentPath", ""),
+        "drop_in_paths": values.get("DropInPaths", ""),
+        "exec_start": values.get("ExecStart", ""),
+        "exec_reload": values.get("ExecReload", ""),
+        "restart": values.get("Restart", ""),
+        "protected": is_protected_service(name),
+        "available": result.ok,
+        "message": result.output,
+    }
+
+
+def unit_content(name: str) -> str:
+    result = run_systemctl(["cat", name, "--no-pager"])
+    return result.output
+
+
+def editable_unit_path(name: str) -> Path:
+    info = service_info(name)
+    path = Path(str(info.get("fragment_path") or ""))
+    if not path.exists() or not path.is_file():
+        raise ValueError("Unit file was not found on disk.")
+    etc_root = Path("/etc/systemd/system")
+    try:
+        path.resolve().relative_to(etc_root)
+    except ValueError as exc:
+        raise ValueError("Only unit files below /etc/systemd/system are editable. Vendor units should be overridden with drop-ins instead.") from exc
+    return path
+
+
+def read_editable_unit(name: str) -> tuple[Path, str]:
+    path = editable_unit_path(name)
+    return path, path.read_text(encoding="utf-8")
+
+
+def write_editable_unit(name: str, content: str, backup_dir: Path) -> Path:
+    path = editable_unit_path(name)
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    backup_path = backup_dir / f"{path.name}.{stamp}.bak"
+    backup_path.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
+    path.write_text(content.rstrip() + "\n", encoding="utf-8")
+    return backup_path
+
+
+def read_favorites(path: Path) -> set[str]:
+    if not path.exists():
+        return set()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return set()
+    return {item for item in data if isinstance(item, str) and valid_service_name(item)}
+
+
+def write_favorites(path: Path, favorites: set[str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(sorted(favorites), indent=2) + "\n", encoding="utf-8")
+
+
+def _active_units() -> dict[str, dict[str, str]]:
+    result = run_systemctl(["list-units", "--type=service", "--all", "--no-legend", "--no-pager"])
+    units: dict[str, dict[str, str]] = {}
+    if not result.ok:
+        return units
+    for line in result.output.splitlines():
+        parts = line.split(None, 4)
+        if len(parts) < 4 or not parts[0].endswith(".service"):
+            continue
+        units[parts[0]] = {
+            "load": parts[1],
+            "active": parts[2],
+            "sub": parts[3],
+            "description": parts[4] if len(parts) > 4 else "",
+        }
+    return units
+
+
+def _unit_files() -> dict[str, dict[str, str]]:
+    result = run_systemctl(["list-unit-files", "--type=service", "--no-legend", "--no-pager"])
+    files: dict[str, dict[str, str]] = {}
+    if not result.ok:
+        return files
+    for line in result.output.splitlines():
+        parts = line.split()
+        if len(parts) < 2 or not parts[0].endswith(".service"):
+            continue
+        files[parts[0]] = {"state": parts[1], "preset": parts[2] if len(parts) > 2 else ""}
+    return files
+
+
+def _parse_properties(output: str) -> dict[str, str]:
+    values: dict[str, str] = {}
+    for line in output.splitlines():
+        key, sep, value = line.partition("=")
+        if sep:
+            values[key] = value
+    return values

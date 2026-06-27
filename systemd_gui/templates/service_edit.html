@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="panel">
+    <div class="panel-head"><div><h2>Edit unit</h2><p>{{ path }}</p></div></div>
+    <div class="diagnostic warning"><strong>Careful</strong><span>A backup is created before saving. Run daemon-reload before restarting the service.</span></div>
+    <form class="form-grid single" method="post" action="{{ url_for('save_service', name=name) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>Unit file content<textarea name="content" rows="26" spellcheck="false">{{ content }}</textarea></label>
+      <div class="form-actions split-actions">
+        <a class="ghost-button" href="{{ url_for('service_detail', name=name) }}">Cancel</a>
+        <button class="primary-button" type="submit">Save unit file</button>
+      </div>
+    </form>
+  </section>
+{% endblock %}

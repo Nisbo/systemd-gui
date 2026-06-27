@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+  {% if not systemctl_available %}
+    <section class="diagnostic error"><strong>systemctl unavailable</strong><span>This environment cannot query systemd services.</span></section>
+  {% endif %}
+
+  <section class="operations-grid">
+    <div class="operation-card"><span>Services</span><strong>{{ total }}</strong></div>
+    <div class="operation-card"><span>Active</span><strong>{{ active_count }}</strong></div>
+    <div class="operation-card"><span>Failed</span><strong>{{ failed_count }}</strong></div>
+    <div class="operation-card"><span>Protected</span><strong>{{ protected_count }}</strong></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div><h2>Services</h2><p>Only <code>.service</code> units are shown in this first version.</p></div>
+      <form method="post" action="{{ url_for('daemon_reload') }}" data-confirm="Run systemctl daemon-reload? This reloads unit files after edits.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="ghost-button" type="submit">Daemon reload</button>
+      </form>
+    </div>
+
+    <form class="search-row" method="get" action="{{ url_for('index') }}">
+      <input name="q" value="{{ query }}" placeholder="Search service name or description">
+      <button class="primary-button" type="submit">Search</button>
+      {% if query %}<a class="ghost-button" href="{{ url_for('index') }}">Clear</a>{% endif %}
+    </form>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th></th><th>Name</th><th>Status</th><th>Autostart</th><th>Description</th><th></th></tr></thead>
+        <tbody>
+          {% for service in services %}
+            <tr class="{% if service.active == 'failed' %}failed-row{% endif %}">
+              <td>
+                <form method="post" action="{{ url_for('toggle_favorite', name=service.name) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button class="star-button" type="submit" title="Toggle favorite">{% if service.favorite %}★{% else %}☆{% endif %}</button>
+                </form>
+              </td>
+              <td><a class="table-link" href="{{ url_for('service_detail', name=service.name) }}">{{ service.name }}</a>{% if service.protected %}<span class="tag danger">Protected</span>{% endif %}</td>
+              <td><span class="status-pill {{ service.active }}">{{ service.active }}</span><small>{{ service.sub }}</small></td>
+              <td>{{ service.enabled }}</td>
+              <td>{{ service.description or '-' }}</td>
+              <td><a class="ghost-button" href="{{ url_for('service_detail', name=service.name) }}">Open</a></td>
+            </tr>
+          {% else %}
+            <tr><td colspan="6" class="empty">No services found.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

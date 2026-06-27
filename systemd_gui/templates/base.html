@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ app_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">systemd services</p>
+          <h1>Systemd Gui</h1>
+        </div>
+        <div class="top-actions">
+          <a class="ghost-button" href="{{ url_for('index') }}">Home</a>
+          <div class="theme-switch" aria-label="Theme">
+            <button class="ghost-button theme-option" type="button" data-theme-choice="light" aria-label="Use light theme">Light</button>
+            <button class="ghost-button theme-option" type="button" data-theme-choice="dark" aria-label="Use dark theme">Dark</button>
+          </div>
+          {% if session.get("logged_in") %}
+            <form method="post" action="{{ url_for('logout') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button class="ghost-button" type="submit">Logout</button>
+            </form>
+          {% endif %}
+        </div>
+      </header>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <section class="flash-stack" aria-live="polite">
+            {% for category, message in messages %}
+              <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+          </section>
+        {% endif %}
+      {% endwith %}
+
+      <div class="confirm-modal" data-confirm-modal hidden>
+        <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+          <strong id="confirm-title">Confirm action</strong>
+          <p data-confirm-message></p>
+          <div class="confirm-actions">
+            <button class="ghost-button" type="button" data-confirm-cancel>Cancel</button>
+            <button class="danger-button" type="button" data-confirm-submit>Continue</button>
+          </div>
+        </div>
+      </div>
+
+      {% block content %}{% endblock %}
+
+      <footer class="app-footer">
+        <a href="{{ repo_url }}" target="_blank" rel="noopener noreferrer">{{ app_name }}</a>
+        <span>v{{ app_version }}</span>
+      </footer>
+    </main>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>
