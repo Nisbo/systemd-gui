@@ -52,11 +52,17 @@
         </dd>
       </div>
     </dl>
+    {% if info.template_unit %}
+      <div class="diagnostic warning">
+        <strong>Template unit</strong>
+        <span>This unit is a blueprint. Actions like start, stop, restart, enable and disable should be used on a concrete instance such as <code>{{ info.name.replace('@.service', '@example.service') }}</code>, not on the template itself.</span>
+      </div>
+    {% endif %}
     <div class="action-bar">
       {% for action in ['start', 'stop', 'restart', 'reload', 'enable', 'disable'] %}
         <form method="post" action="{{ url_for('service_action', name=info.name, action=action) }}" data-confirm="Run systemctl {{ action }} {{ info.name }}?">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button class="{% if action in ['stop', 'disable'] %}danger-button{% elif action == 'restart' %}primary-button{% else %}ghost-button{% endif %}" type="submit" title="{{ action_help[action] }}">{{ action|capitalize }}</button>
+          <button class="{% if action in ['stop', 'disable'] %}danger-button{% elif action == 'restart' %}primary-button{% else %}ghost-button{% endif %}" type="submit" title="{% if info.template_unit %}Template units are blueprints. Use a concrete instance before running this action.{% else %}{{ action_help[action] }}{% endif %}" {% if info.template_unit %}disabled{% endif %}>{{ action|capitalize }}</button>
         </form>
       {% endfor %}
       {% if editable %}<a class="ghost-button" href="{{ url_for('edit_service', name=info.name) }}">Edit unit</a>{% endif %}

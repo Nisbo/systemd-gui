@@ -14,6 +14,7 @@ from .systemd import (
     create_unit_backup,
     delete_unit_backup,
     is_protected_service,
+    is_template_unit,
     journalctl_available,
     list_unit_backups,
     list_services,
@@ -347,6 +348,8 @@ def create_app() -> Flask:
             return redirect(url_for("service_detail", name=name))
         if _blocked_protected(app, name):
             return redirect(url_for("service_detail", name=name))
+        if _blocked_template(name):
+            return redirect(url_for("service_detail", name=name))
 
         if action in RUNTIME_ACTIONS:
             result = run_systemctl([action, name])
@@ -594,6 +597,13 @@ def _log_refresh_interval(value: str) -> int:
 def _blocked_protected(app: Flask, name: str) -> bool:
     if is_protected_service(name) and not app.config["ALLOW_PROTECTED"]:
         flash("This service is protected. Actions and editing are blocked by default.", "error")
+        return True
+    return False
+
+
+def _blocked_template(name: str) -> bool:
+    if is_template_unit(name):
+        flash("Template units are blueprints. Open a concrete instance before running service actions.", "error")
         return True
     return False
 

@@ -91,6 +91,10 @@ def is_protected_service(name: str) -> bool:
     return any(name.startswith(prefix) for prefix in PROTECTED_PREFIXES)
 
 
+def is_template_unit(name: str) -> bool:
+    return "@" in name and name.endswith("@.service")
+
+
 def run_systemctl(args: list[str], timeout: int = 12) -> CommandResult:
     systemctl = shutil.which("systemctl")
     if not systemctl:
@@ -152,6 +156,7 @@ def list_services(query: str = "", favorites: set[str] | None = None, state_filt
             "preset": file_state.get("preset", ""),
             "favorite": name in favorites,
             "protected": is_protected_service(name),
+            "template_unit": is_template_unit(name),
             "active_help": active_state_help(active),
             "sub_help": sub_state_help(sub),
             "info_title": info["title"],
@@ -207,6 +212,7 @@ def service_info(name: str) -> dict[str, str | bool]:
         "exec_reload": values.get("ExecReload", ""),
         "restart": values.get("Restart", ""),
         "protected": is_protected_service(name),
+        "template_unit": is_template_unit(name),
         "available": result.ok,
         "message": result.output,
         "active_help": active_state_help(values.get("ActiveState", "unknown")),
