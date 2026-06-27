@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block content %}
+  {% set settings_tabs = [
+    ("general", "General"),
+    ("security", "Security"),
+    ("updates", "Updates"),
+  ] %}
+
+  <section class="panel settings-tabs-panel">
+    <div class="panel-head">
+      <div>
+        <h2>Settings</h2>
+        <p>Application settings for login, maintenance and updates.</p>
+      </div>
+    </div>
+    <nav class="settings-tabs" aria-label="Settings sections">
+      {% for tab_key, tab_label in settings_tabs %}
+        <a class="settings-tab {% if active_tab == tab_key %}active{% endif %}" href="{{ url_for('settings', tab=tab_key) }}" {% if active_tab == tab_key %}aria-current="page"{% endif %}>
+          {{ tab_label }}
+        </a>
+      {% endfor %}
+    </nav>
+  </section>
+
+  {% if active_tab == "general" %}
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>General</h2>
+          <p>Current runtime settings used by Systemd Gui.</p>
+        </div>
+      </div>
+      <dl class="detail-grid three">
+        <div><dt>Password login</dt><dd>{{ 'Enabled' if password_enabled else 'Disabled' }}</dd></div>
+        <div><dt>Environment file</dt><dd>{{ env_file }}</dd></div>
+        <div><dt>App service</dt><dd>{{ systemd_gui_service }}</dd></div>
+      </dl>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Application restart</h2>
+          <p>Restart Systemd Gui after maintenance changes when you want the running process to reload its environment.</p>
+        </div>
+      </div>
+      <form method="post" action="{{ url_for('restart_app') }}" data-confirm="Restart Systemd Gui now? Reload the browser page after a few seconds.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="ghost-button" type="submit">Restart app</button>
+      </form>
+    </section>
+  {% elif active_tab == "security" %}
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Security</h2>
+          <p>Change the login password stored in the systemd environment file.</p>
+        </div>
+      </div>
+      <dl class="detail-grid two">
+        <div><dt>Password login</dt><dd>{{ 'Enabled' if password_enabled else 'Disabled' }}</dd></div>
+        <div><dt>Environment file</dt><dd>{{ env_file }}</dd></div>
+      </dl>
+      <form class="form-grid single" method="post" action="{{ url_for('change_password') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        {% if password_enabled %}
+          <label>
+            Current password
+            <input name="current_password" type="password" autocomplete="current-password" required>
+            <span class="field-help">Required before changing the active login password.</span>
+          </label>
+        {% else %}
+          <div class="diagnostic warning">
+            <strong>Password login is currently disabled</strong>
+            <span>Set a password here to enable login protection for this running app and future restarts.</span>
+          </div>
+        {% endif %}
+        <label>
+          New password
+          <input name="new_password" type="password" autocomplete="new-password" minlength="8" required>
+          <span class="field-help">Use at least 8 characters. Whitespace is not allowed because the value is stored in an environment file.</span>
+        </label>
+        <label>
+          Confirm new password
+          <input name="confirm_password" type="password" autocomplete="new-password" minlength="8" required>
+        </label>
+        <div class="form-actions">
+          <button class="primary-button" type="submit">Change password</button>
+        </div>
+      </form>
+    </section>
+  {% elif active_tab == "updates" %}
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Updates</h2>
+          <p>Use git updates only when this installation was cloned from the official repository.</p>
+        </div>
+      </div>
+
+      <dl class="detail-grid three">
+        <div><dt>Branch</dt><dd>{{ git_state.branch or '-' }}</dd></div>
+        <div><dt>Commit</dt><dd>{{ git_state.commit or '-' }}</dd></div>
+        <div><dt>Local changes</dt><dd>{{ 'Yes' if git_state.dirty else 'No' }}</dd></div>
+      </dl>
+
+      <div class="update-card">
+        <strong>Git checkout</strong>
+        <span>{{ git_state.message }}</span>
+        <span>Remote: <code>{{ git_state.remote or 'Not configured' }}</code></span>
+        {% if git_state.dirty %}
+          <span>Updates are blocked until local changes are committed, stashed or removed.</span>
+        {% endif %}
+        <form method="post" action="{{ url_for('apply_git_update') }}" data-confirm="Run git pull --ff-only for Systemd Gui?">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="primary-button" type="submit" {% if not git_state.available or git_state.dirty or not git_state.remote %}disabled{% endif %}>Update from git</button>
+        </form>
+      </div>
+
+      {% if update_result %}
+        <div class="update-result {{ 'ok' if update_result.ok else 'error' }}">
+          <strong>{{ update_result.message }}</strong>
+          {% if update_result.details %}
+            <pre class="config-preview update-output"><code>{{ update_result.details | join("\n\n") }}</code></pre>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      {% if app_update_pending_restart %}
+        <div class="diagnostic warning">
+          <strong>Restart required</strong>
+          <span>An app update changed files on disk. Restart Systemd Gui so the running process loads them.</span>
+        </div>
+      {% endif %}
+    </section>
+  {% endif %}
+{% endblock %}

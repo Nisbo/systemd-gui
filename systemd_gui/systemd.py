@@ -169,6 +169,43 @@ def write_editable_unit(name: str, content: str, backup_dir: Path) -> Path:
     return backup_path
 
 
+def list_unit_backups(name: str, backup_dir: Path) -> list[dict[str, str | int]]:
+    if not valid_service_name(name):
+        raise ValueError("Only .service units are supported.")
+    if not backup_dir.exists():
+        return []
+
+    backups = []
+    for path in backup_dir.glob(f"{name}.*.bak"):
+        if not path.is_file():
+            continue
+        stat = path.stat()
+        backups.append({
+            "name": path.name,
+            "size": stat.st_size,
+            "created": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+        })
+    backups.sort(key=lambda item: str(item["name"]), reverse=True)
+    return backups
+
+
+def read_unit_backup(name: str, backup_name: str, backup_dir: Path) -> tuple[Path, str]:
+    if not valid_service_name(name):
+        raise ValueError("Only .service units are supported.")
+    if Path(backup_name).name != backup_name or not backup_name.startswith(f"{name}.") or not backup_name.endswith(".bak"):
+        raise ValueError("Backup name is invalid.")
+
+    backup_root = backup_dir.resolve()
+    backup_path = (backup_root / backup_name).resolve()
+    try:
+        backup_path.relative_to(backup_root)
+    except ValueError as exc:
+        raise ValueError("Backup path is outside the backup directory.") from exc
+    if not backup_path.is_file():
+        raise ValueError("Backup file was not found.")
+    return backup_path, backup_path.read_text(encoding="utf-8")
+
+
 def read_favorites(path: Path) -> set[str]:
     if not path.exists():
         return set()

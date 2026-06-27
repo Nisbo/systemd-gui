@@ -43,6 +43,9 @@ cd /opt/systemd-gui
 
 The installer prints the login password at the end.
 
+After installation, open `http://YOUR-SERVER-IP:8850` in your browser. The app
+uses nginx on port `8850` and Gunicorn on `127.0.0.1:8851`.
+
 ## Security Notes
 
 This app can control system services and is therefore powerful. Keep it private,

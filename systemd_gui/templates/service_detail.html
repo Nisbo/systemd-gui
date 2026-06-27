@@ -44,6 +44,35 @@
   </section>
 
   <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Backups</h2>
+        <p>Saved copies created before unit-file edits.</p>
+      </div>
+      {% if editable %}<a class="ghost-button" href="{{ url_for('edit_service', name=info.name) }}">Edit unit</a>{% endif %}
+    </div>
+    {% if backups %}
+      <div class="table-wrap compact-table">
+        <table>
+          <thead><tr><th>Backup</th><th>Created</th><th>Size</th><th></th></tr></thead>
+          <tbody>
+            {% for backup in backups %}
+              <tr>
+                <td><code>{{ backup.name }}</code></td>
+                <td>{{ backup.created }}</td>
+                <td>{{ backup.size }} bytes</td>
+                <td><a class="ghost-button" href="{{ url_for('service_backup', name=info.name, backup_name=backup.name) }}">View</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty-note">No backups have been created for this service yet.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
     <div class="panel-head"><div><h2>Logs</h2><p>Last 200 lines from <code>journalctl -u {{ info.name }}</code>.</p></div></div>
     <pre class="config-preview log-preview"><code>{{ logs.output or 'No logs available.' }}</code></pre>
   </section>

@@ -12,4 +12,27 @@
       </div>
     </form>
   </section>
+
+  <section class="panel">
+    <div class="panel-head"><div><h2>Existing backups</h2><p>Use these copies to compare changes before editing again.</p></div></div>
+    {% if backups %}
+      <div class="table-wrap compact-table">
+        <table>
+          <thead><tr><th>Backup</th><th>Created</th><th>Size</th><th></th></tr></thead>
+          <tbody>
+            {% for backup in backups %}
+              <tr>
+                <td><code>{{ backup.name }}</code></td>
+                <td>{{ backup.created }}</td>
+                <td>{{ backup.size }} bytes</td>
+                <td><a class="ghost-button" href="{{ url_for('service_backup', name=name, backup_name=backup.name) }}">View</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty-note">No backups have been created for this service yet.</p>
+    {% endif %}
+  </section>
 {% endblock %}

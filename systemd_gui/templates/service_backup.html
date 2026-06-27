@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Backup for {{ name }}</h2>
+        <p>{{ path }}</p>
+      </div>
+      <a class="ghost-button" href="{{ url_for('service_detail', name=name) }}">Back to service</a>
+    </div>
+    <div class="diagnostic warning">
+      <strong>Read-only backup</strong>
+      <span>This is the copy that existed before a previous save. Review it carefully before manually reusing any content.</span>
+    </div>
+    <dl class="detail-grid two">
+      <div><dt>Service</dt><dd>{{ name }}</dd></div>
+      <div><dt>Backup file</dt><dd>{{ backup_name }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head"><div><h2>Backup content</h2><p>Stored unit file content.</p></div></div>
+    <pre class="config-preview"><code>{{ content }}</code></pre>
+  </section>
+{% endblock %}

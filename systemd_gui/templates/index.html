@@ -3,7 +3,6 @@
   {% if not systemctl_available %}
     <section class="diagnostic error"><strong>systemctl unavailable</strong><span>This environment cannot query systemd services.</span></section>
   {% endif %}
-
   <section class="operations-grid">
     <div class="operation-card"><span>Services</span><strong>{{ total }}</strong></div>
     <div class="operation-card"><span>Active</span><strong>{{ active_count }}</strong></div>
