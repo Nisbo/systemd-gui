@@ -33,6 +33,7 @@ ACTIVE_STATE_HELP = {
     "deactivating": "The unit is currently stopping.",
     "reloading": "The unit is active and systemd is reloading its configuration.",
     "unknown": "systemd did not report a clear active state for this service.",
+    "not-found": "systemd did not find this service. The name may be wrong or the unit may not exist on this system.",
 }
 SUB_STATE_HELP = {
     "running": "The service process is currently running.",
@@ -51,6 +52,7 @@ SUB_STATE_HELP = {
     "listening": "The service is waiting for incoming socket activity.",
     "mounted": "The unit is mounted. This is unusual in the service-only view.",
     "unknown": "systemd did not report a clear detailed state.",
+    "not-found": "No detailed state is available because systemd did not find this service.",
 }
 UNIT_FILE_STATE_HELP = {
     "enabled": "This service is configured to start automatically at boot.",
@@ -63,6 +65,7 @@ UNIT_FILE_STATE_HELP = {
     "transient": "This unit was created at runtime and may not have a normal unit file on disk.",
     "bad": "systemd found a problem with this unit file.",
     "unknown": "systemd did not report an autostart state. This is common for template instances, generated units or units that only exist at runtime.",
+    "not-found": "No autostart state is available because systemd did not find this service.",
 }
 
 
@@ -198,14 +201,16 @@ def service_info(name: str) -> dict[str, str | bool]:
     ])
     values = _parse_properties(result.output if result.ok else "")
     catalog_info = service_catalog_info(name, values.get("Description", ""))
+    load_state = values.get("LoadState", "")
+    available = result.ok and bool(values.get("Id") or load_state) and load_state != "not-found"
     return {
         "name": name,
         "description": values.get("Description", ""),
-        "load": values.get("LoadState", "unknown"),
-        "active": values.get("ActiveState", "unknown"),
-        "sub": values.get("SubState", "unknown"),
-        "enabled": values.get("UnitFileState", "unknown"),
-        "enabled_help": unit_file_state_help(values.get("UnitFileState", "unknown"), name),
+        "load": values.get("LoadState", "not-found" if not available else "unknown"),
+        "active": values.get("ActiveState", "not-found" if not available else "unknown"),
+        "sub": values.get("SubState", "not-found" if not available else "unknown"),
+        "enabled": values.get("UnitFileState", "not-found" if not available else "unknown"),
+        "enabled_help": unit_file_state_help(values.get("UnitFileState", "not-found" if not available else "unknown"), name),
         "fragment_path": values.get("FragmentPath", ""),
         "drop_in_paths": values.get("DropInPaths", ""),
         "exec_start": values.get("ExecStart", ""),
@@ -213,10 +218,10 @@ def service_info(name: str) -> dict[str, str | bool]:
         "restart": values.get("Restart", ""),
         "protected": is_protected_service(name),
         "template_unit": is_template_unit(name),
-        "available": result.ok,
+        "available": available,
         "message": result.output,
-        "active_help": active_state_help(values.get("ActiveState", "unknown")),
-        "sub_help": sub_state_help(values.get("SubState", "unknown")),
+        "active_help": active_state_help(values.get("ActiveState", "not-found" if not available else "unknown")),
+        "sub_help": sub_state_help(values.get("SubState", "not-found" if not available else "unknown")),
         "info_title": catalog_info["title"],
         "info_summary": catalog_info["summary"],
         "info_links": catalog_info["links"],

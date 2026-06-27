@@ -637,6 +637,8 @@ def _service_action_states(app: Flask, info: dict[str, object]) -> dict[str, dic
 
 def _action_block_reason(app: Flask, info: dict[str, object], action: str) -> str:
     name = str(info.get("name") or "")
+    if not bool(info.get("available")):
+        return "This service was not found by systemd. Check the service name or return to the service list."
     if bool(info.get("protected")) and not app.config["ALLOW_PROTECTED"]:
         return "This service is protected. Actions are blocked by default to avoid losing access or breaking core system functions."
     if bool(info.get("template_unit")):

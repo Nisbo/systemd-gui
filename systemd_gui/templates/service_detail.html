@@ -44,7 +44,12 @@
         </dd>
       </div>
     </dl>
-    {% if info.template_unit %}
+    {% if not info.available %}
+      <div class="diagnostic error">
+        <strong>Service not found</strong>
+        <span>systemd did not find <code>{{ info.name }}</code>. Check the service name or go back to the service list.</span>
+      </div>
+    {% elif info.template_unit %}
       <div class="diagnostic warning">
         <strong>Template unit</strong>
         <span>This unit is a blueprint. Actions like start, stop, restart, enable and disable should be used on a concrete instance such as <code>{{ info.name.replace('@.service', '@example.service') }}</code>, not on the template itself.</span>

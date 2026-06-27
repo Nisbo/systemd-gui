@@ -122,9 +122,9 @@
   },
   "frp-gui.service": {
     "title": "FRP Gui",
-    "summary": "Runs the FRP Gui web interface. It helps manage FRP client configuration without manually editing files over SSH.",
+    "summary": "Runs the FRP Gui web interface project by Nisbo. It helps manage the local FRP client configuration without manually editing files over SSH.",
     "links": [
-      {"label": "FRP project", "url": "https://github.com/fatedier/frp"}
+      {"label": "FRP upstream project", "url": "https://github.com/fatedier/frp"}
     ]
   },
   "frpc.service": {
