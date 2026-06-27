@@ -13,11 +13,11 @@
           <td><a class="table-link" href="{{ url_for('service_detail', name=service.name) }}">{{ service.name }}</a>{% if service.protected %}<span class="tag danger">Protected</span>{% endif %}</td>
           <td>
             <div class="status-stack">
-              <span class="status-pill {{ service.active }}" title="{{ service.active|capitalize }}: systemd's high-level ActiveState for this service.">{{ service.active }}</span>
+              <span class="status-pill {{ service.active }}" title="{{ service.active_help }}" aria-label="{{ service.active_help }}">{{ service.active }}</span>
               {% if service.sub and service.sub != '-' %}
-                <span class="status-pill sub-state" title="{{ service.sub|capitalize }}: systemd's detailed SubState for this service.">{{ service.sub }}</span>
+                <span class="status-pill sub-state" title="{{ service.sub_help }}" aria-label="{{ service.sub_help }}">{{ service.sub }}</span>
               {% else %}
-                <span class="status-pill sub-state muted" title="No detailed SubState is available.">No detail</span>
+                <span class="status-pill sub-state muted" title="{{ service.sub_help }}" aria-label="{{ service.sub_help }}">No detail</span>
               {% endif %}
             </div>
           </td>

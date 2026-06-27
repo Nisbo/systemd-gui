@@ -16,7 +16,19 @@
 
     <form class="search-row" method="get" action="{{ url_for('index') }}" data-live-search data-fragment-url="{{ url_for('services_fragment') }}">
       <input name="q" value="{{ query }}" placeholder="Search service name or description" autocomplete="off">
-      {% if query %}<a class="ghost-button" href="{{ url_for('index') }}">Clear</a>{% endif %}
+      <select name="state" aria-label="Filter by status">
+        <option value="">All states</option>
+        {% for state in filter_options.states %}
+          <option value="{{ state }}" {% if state_filter == state %}selected{% endif %}>{{ state }}</option>
+        {% endfor %}
+      </select>
+      <select name="sub" aria-label="Filter by detail state">
+        <option value="">All details</option>
+        {% for sub in filter_options.subs %}
+          <option value="{{ sub }}" {% if sub_filter == sub %}selected{% endif %}>{{ sub }}</option>
+        {% endfor %}
+      </select>
+      {% if query or state_filter or sub_filter %}<a class="ghost-button" href="{{ url_for('index') }}">Clear</a>{% endif %}
     </form>
 
     {% include "_services_table.html" %}

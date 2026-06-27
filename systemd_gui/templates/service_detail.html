@@ -18,7 +18,19 @@
       </form>
     </div>
     <dl class="detail-grid">
-      <div><dt>Status</dt><dd>{{ info.active }} / {{ info.sub }}</dd></div>
+      <div>
+        <dt>Status</dt>
+        <dd>
+          <span class="status-stack">
+            <span class="status-pill {{ info.active }}" title="{{ info.active_help }}" aria-label="{{ info.active_help }}">{{ info.active }}</span>
+            {% if info.sub and info.sub != '-' %}
+              <span class="status-pill sub-state" title="{{ info.sub_help }}" aria-label="{{ info.sub_help }}">{{ info.sub }}</span>
+            {% else %}
+              <span class="status-pill sub-state muted" title="{{ info.sub_help }}" aria-label="{{ info.sub_help }}">No detail</span>
+            {% endif %}
+          </span>
+        </dd>
+      </div>
       <div><dt>Autostart</dt><dd>{{ info.enabled }}</dd></div>
       <div><dt>Unit file</dt><dd>{{ info.fragment_path or 'Unknown' }}</dd></div>
       <div><dt>Protected</dt><dd>{{ 'Yes' if info.protected else 'No' }}</dd></div>

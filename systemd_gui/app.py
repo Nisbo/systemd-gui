@@ -119,22 +119,40 @@ def create_app() -> Flask:
     @app.get("/")
     def index():
         query = request.args.get("q", "").strip()
+        state_filter = request.args.get("state", "").strip()
+        sub_filter = request.args.get("sub", "").strip()
         favorites = read_favorites(_favorites_path(app))
-        services = list_services(query, favorites)
+        all_services = list_services(query, favorites)
+        filter_options = _service_filter_options(all_services)
+        services = list_services(query, favorites, state_filter, sub_filter)
         stats = _service_stats(services)
         return render_template(
             "index.html",
             services=services,
             query=query,
+            state_filter=state_filter,
+            sub_filter=sub_filter,
+            filter_options=filter_options,
             **stats,
         )
 
     @app.get("/services/fragment")
     def services_fragment():
         query = request.args.get("q", "").strip()
+        state_filter = request.args.get("state", "").strip()
+        sub_filter = request.args.get("sub", "").strip()
         favorites = read_favorites(_favorites_path(app))
-        services = list_services(query, favorites)
-        return render_template("_services_fragment.html", services=services, **_service_stats(services))
+        all_services = list_services(query, favorites)
+        filter_options = _service_filter_options(all_services)
+        services = list_services(query, favorites, state_filter, sub_filter)
+        return render_template(
+            "_services_fragment.html",
+            services=services,
+            state_filter=state_filter,
+            sub_filter=sub_filter,
+            filter_options=filter_options,
+            **_service_stats(services),
+        )
 
     @app.get("/settings")
     def settings():
@@ -410,6 +428,13 @@ def _service_stats(services: list[dict[str, str | bool]]) -> dict[str, int]:
         "active_count": sum(1 for item in services if item["active"] == "active"),
         "failed_count": sum(1 for item in services if item["active"] == "failed"),
         "protected_count": sum(1 for item in services if item["protected"]),
+    }
+
+
+def _service_filter_options(services: list[dict[str, str | bool]]) -> dict[str, list[str]]:
+    return {
+        "states": sorted({str(item["active"]) for item in services if item.get("active")}),
+        "subs": sorted({str(item["sub"]) for item in services if item.get("sub") and item["sub"] != "-"}),
     }
 
 

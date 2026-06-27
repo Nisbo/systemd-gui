@@ -47,14 +47,19 @@
       if (nextStats) document.querySelector("[data-services-stats]")?.replaceWith(nextStats);
       if (nextTable) document.querySelector("[data-services-table]")?.replaceWith(nextTable);
       const pageUrl = new URL(window.location.href);
-      const query = input.value.trim();
-      if (query) pageUrl.searchParams.set("q", query);
-      else pageUrl.searchParams.delete("q");
+      for (const [key, value] of params.entries()) {
+        const clean = value.trim();
+        if (clean) pageUrl.searchParams.set(key, clean);
+        else pageUrl.searchParams.delete(key);
+      }
       window.history.replaceState({}, "", pageUrl);
     };
     input.addEventListener("input", () => {
       window.clearTimeout(timer);
       timer = window.setTimeout(runSearch, 350);
+    });
+    form.querySelectorAll("select").forEach((select) => {
+      select.addEventListener("change", runSearch);
     });
   });
 

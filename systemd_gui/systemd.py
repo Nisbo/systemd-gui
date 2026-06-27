@@ -23,6 +23,33 @@ PROTECTED_EXACT = {
 }
 PROTECTED_PREFIXES = ("systemd-",)
 VALID_SERVICE_RE = re.compile(r"^[A-Za-z0-9_.@:-]+\.service$")
+ACTIVE_STATE_HELP = {
+    "active": "The unit is currently started. For services this can mean it is still running, or it successfully finished and remains active.",
+    "inactive": "The unit is currently stopped. Nothing is running for this service right now.",
+    "failed": "The unit tried to start or run but ended with an error. Open Logs to see why.",
+    "activating": "The unit is currently starting or reloading.",
+    "deactivating": "The unit is currently stopping.",
+    "reloading": "The unit is active and systemd is reloading its configuration.",
+    "unknown": "systemd did not report a clear active state for this service.",
+}
+SUB_STATE_HELP = {
+    "running": "The service process is currently running.",
+    "exited": "The start command finished successfully. This is normal for one-shot services that do their work and exit.",
+    "dead": "No service process is running.",
+    "failed": "The service stopped because of an error.",
+    "auto-restart": "systemd is waiting to restart the service automatically.",
+    "start": "systemd is currently starting the service.",
+    "start-pre": "A pre-start command is running.",
+    "start-post": "A post-start command is running.",
+    "stop": "systemd is currently stopping the service.",
+    "stop-sigterm": "systemd sent SIGTERM and is waiting for the service to stop.",
+    "stop-sigkill": "systemd sent SIGKILL because the service did not stop in time.",
+    "stop-post": "A post-stop command is running.",
+    "reload": "systemd is currently reloading the service.",
+    "listening": "The service is waiting for incoming socket activity.",
+    "mounted": "The unit is mounted. This is unusual in the service-only view.",
+    "unknown": "systemd did not report a clear detailed state.",
+}
 
 
 @dataclass
@@ -80,7 +107,7 @@ def run_journalctl(service: str, lines: int = 200) -> CommandResult:
     return CommandResult(result.returncode == 0, output, result.returncode)
 
 
-def list_services(query: str = "", favorites: set[str] | None = None) -> list[dict[str, str | bool]]:
+def list_services(query: str = "", favorites: set[str] | None = None, state_filter: str = "", sub_filter: str = "") -> list[dict[str, str | bool]]:
     favorites = favorites or set()
     units = _active_units()
     files = _unit_files()
@@ -93,19 +120,39 @@ def list_services(query: str = "", favorites: set[str] | None = None) -> list[di
     for name in names:
         unit = units.get(name, {})
         file_state = files.get(name, {})
+        active = unit.get("active", "inactive")
+        sub = unit.get("sub", "-")
+        if state_filter and active != state_filter:
+            continue
+        if sub_filter and sub != sub_filter:
+            continue
         services.append({
             "name": name,
             "load": unit.get("load", "-"),
-            "active": unit.get("active", "inactive"),
-            "sub": unit.get("sub", "-"),
+            "active": active,
+            "sub": sub,
             "description": unit.get("description", ""),
             "enabled": file_state.get("state", "unknown"),
             "preset": file_state.get("preset", ""),
             "favorite": name in favorites,
             "protected": is_protected_service(name),
+            "active_help": active_state_help(active),
+            "sub_help": sub_state_help(sub),
         })
     services.sort(key=lambda item: (not item["favorite"], str(item["name"]).lower()))
     return services
+
+
+def active_state_help(state: str) -> str:
+    if not state:
+        return "No ActiveState was reported for this service."
+    return f"{state}: {ACTIVE_STATE_HELP.get(state, 'systemd reported this high-level ActiveState.')}"
+
+
+def sub_state_help(state: str) -> str:
+    if not state or state == "-":
+        return "No detailed SubState is available for this service."
+    return f"{state}: {SUB_STATE_HELP.get(state, 'systemd reported this detailed SubState.')}"
 
 
 def service_info(name: str) -> dict[str, str | bool]:
@@ -133,6 +180,8 @@ def service_info(name: str) -> dict[str, str | bool]:
         "protected": is_protected_service(name),
         "available": result.ok,
         "message": result.output,
+        "active_help": active_state_help(values.get("ActiveState", "unknown")),
+        "sub_help": sub_state_help(values.get("SubState", "unknown")),
     }
 
 
