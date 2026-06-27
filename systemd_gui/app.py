@@ -44,6 +44,16 @@ from .version import APP_NAME, APP_VERSION, REPO_URL
 SERVICE_ACTIONS = {"start", "stop", "restart", "reload", "enable", "disable"}
 RUNTIME_ACTIONS = {"start", "stop", "restart", "reload"}
 AUTOSTART_ACTIONS = {"enable", "disable"}
+ACTION_HELP = {
+    "start": "Start this service now. This runs systemctl start and does not enable autostart.",
+    "stop": "Stop this service now. It can be started again manually or by another dependency.",
+    "restart": "Stop and start this service again. Useful after configuration changes.",
+    "reload": "Ask the service to reload its configuration without a full restart, if the service supports it.",
+    "enable": "Enable autostart so systemd starts this service automatically during boot.",
+    "disable": "Disable autostart. This does not stop the currently running service.",
+}
+NO_AUTOSTART_STATES = {"static", "alias", "unknown", "generated", "transient"}
+BLOCKED_UNIT_FILE_STATES = {"bad", "masked"}
 
 
 def create_app() -> Flask:
@@ -306,6 +316,7 @@ def create_app() -> Flask:
         logs = run_journalctl(name, log_lines)
         editable = _editable(name)
         backups = list_unit_backups(name, _backup_dir(app))
+        action_states = _service_action_states(app, info)
         return render_template(
             "service_detail.html",
             active_tab=active_tab,
@@ -317,6 +328,7 @@ def create_app() -> Flask:
             logs=logs,
             editable=editable,
             backups=backups,
+            action_states=action_states,
         )
 
     @app.get("/service/<name>/logs/fragment")
@@ -349,6 +361,11 @@ def create_app() -> Flask:
         if _blocked_protected(app, name):
             return redirect(url_for("service_detail", name=name))
         if _blocked_template(name):
+            return redirect(url_for("service_detail", name=name))
+        info = service_info(name)
+        blocked_reason = _action_block_reason(app, info, action)
+        if blocked_reason:
+            flash(blocked_reason, "error")
             return redirect(url_for("service_detail", name=name))
 
         if action in RUNTIME_ACTIONS:
@@ -606,6 +623,32 @@ def _blocked_template(name: str) -> bool:
         flash("Template units are blueprints. Open a concrete instance before running service actions.", "error")
         return True
     return False
+
+
+def _service_action_states(app: Flask, info: dict[str, object]) -> dict[str, dict[str, object]]:
+    return {
+        action: {
+            "disabled": bool(_action_block_reason(app, info, action)),
+            "help": _action_block_reason(app, info, action) or ACTION_HELP[action],
+        }
+        for action in ["start", "stop", "restart", "reload", "enable", "disable"]
+    }
+
+
+def _action_block_reason(app: Flask, info: dict[str, object], action: str) -> str:
+    name = str(info.get("name") or "")
+    if bool(info.get("protected")) and not app.config["ALLOW_PROTECTED"]:
+        return "This service is protected. Actions are blocked by default to avoid losing access or breaking core system functions."
+    if bool(info.get("template_unit")):
+        return "Template units are blueprints. Use a concrete instance before running this action."
+    unit_file_state = str(info.get("enabled") or "unknown")
+    if unit_file_state in BLOCKED_UNIT_FILE_STATES:
+        return f"{unit_file_state}: this unit-file state is blocked from actions in Systemd Gui."
+    if action in AUTOSTART_ACTIONS and unit_file_state in NO_AUTOSTART_STATES:
+        return f"{unit_file_state}: this unit cannot be enabled or disabled directly. It may still be startable manually or by another unit."
+    if name.endswith("@.service"):
+        return "Template units are blueprints. Use a concrete instance before running this action."
+    return ""
 
 
 def _editable(name: str) -> bool:
