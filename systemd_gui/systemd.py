@@ -268,6 +268,25 @@ def read_unit_backup(name: str, backup_name: str, backup_dir: Path) -> tuple[Pat
     return backup_path, backup_path.read_text(encoding="utf-8")
 
 
+def delete_unit_backup(name: str, backup_name: str, backup_dir: Path) -> Path:
+    backup_path, _content = read_unit_backup(name, backup_name, backup_dir)
+    backup_path.unlink()
+    return backup_path
+
+
+def restore_unit_backup(name: str, backup_name: str, backup_dir: Path, backup_current: bool = True) -> Path | None:
+    _backup_path, backup_content = read_unit_backup(name, backup_name, backup_dir)
+    unit_path = editable_unit_path(name)
+    current_backup_path = None
+    if backup_current:
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        current_backup_path = backup_dir / f"{name}.pre-restore.{stamp}.bak"
+        current_backup_path.write_text(unit_path.read_text(encoding="utf-8"), encoding="utf-8")
+    unit_path.write_text(backup_content.rstrip() + "\n", encoding="utf-8")
+    return current_backup_path
+
+
 def read_favorites(path: Path) -> set[str]:
     if not path.exists():
         return set()

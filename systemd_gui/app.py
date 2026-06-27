@@ -12,6 +12,7 @@ from flask import Flask, flash, redirect, render_template, request, session, url
 
 from .systemd import (
     create_unit_backup,
+    delete_unit_backup,
     is_protected_service,
     journalctl_available,
     list_unit_backups,
@@ -19,6 +20,7 @@ from .systemd import (
     read_editable_unit,
     read_favorites,
     read_unit_backup,
+    restore_unit_backup,
     run_journalctl,
     run_systemctl,
     service_info,
@@ -408,7 +410,43 @@ def create_app() -> Flask:
         except (OSError, ValueError) as exc:
             flash(str(exc), "error")
             return redirect(url_for("service_detail", name=name))
-        return render_template("service_backup.html", name=name, backup_name=backup_name, path=path, content=content)
+        return render_template(
+            "service_backup.html",
+            name=name,
+            backup_name=backup_name,
+            path=path,
+            content=content,
+            editable=_editable(name),
+            restored=request.args.get("restored") == "1",
+        )
+
+    @app.post("/service/<name>/backup/<backup_name>/restore")
+    def restore_service_backup(name: str, backup_name: str):
+        if not _valid_or_flash(name):
+            return redirect(url_for("index"))
+        if _blocked_protected(app, name):
+            return redirect(url_for("service_backup", name=name, backup_name=backup_name))
+        backup_current = request.form.get("backup_current") == "1"
+        try:
+            current_backup = restore_unit_backup(name, backup_name, _backup_dir(app), backup_current)
+        except (OSError, ValueError) as exc:
+            flash(f"Backup could not be restored: {exc}", "error")
+            return redirect(url_for("service_backup", name=name, backup_name=backup_name))
+        note = f" Current unit was backed up first: {current_backup}." if current_backup else ""
+        flash(f"Backup restored.{note} Run daemon-reload and restart the service when you are ready.", "success")
+        return redirect(url_for("service_backup", name=name, backup_name=backup_name, restored="1"))
+
+    @app.post("/service/<name>/backup/<backup_name>/delete")
+    def delete_service_backup(name: str, backup_name: str):
+        if not _valid_or_flash(name):
+            return redirect(url_for("index"))
+        try:
+            deleted_path = delete_unit_backup(name, backup_name, _backup_dir(app))
+        except (OSError, ValueError) as exc:
+            flash(f"Backup could not be deleted: {exc}", "error")
+            return redirect(url_for("service_backup", name=name, backup_name=backup_name))
+        flash(f"Backup deleted: {deleted_path}.", "success")
+        return redirect(url_for("service_detail", name=name, tab="backups"))
 
     @app.post("/daemon-reload")
     def daemon_reload():

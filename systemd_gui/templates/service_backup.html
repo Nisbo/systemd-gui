@@ -9,13 +9,43 @@
       <a class="ghost-button" href="{{ url_for('service_detail', name=name) }}">Back to service</a>
     </div>
     <div class="diagnostic warning">
-      <strong>Read-only backup</strong>
-      <span>This is the copy that existed before a previous save. Review it carefully before manually reusing any content.</span>
+      <strong>Stored backup</strong>
+      <span>This backup is a stored copy of unit content. Review it carefully before restoring it, especially if it came from a manual backup.</span>
     </div>
+    {% if restored %}
+      <div class="diagnostic warning">
+        <strong>Reload required</strong>
+        <span>The unit file was restored. Run daemon-reload so systemd reads the file again, then restart the service if you want the restored configuration to take effect.</span>
+      </div>
+      <div class="action-bar">
+        <form method="post" action="{{ url_for('daemon_reload') }}" data-confirm="Run systemctl daemon-reload now?">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="primary-button" type="submit">Daemon reload</button>
+        </form>
+        <form method="post" action="{{ url_for('service_action', name=name, action='restart') }}" data-confirm="Restart {{ name }} now?">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="ghost-button" type="submit">Restart service</button>
+        </form>
+      </div>
+    {% endif %}
     <dl class="detail-grid two">
       <div><dt>Service</dt><dd>{{ name }}</dd></div>
       <div><dt>Backup file</dt><dd>{{ backup_name }}</dd></div>
     </dl>
+    <div class="action-bar">
+      <form class="inline-form" method="post" action="{{ url_for('restore_service_backup', name=name, backup_name=backup_name) }}" data-confirm="Restore this backup for {{ name }}? You can choose whether the current unit file should be backed up first.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label class="toggle-label" title="Create another backup from the currently installed editable unit file before restoring this backup.">
+          <input name="backup_current" type="checkbox" value="1" checked>
+          Back up current unit first
+        </label>
+        <button class="primary-button" type="submit" {% if not editable %}disabled title="Only unit files below /etc/systemd/system can be restored directly. Vendor units should be changed with drop-ins."{% else %}title="Restore this backup into the editable unit file."{% endif %}>Restore backup</button>
+      </form>
+      <form method="post" action="{{ url_for('delete_service_backup', name=name, backup_name=backup_name) }}" data-confirm="Delete this backup file permanently?">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="danger-button" type="submit" title="Delete this stored backup file. This does not change the running service.">Delete backup</button>
+      </form>
+    </div>
   </section>
 
   <section class="panel">
