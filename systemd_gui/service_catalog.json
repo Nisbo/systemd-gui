@@ -1,0 +1,73 @@
+{
+  "apache2.service": {
+    "title": "Apache HTTP Server",
+    "summary": "Runs the Apache web server. It usually serves websites or reverse-proxies web applications on this machine.",
+    "links": [
+      {"label": "Apache documentation", "url": "https://httpd.apache.org/docs/"}
+    ]
+  },
+  "cron.service": {
+    "title": "Cron scheduler",
+    "summary": "Runs scheduled jobs from crontab files. It is commonly used for recurring maintenance scripts and background tasks.",
+    "links": [
+      {"label": "Debian cron manual", "url": "https://manpages.debian.org/cron"}
+    ]
+  },
+  "docker.service": {
+    "title": "Docker Engine",
+    "summary": "Runs the Docker daemon. Containers, images and Docker networks depend on this service.",
+    "links": [
+      {"label": "Docker documentation", "url": "https://docs.docker.com/engine/"}
+    ]
+  },
+  "mariadb.service": {
+    "title": "MariaDB database server",
+    "summary": "Runs the MariaDB database server. Websites and applications may use it to store persistent data.",
+    "links": [
+      {"label": "MariaDB documentation", "url": "https://mariadb.com/kb/en/documentation/"}
+    ]
+  },
+  "mysql.service": {
+    "title": "MySQL database server",
+    "summary": "Runs the MySQL database server. Websites and applications may use it to store persistent data.",
+    "links": [
+      {"label": "MySQL documentation", "url": "https://dev.mysql.com/doc/"}
+    ]
+  },
+  "nginx.service": {
+    "title": "nginx web server",
+    "summary": "Runs nginx. It is commonly used as a web server, reverse proxy, TLS endpoint or gateway in front of apps such as Gunicorn services.",
+    "links": [
+      {"label": "nginx documentation", "url": "https://nginx.org/en/docs/"},
+      {"label": "nginx source", "url": "https://github.com/nginx/nginx"}
+    ]
+  },
+  "postgresql.service": {
+    "title": "PostgreSQL database server",
+    "summary": "Runs PostgreSQL database clusters on Debian-style systems. Applications may depend on it for persistent data.",
+    "links": [
+      {"label": "PostgreSQL documentation", "url": "https://www.postgresql.org/docs/"}
+    ]
+  },
+  "ssh.service": {
+    "title": "OpenSSH server",
+    "summary": "Runs the SSH server. It allows remote terminal logins and file transfers. Stopping it can disconnect administrators.",
+    "links": [
+      {"label": "OpenSSH manual", "url": "https://man.openbsd.org/sshd"}
+    ]
+  },
+  "sshd.service": {
+    "title": "OpenSSH server",
+    "summary": "Runs the SSH server. It allows remote terminal logins and file transfers. Stopping it can disconnect administrators.",
+    "links": [
+      {"label": "OpenSSH manual", "url": "https://man.openbsd.org/sshd"}
+    ]
+  },
+  "systemd-gui.service": {
+    "title": "Systemd Gui",
+    "summary": "Runs this web interface through Gunicorn. Restart it after application updates so the new Python code is loaded.",
+    "links": [
+      {"label": "Project repository", "url": "https://github.com/Nisbo/systemd-gui"}
+    ]
+  }
+}

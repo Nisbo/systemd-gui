@@ -32,6 +32,38 @@
   submit?.addEventListener("click", () => { if (!pending) return; pending.dataset.confirmed = "true"; pending.requestSubmit(); });
   document.addEventListener("keydown", (event) => { if (event.key === "Escape" && modal && !modal.hidden) close(); });
 
+  const infoModal = document.querySelector("[data-info-modal]");
+  const infoTitle = document.querySelector("[data-info-modal-title]");
+  const infoSummary = document.querySelector("[data-info-modal-summary]");
+  const infoLinks = document.querySelector("[data-info-modal-links]");
+  const infoClose = document.querySelector("[data-info-close]");
+  const closeInfo = () => { if (infoModal) infoModal.hidden = true; };
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-service-info]");
+    if (!button || !infoModal) return;
+    if (infoTitle) infoTitle.textContent = button.dataset.infoTitle || "Service info";
+    if (infoSummary) infoSummary.textContent = button.dataset.infoSummary || "No additional information is available yet.";
+    if (infoLinks) {
+      infoLinks.innerHTML = "";
+      try {
+        JSON.parse(button.dataset.infoLinks || "[]").forEach((link) => {
+          if (!link.label || !link.url) return;
+          const anchor = document.createElement("a");
+          anchor.className = "ghost-button";
+          anchor.href = link.url;
+          anchor.target = "_blank";
+          anchor.rel = "noopener noreferrer";
+          anchor.textContent = link.label;
+          infoLinks.appendChild(anchor);
+        });
+      } catch (_error) {}
+    }
+    infoModal.hidden = false;
+  });
+  infoClose?.addEventListener("click", closeInfo);
+  infoModal?.addEventListener("click", (event) => { if (event.target === infoModal) closeInfo(); });
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape" && infoModal && !infoModal.hidden) closeInfo(); });
+
   document.querySelectorAll("form[data-live-search]").forEach((form) => {
     const input = form.querySelector("input[name='q']");
     if (!input) return;

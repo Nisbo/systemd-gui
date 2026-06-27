@@ -32,6 +32,7 @@
             <span class="table-actions">
               <a class="ghost-button" href="{{ url_for('service_detail', name=service.name) }}" title="Open the service detail page.">Details</a>
               <a class="ghost-button icon-button" href="{{ url_for('service_detail', name=service.name, tab='logs') }}" title="Open logs for this service." aria-label="Open logs for {{ service.name }}"><span aria-hidden="true">≡</span></a>
+              <button class="ghost-button icon-button" type="button" title="Show a short beginner explanation for this service." aria-label="Show info for {{ service.name }}" data-service-info data-info-title="{{ service.info_title }}" data-info-summary="{{ service.info_summary }}" data-info-links="{{ service.info_links|tojson|forceescape }}"><span aria-hidden="true">i</span></button>
             </span>
           </td>
         </tr>

@@ -6,6 +6,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 
 PROTECTED_EXACT = {
@@ -23,6 +24,7 @@ PROTECTED_EXACT = {
 }
 PROTECTED_PREFIXES = ("systemd-",)
 VALID_SERVICE_RE = re.compile(r"^[A-Za-z0-9_.@:-]+\.service$")
+SERVICE_CATALOG_PATH = Path(__file__).with_name("service_catalog.json")
 ACTIVE_STATE_HELP = {
     "active": "The unit is currently started. For services this can mean it is still running, or it successfully finished and remains active.",
     "inactive": "The unit is currently stopped. Nothing is running for this service right now.",
@@ -126,6 +128,7 @@ def list_services(query: str = "", favorites: set[str] | None = None, state_filt
             continue
         if sub_filter and sub != sub_filter:
             continue
+        info = service_catalog_info(name, unit.get("description", ""))
         services.append({
             "name": name,
             "load": unit.get("load", "-"),
@@ -138,6 +141,9 @@ def list_services(query: str = "", favorites: set[str] | None = None, state_filt
             "protected": is_protected_service(name),
             "active_help": active_state_help(active),
             "sub_help": sub_state_help(sub),
+            "info_title": info["title"],
+            "info_summary": info["summary"],
+            "info_links": info["links"],
         })
     services.sort(key=lambda item: (not item["favorite"], str(item["name"]).lower()))
     return services
@@ -165,6 +171,7 @@ def service_info(name: str) -> dict[str, str | bool]:
         "--no-pager",
     ])
     values = _parse_properties(result.output if result.ok else "")
+    catalog_info = service_catalog_info(name, values.get("Description", ""))
     return {
         "name": name,
         "description": values.get("Description", ""),
@@ -182,7 +189,41 @@ def service_info(name: str) -> dict[str, str | bool]:
         "message": result.output,
         "active_help": active_state_help(values.get("ActiveState", "unknown")),
         "sub_help": sub_state_help(values.get("SubState", "unknown")),
+        "info_title": catalog_info["title"],
+        "info_summary": catalog_info["summary"],
+        "info_links": catalog_info["links"],
     }
+
+
+def service_catalog_info(name: str, description: str = "") -> dict[str, object]:
+    catalog = _service_catalog()
+    entry = catalog.get(name)
+    if not entry and "@" in name:
+        template_name = f"{name.split('@', 1)[0]}@.service"
+        entry = catalog.get(template_name)
+    if not entry:
+        readable = description or "systemd did not provide a description for this service."
+        return {
+            "title": name,
+            "summary": f"No curated explanation is available yet. systemd describes this service as: {readable}",
+            "links": [],
+        }
+    return {
+        "title": str(entry.get("title") or name),
+        "summary": str(entry.get("summary") or description or "No summary is available."),
+        "links": [link for link in entry.get("links", []) if isinstance(link, dict)],
+    }
+
+
+@lru_cache(maxsize=1)
+def _service_catalog() -> dict[str, dict[str, object]]:
+    try:
+        data = json.loads(SERVICE_CATALOG_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return {str(key): value for key, value in data.items() if isinstance(value, dict)}
 
 
 def unit_content(name: str) -> str:

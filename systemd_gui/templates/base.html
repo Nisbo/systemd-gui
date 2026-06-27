@@ -73,6 +73,17 @@
         </div>
       </div>
 
+      <div class="confirm-modal" data-info-modal hidden>
+        <div class="confirm-dialog info-dialog" role="dialog" aria-modal="true" aria-labelledby="info-title">
+          <strong id="info-title" data-info-modal-title>Service info</strong>
+          <p data-info-modal-summary></p>
+          <div class="info-links" data-info-modal-links></div>
+          <div class="confirm-actions">
+            <button class="primary-button" type="button" data-info-close>Close</button>
+          </div>
+        </div>
+      </div>
+
       {% block content %}{% endblock %}
 
       <footer class="app-footer">
