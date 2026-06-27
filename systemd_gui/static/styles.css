@@ -61,7 +61,16 @@ input,textarea { width:100%; border:1px solid var(--line); border-radius:6px; ba
 .update-result.ok { border-color:color-mix(in srgb, var(--accent) 42%, var(--line)); }
 .update-result.error { border-color:color-mix(in srgb, var(--danger) 42%, var(--line)); }
 .update-output { max-height:280px; font-size:.88rem; }
+.update-version-bar { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)) auto; gap:12px; align-items:end; border:1px solid var(--line); border-radius:8px; padding:14px; }
+.update-version-bar span,.update-section-title span { color:var(--muted); font-size:.84rem; font-weight:750; }
+.update-version-bar div,.update-section-title,.release-note { display:grid; gap:5px; }
+.update-section-title { margin-top:18px; }
+.release-notes { display:grid; gap:10px; margin-top:14px; }
+.release-note { border:1px solid var(--line); border-radius:8px; padding:14px; }
+.release-note-head { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.release-note-body { color:var(--muted); }
+.release-note-body pre { white-space:pre-wrap; margin:0; }
 .diagnostic { display:grid; gap:4px; border:2px solid color-mix(in srgb, var(--amber) 78%, var(--line)); border-left-width:7px; border-radius:8px; padding:12px 14px; margin-bottom:16px; } .diagnostic.error { border-color:color-mix(in srgb, var(--danger) 72%, var(--line)); } .diagnostic span { color:var(--muted); }
 .confirm-modal { position:fixed; inset:0; display:grid; place-items:center; background:rgba(0,0,0,.38); z-index:20; } .confirm-modal[hidden] { display:none; } .confirm-dialog { width:min(460px, calc(100% - 32px)); background:var(--panel); border:1px solid var(--line); border-radius:8px; box-shadow:var(--shadow); padding:18px; } .confirm-dialog p { color:var(--muted); margin-top:8px; } .confirm-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
 .app-footer { display:flex; justify-content:center; gap:10px; color:var(--muted); font-size:.88rem; margin-top:28px; }
-@media (max-width: 760px) { .topbar,.panel-head,.search-row { align-items:stretch; flex-direction:column; } .operations-grid,.detail-grid,.detail-grid.two,.detail-grid.three,.form-grid { grid-template-columns:1fr; } .top-actions,.action-bar { justify-content:flex-start; } }
+@media (max-width: 760px) { .topbar,.panel-head,.search-row { align-items:stretch; flex-direction:column; } .operations-grid,.detail-grid,.detail-grid.two,.detail-grid.three,.form-grid,.update-version-bar { grid-template-columns:1fr; } .top-actions,.action-bar { justify-content:flex-start; } }

@@ -94,8 +94,114 @@
       <div class="panel-head">
         <div>
           <h2>Updates</h2>
-          <p>Use git updates only when this installation was cloned from the official repository.</p>
+          <p>Use official GitHub releases for normal systems. Git updates are available as an advanced development option.</p>
         </div>
+      </div>
+
+      <div class="update-version-bar">
+        <div>
+          <span>Installed</span>
+          <strong>{{ app_version }}</strong>
+        </div>
+        <div>
+          <span>Latest official release</span>
+          <strong>
+            {% if update_status %}
+              {% if update_status.no_releases %}No releases yet{% else %}{{ update_status.latest_version or "Unknown" }}{% endif %}
+            {% else %}
+              Not checked
+            {% endif %}
+          </strong>
+        </div>
+        <div>
+          <span>Status</span>
+          <strong>
+            {% if update_status %}
+              {% if update_status.error %}
+                Check failed
+              {% elif update_status.no_releases %}
+                No release published
+              {% elif update_status.update_available %}
+                Update available
+              {% else %}
+                Up to date
+              {% endif %}
+            {% else %}
+              Not checked
+            {% endif %}
+          </strong>
+        </div>
+        <form method="post" action="{% if app_update_pending_restart %}{{ url_for('restart_app') }}{% elif update_status and update_status.update_available %}{{ url_for('apply_release_update') }}{% else %}{{ url_for('check_update') }}{% endif %}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          {% if app_update_pending_restart %}
+            <button class="primary-button" type="submit">Restart app</button>
+          {% elif update_status and update_status.update_available %}
+            <button class="primary-button" type="submit">Install update</button>
+          {% else %}
+            <button class="primary-button" type="submit">Check releases</button>
+          {% endif %}
+        </form>
+      </div>
+
+      {% if update_status and update_status.error %}
+        <div class="update-card">
+          <strong>Update check error</strong>
+          <span>{{ update_status.error }}</span>
+        </div>
+      {% elif update_status and update_status.no_releases %}
+        <div class="update-card">
+          <strong>No GitHub release yet</strong>
+          <span>Create a release tag such as <code>0.1.0</code> when you want the release check to compare versions.</span>
+        </div>
+      {% elif update_status and update_status.update_available and update_status.release_url %}
+        <div class="update-card">
+          <strong>New release available</strong>
+          <span><a class="table-link" href="{{ update_status.release_url }}" target="_blank" rel="noopener noreferrer">Open release page</a></span>
+        </div>
+      {% endif %}
+
+      {% if update_status and update_status.release_notes %}
+        <div class="release-notes">
+          <div class="update-section-title">
+            <strong>Release notes</strong>
+            <span>Changes from official releases newer than your installed version.</span>
+          </div>
+          {% for release in update_status.release_notes %}
+            <article class="release-note">
+              <div class="release-note-head">
+                <strong>{{ release.title or release.version }}</strong>
+                {% if release.url %}
+                  <a class="table-link" href="{{ release.url }}" target="_blank" rel="noopener noreferrer">{{ release.version }}</a>
+                {% else %}
+                  <span>{{ release.version }}</span>
+                {% endif %}
+              </div>
+              {% if release.body_html %}
+                <div class="release-note-body">{{ release.body_html | safe }}</div>
+              {% else %}
+                <div class="release-note-body empty">No release notes provided.</div>
+              {% endif %}
+            </article>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div class="update-section-title">
+        <strong>Manual release ZIP</strong>
+        <span>Fallback for servers that cannot download directly from GitHub. Upload the official ZIP from a release page.</span>
+      </div>
+
+      <form class="update-card" method="post" action="{{ url_for('apply_zip_update') }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <strong>Upload release ZIP</strong>
+        <span>A backup is created before files are replaced. Restart the app after a successful ZIP update.</span>
+        <input name="update_zip" type="file" accept=".zip,application/zip" required>
+        <button class="primary-button" type="submit">Upload ZIP</button>
+      </form>
+
+      <div class="update-section-title">
+        <strong>Advanced developer update</strong>
+        <span>Use this only when you intentionally want the current git branch instead of an official release.</span>
       </div>
 
       <dl class="detail-grid three">
@@ -109,17 +215,20 @@
         <span>{{ git_state.message }}</span>
         <span>Remote: <code>{{ git_state.remote or 'Not configured' }}</code></span>
         {% if git_state.dirty %}
-          <span>Updates are blocked until local changes are committed, stashed or removed.</span>
+          <span>A backup is created first, but local app code changes can be overwritten by a git branch update.</span>
         {% endif %}
-        <form method="post" action="{{ url_for('apply_git_update') }}" data-confirm="Run git pull --ff-only for Systemd Gui?">
+        <form method="post" action="{{ url_for('apply_git_update') }}" data-confirm="Update from git branch? Systemd Gui will create an app backup, fetch origin, then reset local app files to the configured remote branch.">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button class="primary-button" type="submit" {% if not git_state.available or git_state.dirty or not git_state.remote %}disabled{% endif %}>Update from git</button>
+          <button class="ghost-button" type="submit" {% if not git_state.available or not git_state.remote %}disabled{% endif %}>Update from git</button>
         </form>
       </div>
 
       {% if update_result %}
         <div class="update-result {{ 'ok' if update_result.ok else 'error' }}">
           <strong>{{ update_result.message }}</strong>
+          {% if update_result.backup_path %}
+            <span>Backup: <code>{{ update_result.backup_path }}</code></span>
+          {% endif %}
           {% if update_result.details %}
             <pre class="config-preview update-output"><code>{{ update_result.details | join("\n\n") }}</code></pre>
           {% endif %}

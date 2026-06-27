@@ -27,7 +27,14 @@ from .systemd import (
     write_editable_unit,
     write_favorites,
 )
-from .updater import git_update_state, update_from_git
+from .updater import (
+    check_for_update,
+    git_update_state,
+    update_from_git,
+    update_from_release,
+    update_from_zip,
+    update_status_to_dict,
+)
 from .version import APP_NAME, APP_VERSION, REPO_URL
 
 SERVICE_ACTIONS = {"start", "stop", "restart", "reload", "enable", "disable"}
@@ -134,18 +141,75 @@ def create_app() -> Flask:
             password_enabled=bool(app.config["ADMIN_PASSWORD"]),
             systemd_gui_service=app.config["SYSTEMD_GUI_SERVICE"],
             git_state=git_update_state(_app_root(app)),
+            update_status=session.pop("update_status", None),
             update_result=session.pop("update_result", None),
             app_update_pending_restart=session.get("app_update_pending_restart", False),
         )
 
+    @app.post("/settings/check-update")
+    def check_update():
+        status = check_for_update()
+        session["update_status"] = update_status_to_dict(status)
+        if status.error:
+            flash("Update check failed. See details below.", "error")
+        elif status.no_releases:
+            flash("No GitHub releases have been published yet.", "warning")
+        elif status.update_available:
+            flash("A new version is available.", "success")
+        else:
+            flash("You are running the latest known version.", "success")
+        return redirect(url_for("settings", tab="updates"))
+
     @app.post("/settings/update/git")
     def apply_git_update():
         result = update_from_git(_app_root(app))
-        session["update_result"] = {
-            "ok": result.ok,
-            "message": result.message,
-            "details": result.details,
-        }
+        session["update_result"] = _update_result_dict(result)
+        if result.ok:
+            session["app_update_pending_restart"] = True
+        flash(result.message, "success" if result.ok else "error")
+        return redirect(url_for("settings", tab="updates"))
+
+    @app.post("/settings/update/release")
+    def apply_release_update():
+        status = check_for_update(timeout=15)
+        session["update_status"] = update_status_to_dict(status)
+        if status.error:
+            flash("Release update failed because the update check failed.", "error")
+            return redirect(url_for("settings", tab="updates"))
+        if status.no_releases:
+            flash("No GitHub releases have been published yet.", "warning")
+            return redirect(url_for("settings", tab="updates"))
+        if not status.update_available:
+            flash("No newer official release is available.", "success")
+            return redirect(url_for("settings", tab="updates"))
+        if not status.zipball_url or not status.latest_version:
+            flash("Latest release does not provide a downloadable ZIP archive.", "error")
+            return redirect(url_for("settings", tab="updates"))
+
+        result = update_from_release(_app_root(app), status.zipball_url, status.latest_version)
+        session["update_result"] = _update_result_dict(result)
+        if result.ok:
+            session["app_update_pending_restart"] = True
+            session["update_status"] = {
+                **update_status_to_dict(status),
+                "update_available": False,
+                "release_notes": [],
+            }
+        flash(result.message, "success" if result.ok else "error")
+        return redirect(url_for("settings", tab="updates"))
+
+    @app.post("/settings/update/zip")
+    def apply_zip_update():
+        upload = request.files.get("update_zip")
+        if not upload or not upload.filename:
+            flash("Choose a ZIP file before starting the update.", "error")
+            return redirect(url_for("settings", tab="updates"))
+        if not upload.filename.lower().endswith(".zip"):
+            flash("Only ZIP update files are supported.", "error")
+            return redirect(url_for("settings", tab="updates"))
+
+        result = update_from_zip(_app_root(app), upload.stream)
+        session["update_result"] = _update_result_dict(result)
         if result.ok:
             session["app_update_pending_restart"] = True
         flash(result.message, "success" if result.ok else "error")
@@ -310,6 +374,15 @@ def _backup_dir(app: Flask) -> Path:
 
 def _app_root(app: Flask) -> Path:
     return Path(app.root_path).parent
+
+
+def _update_result_dict(result) -> dict[str, object]:
+    return {
+        "ok": result.ok,
+        "message": result.message,
+        "details": result.details,
+        "backup_path": str(result.backup_path) if result.backup_path else "",
+    }
 
 
 def _sync_settings_from_env(app: Flask) -> None:
