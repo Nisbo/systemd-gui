@@ -6,12 +6,88 @@
       {"label": "Apache documentation", "url": "https://httpd.apache.org/docs/"}
     ]
   },
+  "apparmor.service": {
+    "title": "AppArmor profiles",
+    "summary": "Loads AppArmor security profiles. AppArmor can restrict what programs are allowed to access, even when those programs are running.",
+    "links": [
+      {"label": "AppArmor documentation", "url": "https://apparmor.net/"}
+    ]
+  },
+  "apt-daily.service": {
+    "title": "APT daily download task",
+    "summary": "Runs Debian or Ubuntu package maintenance tasks, mainly checking for and downloading package metadata in the background.",
+    "links": [
+      {"label": "APT manual", "url": "https://manpages.debian.org/apt"}
+    ]
+  },
+  "apt-daily-upgrade.service": {
+    "title": "APT daily upgrade task",
+    "summary": "Runs package upgrade and cleanup maintenance tasks in the background. It is usually triggered by a timer.",
+    "links": [
+      {"label": "APT manual", "url": "https://manpages.debian.org/apt"}
+    ]
+  },
+  "autovt@.service": {
+    "title": "Automatic virtual terminal login prompt",
+    "summary": "Starts login prompts on virtual terminals when they are needed. Instances are created for terminal devices such as tty1."
+  },
+  "console-getty.service": {
+    "title": "Console login prompt",
+    "summary": "Provides a login prompt on the main system console. It is mostly relevant for local or virtual machine console access."
+  },
+  "console-setup.service": {
+    "title": "Console font and keymap setup",
+    "summary": "Applies console font and keyboard settings during boot. It normally exits after setup is complete."
+  },
+  "container-getty@.service": {
+    "title": "Container login prompt",
+    "summary": "Provides a login prompt for container consoles. It is mainly used on systems that run systemd inside containers."
+  },
   "cron.service": {
     "title": "Cron scheduler",
     "summary": "Runs scheduled jobs from crontab files. It is commonly used for recurring maintenance scripts and background tasks.",
     "links": [
       {"label": "Debian cron manual", "url": "https://manpages.debian.org/cron"}
     ]
+  },
+  "cryptdisks.service": {
+    "title": "Encrypted disk setup",
+    "summary": "Legacy Debian service for opening encrypted disks during boot. On many modern systems this is replaced by systemd cryptsetup units."
+  },
+  "cryptdisks-early.service": {
+    "title": "Early encrypted disk setup",
+    "summary": "Legacy Debian service for opening encrypted disks early during boot, before normal filesystems and services start."
+  },
+  "dbus.service": {
+    "title": "D-Bus system bus",
+    "summary": "Runs the system message bus used by many desktop, system and management services to communicate with each other.",
+    "links": [
+      {"label": "D-Bus documentation", "url": "https://www.freedesktop.org/wiki/Software/dbus/"}
+    ]
+  },
+  "dbus-org.freedesktop.hostname1.service": {
+    "title": "Hostname service alias",
+    "summary": "Alias for the systemd service that handles hostname information over D-Bus."
+  },
+  "dbus-org.freedesktop.locale1.service": {
+    "title": "Locale service alias",
+    "summary": "Alias for the systemd service that handles locale and keyboard settings over D-Bus."
+  },
+  "dbus-org.freedesktop.login1.service": {
+    "title": "Login manager alias",
+    "summary": "Alias for systemd-logind, which manages logins, seats, sessions and power-related user actions."
+  },
+  "dbus-org.freedesktop.timedate1.service": {
+    "title": "Time and date service alias",
+    "summary": "Alias for the systemd service that handles time, date, timezone and NTP settings over D-Bus."
+  },
+  "dbus-org.freedesktop.timesync1.service": {
+    "title": "Time synchronization alias",
+    "summary": "Alias for systemd-timesyncd, the lightweight network time synchronization service."
+  },
+  "debug-shell.service": {
+    "title": "Debug root shell",
+    "summary": "Can start an emergency root shell on tty9 for debugging. It is normally disabled because it is sensitive."
   },
   "docker.service": {
     "title": "Docker Engine",
@@ -20,6 +96,112 @@
       {"label": "Docker documentation", "url": "https://docs.docker.com/engine/"}
     ]
   },
+  "dpkg-db-backup.service": {
+    "title": "dpkg database backup",
+    "summary": "Creates backups of the Debian package database. This helps recover package state if the database becomes damaged."
+  },
+  "e2scrub@.service": {
+    "title": "ext4 metadata scrub",
+    "summary": "Checks ext4 filesystem metadata for problems while the filesystem is online. Instances target specific filesystems."
+  },
+  "e2scrub_all.service": {
+    "title": "ext4 metadata scrub for all filesystems",
+    "summary": "Checks metadata for all eligible ext4 filesystems. It is usually started by a timer and exits when the check is complete."
+  },
+  "e2scrub_fail@.service": {
+    "title": "ext4 scrub failure handler",
+    "summary": "Handles failure reporting for an ext4 metadata scrub instance."
+  },
+  "e2scrub_reap.service": {
+    "title": "ext4 scrub snapshot cleanup",
+    "summary": "Removes stale temporary snapshots that were used for online ext4 metadata checks."
+  },
+  "emergency.service": {
+    "title": "Emergency shell",
+    "summary": "Starts a very minimal emergency shell for serious boot or system recovery situations."
+  },
+  "frp-gui.service": {
+    "title": "FRP Gui",
+    "summary": "Runs the FRP Gui web interface. It helps manage FRP client configuration without manually editing files over SSH.",
+    "links": [
+      {"label": "FRP project", "url": "https://github.com/fatedier/frp"}
+    ]
+  },
+  "frpc.service": {
+    "title": "FRP client",
+    "summary": "Runs frpc, the FRP client. It connects this machine to an FRP server and exposes configured local services through tunnels.",
+    "links": [
+      {"label": "FRP documentation", "url": "https://gofrp.org/"},
+      {"label": "FRP project", "url": "https://github.com/fatedier/frp"}
+    ]
+  },
+  "fstrim.service": {
+    "title": "Filesystem trim",
+    "summary": "Tells SSDs and thin-provisioned storage which blocks are unused. This can help storage performance and space reclamation."
+  },
+  "getty-static.service": {
+    "title": "Static login prompts",
+    "summary": "Starts fallback getty login prompts on tty2-tty6 when dbus and logind are not available."
+  },
+  "getty@.service": {
+    "title": "Terminal login prompt",
+    "summary": "Starts a login prompt on a text terminal such as tty1. This is what allows local console logins."
+  },
+  "hwclock.service": {
+    "title": "Hardware clock compatibility service",
+    "summary": "Legacy service related to reading or writing the hardware clock. It is often masked on modern systemd systems."
+  },
+  "ifup@.service": {
+    "title": "ifup network interface",
+    "summary": "Brings up a network interface using Debian ifupdown configuration from /etc/network/interfaces."
+  },
+  "ifupdown-pre.service": {
+    "title": "ifupdown boot synchronization",
+    "summary": "Helper service used by Debian ifupdown networking during boot, before normal network interface startup."
+  },
+  "ifupdown-wait-online.service": {
+    "title": "ifupdown wait online",
+    "summary": "Waits for ifupdown-managed network interfaces to become available before services that require the network start."
+  },
+  "initrd-cleanup.service": {
+    "title": "initrd cleanup",
+    "summary": "Cleans up services and state from the initial RAM disk after the system switches to the real root filesystem."
+  },
+  "initrd-parse-etc.service": {
+    "title": "initrd /etc parser",
+    "summary": "Reads configuration from the real root filesystem while the system is still booting in the initial RAM disk."
+  },
+  "initrd-switch-root.service": {
+    "title": "initrd switch root",
+    "summary": "Switches the system from the initial RAM disk to the real root filesystem during boot."
+  },
+  "initrd-udevadm-cleanup-db.service": {
+    "title": "initrd udev cleanup",
+    "summary": "Cleans temporary udev device database data after the system leaves the initial RAM disk."
+  },
+  "keyboard-setup.service": {
+    "title": "Keyboard layout setup",
+    "summary": "Applies the console keyboard layout during boot. It normally exits after setup is complete."
+  },
+  "kmod.service": {
+    "title": "Kernel module helper alias",
+    "summary": "Alias related to kernel module loading support."
+  },
+  "kmod-static-nodes.service": {
+    "title": "Static kernel device nodes",
+    "summary": "Creates the list of static device nodes requested by kernel modules."
+  },
+  "logrotate.service": {
+    "title": "Log rotation",
+    "summary": "Rotates and compresses log files so they do not grow forever. It is usually triggered by a timer.",
+    "links": [
+      {"label": "logrotate project", "url": "https://github.com/logrotate/logrotate"}
+    ]
+  },
+  "man-db.service": {
+    "title": "Manual page database",
+    "summary": "Updates the man-page index database used by the man command. It is usually triggered by a timer."
+  },
   "mariadb.service": {
     "title": "MariaDB database server",
     "summary": "Runs the MariaDB database server. Websites and applications may use it to store persistent data.",
@@ -27,11 +209,26 @@
       {"label": "MariaDB documentation", "url": "https://mariadb.com/kb/en/documentation/"}
     ]
   },
+  "modprobe@.service": {
+    "title": "Kernel module loader",
+    "summary": "Loads a specific Linux kernel module. Instances such as modprobe@fuse.service load one module and then exit."
+  },
   "mysql.service": {
     "title": "MySQL database server",
     "summary": "Runs the MySQL database server. Websites and applications may use it to store persistent data.",
     "links": [
       {"label": "MySQL documentation", "url": "https://dev.mysql.com/doc/"}
+    ]
+  },
+  "networking.service": {
+    "title": "Debian networking",
+    "summary": "Raises network interfaces using Debian ifupdown configuration. Stopping or restarting it can interrupt network access and SSH sessions."
+  },
+  "nftables.service": {
+    "title": "nftables firewall",
+    "summary": "Loads nftables firewall rules. If enabled, it controls packet filtering and network address translation.",
+    "links": [
+      {"label": "nftables wiki", "url": "https://wiki.nftables.org/"}
     ]
   },
   "nginx.service": {
@@ -42,12 +239,74 @@
       {"label": "nginx source", "url": "https://github.com/nginx/nginx"}
     ]
   },
+  "pam_namespace.service": {
+    "title": "PAM namespace setup",
+    "summary": "Sets up per-user or per-session filesystem namespaces when configured through PAM. Most simple servers do not use it directly."
+  },
   "postgresql.service": {
     "title": "PostgreSQL database server",
     "summary": "Runs PostgreSQL database clusters on Debian-style systems. Applications may depend on it for persistent data.",
     "links": [
       {"label": "PostgreSQL documentation", "url": "https://www.postgresql.org/docs/"}
     ]
+  },
+  "procps.service": {
+    "title": "Kernel parameter setup",
+    "summary": "Legacy alias related to applying kernel sysctl settings from procps configuration."
+  },
+  "qemu-guest-agent.service": {
+    "title": "QEMU guest agent",
+    "summary": "Lets a QEMU or Proxmox host communicate with the guest VM for actions such as shutdown, IP reporting and filesystem freeze.",
+    "links": [
+      {"label": "QEMU guest agent", "url": "https://wiki.qemu.org/Features/GuestAgent"}
+    ]
+  },
+  "quotaon.service": {
+    "title": "Filesystem quota activation",
+    "summary": "Enables disk quota tracking for filesystems that are configured to use quotas."
+  },
+  "rc-local.service": {
+    "title": "rc.local compatibility",
+    "summary": "Runs /etc/rc.local for compatibility with older Linux startup setups. Modern systems usually prefer native systemd units."
+  },
+  "rc.service": {
+    "title": "Legacy runlevel service",
+    "summary": "Compatibility service for older SysV init runlevel behavior. It is usually masked on systemd systems."
+  },
+  "rcS.service": {
+    "title": "Legacy single-user boot service",
+    "summary": "Compatibility service for older SysV init single-user boot behavior. It is usually masked on systemd systems."
+  },
+  "rescue.service": {
+    "title": "Rescue shell",
+    "summary": "Starts a minimal rescue environment for maintenance when normal multi-user boot is not possible."
+  },
+  "serial-getty@.service": {
+    "title": "Serial console login prompt",
+    "summary": "Starts a login prompt on a serial console. This is common on virtual machines, servers and embedded systems."
+  },
+  "snapd.service": {
+    "title": "Snap daemon",
+    "summary": "Runs snapd, the service that manages Snap packages, refreshes and Snap application integration.",
+    "links": [
+      {"label": "Snapcraft documentation", "url": "https://snapcraft.io/docs"}
+    ]
+  },
+  "snapd.aa-prompt-listener.service": {
+    "title": "Snap AppArmor prompt listener",
+    "summary": "Listens for userspace AppArmor prompt events used by snapd."
+  },
+  "snapd.apparmor.service": {
+    "title": "Snap AppArmor profiles",
+    "summary": "Loads AppArmor security profiles generated and managed by snapd."
+  },
+  "snapd.recovery-chooser-trigger.service": {
+    "title": "Snap recovery chooser trigger",
+    "summary": "Snapd helper used on Ubuntu Core style systems to trigger recovery chooser behavior."
+  },
+  "snapd.seeded.service": {
+    "title": "Snap seeding completion",
+    "summary": "Waits until snapd has completed initial setup of preinstalled snaps."
   },
   "ssh.service": {
     "title": "OpenSSH server",
@@ -63,11 +322,274 @@
       {"label": "OpenSSH manual", "url": "https://man.openbsd.org/sshd"}
     ]
   },
+  "system-update-cleanup.service": {
+    "title": "System update cleanup",
+    "summary": "Cleans up state after an offline system update."
+  },
+  "systemd-ask-password-console.service": {
+    "title": "Console password requests",
+    "summary": "Displays system password requests on the console, for example when encrypted disks need a passphrase."
+  },
+  "systemd-ask-password-wall.service": {
+    "title": "Wall password requests",
+    "summary": "Forwards system password requests to logged-in users through wall-style messages."
+  },
+  "systemd-backlight@.service": {
+    "title": "Backlight restore",
+    "summary": "Saves or restores display backlight brightness for a specific backlight device."
+  },
+  "systemd-binfmt.service": {
+    "title": "Binary format setup",
+    "summary": "Registers additional executable binary formats with the kernel, such as interpreters for special file types."
+  },
+  "systemd-boot-check-no-failures.service": {
+    "title": "Boot failure check",
+    "summary": "Checks whether the previous boot completed without failures. It is part of systemd boot health tracking."
+  },
+  "systemd-exit.service": {
+    "title": "Systemd exit helper",
+    "summary": "Internal systemd service used when a systemd instance exits."
+  },
+  "systemd-firstboot.service": {
+    "title": "First boot setup",
+    "summary": "Initializes basic system settings on first boot, such as locale, hostname or machine ID, when needed."
+  },
+  "systemd-fsck-root.service": {
+    "title": "Root filesystem check",
+    "summary": "Checks the root filesystem for errors during boot when a check is required."
+  },
+  "systemd-fsck@.service": {
+    "title": "Filesystem check",
+    "summary": "Checks a specific filesystem for errors during boot when a check is required."
+  },
+  "systemd-fsckd.service": {
+    "title": "Filesystem check progress",
+    "summary": "Reports filesystem check progress while fsck is running."
+  },
   "systemd-gui.service": {
     "title": "Systemd Gui",
     "summary": "Runs this web interface through Gunicorn. Restart it after application updates so the new Python code is loaded.",
     "links": [
       {"label": "Project repository", "url": "https://github.com/Nisbo/systemd-gui"}
     ]
+  },
+  "systemd-halt.service": {
+    "title": "System halt",
+    "summary": "Internal service used by systemd when the machine is halted."
+  },
+  "systemd-hibernate.service": {
+    "title": "System hibernate",
+    "summary": "Internal service used when the machine enters hibernation."
+  },
+  "systemd-hibernate-resume@.service": {
+    "title": "Hibernate resume",
+    "summary": "Handles resume from hibernation for a specific swap or resume device."
+  },
+  "systemd-hostnamed.service": {
+    "title": "Hostname manager",
+    "summary": "Provides D-Bus APIs for reading and changing the system hostname and related machine information."
+  },
+  "systemd-hybrid-sleep.service": {
+    "title": "Hybrid sleep",
+    "summary": "Internal service used when the machine enters hybrid sleep."
+  },
+  "systemd-initctl.service": {
+    "title": "initctl compatibility daemon",
+    "summary": "Provides compatibility for older tools that expect the SysV initctl interface."
+  },
+  "systemd-journal-flush.service": {
+    "title": "Journal flush",
+    "summary": "Moves early boot journal messages from temporary storage into persistent journal storage."
+  },
+  "systemd-journald.service": {
+    "title": "systemd journal",
+    "summary": "Collects and stores logs for the system and services. journalctl reads from this service.",
+    "links": [
+      {"label": "journald manual", "url": "https://www.freedesktop.org/software/systemd/man/latest/systemd-journald.service.html"}
+    ]
+  },
+  "systemd-journald@.service": {
+    "title": "Namespaced systemd journal",
+    "summary": "Runs a journal service instance for a specific journal namespace."
+  },
+  "systemd-kexec.service": {
+    "title": "Kernel exec reboot",
+    "summary": "Internal service used when rebooting directly into another kernel with kexec."
+  },
+  "systemd-localed.service": {
+    "title": "Locale manager",
+    "summary": "Provides D-Bus APIs for locale and keyboard layout settings."
+  },
+  "systemd-logind.service": {
+    "title": "Login manager",
+    "summary": "Manages user logins, sessions, seats, suspend and power button handling. Stopping it can disrupt logged-in users.",
+    "links": [
+      {"label": "logind manual", "url": "https://www.freedesktop.org/software/systemd/man/latest/systemd-logind.service.html"}
+    ]
+  },
+  "systemd-machine-id-commit.service": {
+    "title": "Machine ID commit",
+    "summary": "Writes a transient machine ID permanently to disk when needed."
+  },
+  "systemd-modules-load.service": {
+    "title": "Kernel module loading",
+    "summary": "Loads kernel modules configured for early boot."
+  },
+  "systemd-network-generator.service": {
+    "title": "Network generator",
+    "summary": "Generates systemd-networkd configuration from kernel command line or other early boot inputs."
+  },
+  "systemd-networkd.service": {
+    "title": "systemd-networkd",
+    "summary": "Manages network interfaces using systemd-networkd configuration. Stopping it can interrupt network access.",
+    "links": [
+      {"label": "networkd manual", "url": "https://www.freedesktop.org/software/systemd/man/latest/systemd-networkd.service.html"}
+    ]
+  },
+  "systemd-networkd-wait-online.service": {
+    "title": "Wait for network online",
+    "summary": "Waits until systemd-networkd considers the network online before network-dependent services start."
+  },
+  "systemd-networkd-wait-online@.service": {
+    "title": "Wait for network interface online",
+    "summary": "Waits for a specific systemd-networkd-managed interface to become online."
+  },
+  "systemd-pcrphase.service": {
+    "title": "TPM2 PCR phase marker",
+    "summary": "Records boot phase measurements into TPM2 PCRs on systems that use TPM-based boot measurement."
+  },
+  "systemd-pcrphase-initrd.service": {
+    "title": "TPM2 PCR initrd phase marker",
+    "summary": "Records initrd boot phase measurements into TPM2 PCRs on systems that use TPM-based boot measurement."
+  },
+  "systemd-pcrphase-sysinit.service": {
+    "title": "TPM2 PCR sysinit phase marker",
+    "summary": "Records early system initialization phase measurements into TPM2 PCRs."
+  },
+  "systemd-poweroff.service": {
+    "title": "System poweroff",
+    "summary": "Internal service used by systemd when the machine powers off."
+  },
+  "systemd-pstore.service": {
+    "title": "Persistent storage archival",
+    "summary": "Archives platform persistent storage logs, such as firmware or kernel crash information, when available."
+  },
+  "systemd-quotacheck.service": {
+    "title": "Filesystem quota check",
+    "summary": "Checks filesystem quota information during boot when quotas are configured."
+  },
+  "systemd-random-seed.service": {
+    "title": "Random seed",
+    "summary": "Loads and saves random seed data so the system has better entropy early during boot."
+  },
+  "systemd-reboot.service": {
+    "title": "System reboot",
+    "summary": "Internal service used by systemd when the machine reboots."
+  },
+  "systemd-remount-fs.service": {
+    "title": "Root filesystem remount",
+    "summary": "Remounts the root and kernel filesystems with their final mount options during boot."
+  },
+  "systemd-repart.service": {
+    "title": "Disk repartitioning",
+    "summary": "Can repartition disks according to systemd-repart configuration. Usually inactive on simple servers."
+  },
+  "systemd-rfkill.service": {
+    "title": "RF kill state restore",
+    "summary": "Saves and restores radio device block state, such as Wi-Fi or Bluetooth rfkill settings."
+  },
+  "systemd-suspend.service": {
+    "title": "System suspend",
+    "summary": "Internal service used when the machine enters suspend."
+  },
+  "systemd-suspend-then-hibernate.service": {
+    "title": "Suspend then hibernate",
+    "summary": "Internal service used when the machine first suspends and later hibernates."
+  },
+  "systemd-sysext.service": {
+    "title": "System extension merge",
+    "summary": "Merges system extension images into /usr or /opt when systemd system extensions are used."
+  },
+  "systemd-sysctl.service": {
+    "title": "Kernel variable setup",
+    "summary": "Applies kernel parameters from sysctl configuration files during boot."
+  },
+  "systemd-sysusers.service": {
+    "title": "System user creation",
+    "summary": "Creates system users and groups declared by installed packages."
+  },
+  "systemd-time-wait-sync.service": {
+    "title": "Wait for time synchronization",
+    "summary": "Waits until system time has been synchronized before time-sensitive services continue."
+  },
+  "systemd-timedated.service": {
+    "title": "Time and date manager",
+    "summary": "Provides D-Bus APIs for changing time, date, timezone and network time settings."
+  },
+  "systemd-timesyncd.service": {
+    "title": "Network time synchronization",
+    "summary": "Keeps the system clock synchronized with network time servers. Accurate time is important for logs, TLS and scheduled tasks.",
+    "links": [
+      {"label": "timesyncd manual", "url": "https://www.freedesktop.org/software/systemd/man/latest/systemd-timesyncd.service.html"}
+    ]
+  },
+  "systemd-tmpfiles-clean.service": {
+    "title": "Temporary file cleanup",
+    "summary": "Cleans old files from temporary directories according to tmpfiles configuration."
+  },
+  "systemd-tmpfiles-setup.service": {
+    "title": "Temporary files setup",
+    "summary": "Creates system files, directories and permissions declared in tmpfiles configuration."
+  },
+  "systemd-tmpfiles-setup-dev.service": {
+    "title": "Device node setup",
+    "summary": "Creates static device nodes in /dev according to tmpfiles configuration."
+  },
+  "systemd-udev-settle.service": {
+    "title": "Wait for udev",
+    "summary": "Waits until udev has processed device events. It is mostly a compatibility helper for services that need settled devices."
+  },
+  "systemd-udev-trigger.service": {
+    "title": "Trigger udev devices",
+    "summary": "Triggers udev coldplug events so devices discovered before udev started are processed."
+  },
+  "systemd-udevd.service": {
+    "title": "udev device manager",
+    "summary": "Manages device events and applies udev rules when hardware or virtual devices appear or change.",
+    "links": [
+      {"label": "udev manual", "url": "https://www.freedesktop.org/software/systemd/man/latest/systemd-udevd.service.html"}
+    ]
+  },
+  "systemd-update-utmp.service": {
+    "title": "Boot and shutdown accounting",
+    "summary": "Records system boot and shutdown events in utmp/wtmp accounting files."
+  },
+  "systemd-update-utmp-runlevel.service": {
+    "title": "Runlevel accounting",
+    "summary": "Records runlevel changes in utmp/wtmp accounting files for compatibility with older tools."
+  },
+  "systemd-user-sessions.service": {
+    "title": "User session permission",
+    "summary": "Allows normal user logins after boot has reached the appropriate point."
+  },
+  "systemd-volatile-root.service": {
+    "title": "Volatile root setup",
+    "summary": "Sets up a volatile root filesystem when the system is configured to boot with a temporary writable root."
+  },
+  "udev.service": {
+    "title": "udev alias",
+    "summary": "Alias for the udev device manager service, systemd-udevd."
+  },
+  "user-runtime-dir@.service": {
+    "title": "User runtime directory",
+    "summary": "Creates and manages /run/user/<uid>, the per-user runtime directory used by user services and desktop/session tools."
+  },
+  "user@.service": {
+    "title": "User service manager",
+    "summary": "Runs a per-user systemd instance. It manages services and runtime state for one logged-in user."
+  },
+  "x11-common.service": {
+    "title": "X11 compatibility service",
+    "summary": "Legacy Debian X11 setup service. It is often masked on servers without a graphical desktop."
   }
 }
