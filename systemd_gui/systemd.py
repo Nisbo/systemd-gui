@@ -52,6 +52,18 @@ SUB_STATE_HELP = {
     "mounted": "The unit is mounted. This is unusual in the service-only view.",
     "unknown": "systemd did not report a clear detailed state.",
 }
+UNIT_FILE_STATE_HELP = {
+    "enabled": "This service is configured to start automatically at boot.",
+    "enabled-runtime": "This service is enabled only until the next reboot.",
+    "disabled": "This service is not configured to start automatically at boot.",
+    "static": "This unit cannot be enabled directly. It is usually started by another unit, dependency, socket, path or timer.",
+    "alias": "This name is an alias that points to another unit.",
+    "masked": "This unit is blocked from being started until it is unmasked.",
+    "generated": "This unit file was generated automatically by systemd or another tool.",
+    "transient": "This unit was created at runtime and may not have a normal unit file on disk.",
+    "bad": "systemd found a problem with this unit file.",
+    "unknown": "systemd did not report an autostart state. This is common for template instances, generated units or units that only exist at runtime.",
+}
 
 
 @dataclass
@@ -136,6 +148,7 @@ def list_services(query: str = "", favorites: set[str] | None = None, state_filt
             "sub": sub,
             "description": unit.get("description", ""),
             "enabled": file_state.get("state", "unknown"),
+            "enabled_help": unit_file_state_help(file_state.get("state", "unknown"), name),
             "preset": file_state.get("preset", ""),
             "favorite": name in favorites,
             "protected": is_protected_service(name),
@@ -161,6 +174,14 @@ def sub_state_help(state: str) -> str:
     return f"{state}: {SUB_STATE_HELP.get(state, 'systemd reported this detailed SubState.')}"
 
 
+def unit_file_state_help(state: str, name: str = "") -> str:
+    state = state or "unknown"
+    help_text = UNIT_FILE_STATE_HELP.get(state, "systemd reported this unit-file state.")
+    if "@" in name:
+        help_text += " The @ means this is a template unit or an instance of a template unit."
+    return f"{state}: {help_text}"
+
+
 def service_info(name: str) -> dict[str, str | bool]:
     if not valid_service_name(name):
         raise ValueError("Only .service units are supported.")
@@ -179,6 +200,7 @@ def service_info(name: str) -> dict[str, str | bool]:
         "active": values.get("ActiveState", "unknown"),
         "sub": values.get("SubState", "unknown"),
         "enabled": values.get("UnitFileState", "unknown"),
+        "enabled_help": unit_file_state_help(values.get("UnitFileState", "unknown"), name),
         "fragment_path": values.get("FragmentPath", ""),
         "drop_in_paths": values.get("DropInPaths", ""),
         "exec_start": values.get("ExecStart", ""),
