@@ -60,7 +60,7 @@
       <pre class="config-preview"><code>{{ content }}</code></pre>
     </section>
   {% elif active_tab == "logs" %}
-    <section class="panel" data-log-panel data-refresh-enabled="{{ 'true' if log_refresh else 'false' }}" data-refresh-interval="{{ log_refresh_interval }}">
+    <section class="panel" data-log-panel data-log-url="{{ url_for('service_logs_fragment', name=info.name) }}" data-refresh-enabled="{{ 'true' if log_refresh else 'false' }}" data-refresh-interval="{{ log_refresh_interval }}">
       <div class="panel-head">
         <div>
           <h2>Logs</h2>
@@ -92,9 +92,9 @@
         <a class="ghost-button" href="{{ url_for('service_detail', name=info.name, tab='logs', lines=log_lines, refresh='1' if log_refresh else None, interval=log_refresh_interval if log_refresh else None) }}">Refresh now</a>
       </form>
       {% if log_refresh %}
-        <div class="diagnostic warning"><strong>Live view</strong><span>This page refreshes every {{ log_refresh_interval }} seconds while auto-refresh is enabled.</span></div>
+        <div class="diagnostic warning"><strong>Live view</strong><span>This page refreshes every {{ log_refresh_interval }} second{% if log_refresh_interval != 1 %}s{% endif %} while auto-refresh is enabled.</span></div>
       {% endif %}
-      <pre class="config-preview log-preview"><code>{{ logs.output or 'No logs available.' }}</code></pre>
+      {% include "_service_logs.html" %}
     </section>
   {% elif active_tab == "backups" %}
     <section class="panel">

@@ -36,9 +36,25 @@
     const input = form.querySelector("input[name='q']");
     if (!input) return;
     let timer = null;
+    const runSearch = async () => {
+      const params = new URLSearchParams(new FormData(form));
+      const target = `${form.dataset.fragmentUrl || form.action}?${params.toString()}`;
+      const response = await fetch(target, { headers: { "X-Requested-With": "fetch" } });
+      if (!response.ok) return;
+      const doc = new DOMParser().parseFromString(await response.text(), "text/html");
+      const nextStats = doc.querySelector("[data-services-stats]");
+      const nextTable = doc.querySelector("[data-services-table]");
+      if (nextStats) document.querySelector("[data-services-stats]")?.replaceWith(nextStats);
+      if (nextTable) document.querySelector("[data-services-table]")?.replaceWith(nextTable);
+      const pageUrl = new URL(window.location.href);
+      const query = input.value.trim();
+      if (query) pageUrl.searchParams.set("q", query);
+      else pageUrl.searchParams.delete("q");
+      window.history.replaceState({}, "", pageUrl);
+    };
     input.addEventListener("input", () => {
       window.clearTimeout(timer);
-      timer = window.setTimeout(() => form.requestSubmit(), 350);
+      timer = window.setTimeout(runSearch, 350);
     });
   });
 
@@ -52,8 +68,15 @@
   if (logPanel?.dataset.refreshEnabled === "true") {
     const seconds = Number.parseInt(logPanel.dataset.refreshInterval || "5", 10);
     const interval = Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 5000;
-    window.setTimeout(() => {
-      window.location.reload();
-    }, interval);
+    const refreshLogs = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const target = `${logPanel.dataset.logUrl}?lines=${encodeURIComponent(params.get("lines") || "200")}`;
+      const response = await fetch(target, { headers: { "X-Requested-With": "fetch" } });
+      if (!response.ok) return;
+      const doc = new DOMParser().parseFromString(await response.text(), "text/html");
+      const nextLog = doc.querySelector("[data-log-output]");
+      if (nextLog) document.querySelector("[data-log-output]")?.replaceWith(nextLog);
+    };
+    window.setInterval(refreshLogs, interval);
   }
 })();

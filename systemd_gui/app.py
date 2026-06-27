@@ -121,15 +121,20 @@ def create_app() -> Flask:
         query = request.args.get("q", "").strip()
         favorites = read_favorites(_favorites_path(app))
         services = list_services(query, favorites)
+        stats = _service_stats(services)
         return render_template(
             "index.html",
             services=services,
             query=query,
-            total=len(services),
-            active_count=sum(1 for item in services if item["active"] == "active"),
-            failed_count=sum(1 for item in services if item["active"] == "failed"),
-            protected_count=sum(1 for item in services if item["protected"]),
+            **stats,
         )
+
+    @app.get("/services/fragment")
+    def services_fragment():
+        query = request.args.get("q", "").strip()
+        favorites = read_favorites(_favorites_path(app))
+        services = list_services(query, favorites)
+        return render_template("_services_fragment.html", services=services, **_service_stats(services))
 
     @app.get("/settings")
     def settings():
@@ -292,6 +297,14 @@ def create_app() -> Flask:
             backups=backups,
         )
 
+    @app.get("/service/<name>/logs/fragment")
+    def service_logs_fragment(name: str):
+        if not valid_service_name(name):
+            return "Only .service units are supported.", 400
+        log_lines = _log_line_count(request.args.get("lines", "200"))
+        logs = run_journalctl(name, log_lines)
+        return render_template("_service_logs.html", logs=logs)
+
     @app.post("/service/<name>/<action>")
     def service_action(name: str, action: str):
         if not _valid_or_flash(name):
@@ -389,6 +402,15 @@ def create_app() -> Flask:
 
 def _favorites_path(app: Flask) -> Path:
     return Path(app.config["DATA_DIR"]) / "favorites.json"
+
+
+def _service_stats(services: list[dict[str, str | bool]]) -> dict[str, int]:
+    return {
+        "total": len(services),
+        "active_count": sum(1 for item in services if item["active"] == "active"),
+        "failed_count": sum(1 for item in services if item["active"] == "failed"),
+        "protected_count": sum(1 for item in services if item["protected"]),
+    }
 
 
 def _backup_dir(app: Flask) -> Path:

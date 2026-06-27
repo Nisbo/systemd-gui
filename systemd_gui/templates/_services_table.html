@@ -1,0 +1,33 @@
+<div class="table-wrap" data-services-table>
+  <table>
+    <thead><tr><th></th><th>Name</th><th>Status</th><th>Autostart</th><th>Description</th><th></th></tr></thead>
+    <tbody>
+      {% for service in services %}
+        <tr class="{% if service.active == 'failed' %}failed-row{% endif %}">
+          <td>
+            <form method="post" action="{{ url_for('toggle_favorite', name=service.name) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button class="star-button" type="submit" title="Toggle favorite">{% if service.favorite %}★{% else %}☆{% endif %}</button>
+            </form>
+          </td>
+          <td><a class="table-link" href="{{ url_for('service_detail', name=service.name) }}">{{ service.name }}</a>{% if service.protected %}<span class="tag danger">Protected</span>{% endif %}</td>
+          <td>
+            <div class="status-stack">
+              <span class="status-pill {{ service.active }}" title="{{ service.active|capitalize }}: systemd's high-level ActiveState for this service.">{{ service.active }}</span>
+              {% if service.sub and service.sub != '-' %}
+                <span class="status-pill sub-state" title="{{ service.sub|capitalize }}: systemd's detailed SubState for this service.">{{ service.sub }}</span>
+              {% else %}
+                <span class="status-pill sub-state muted" title="No detailed SubState is available.">No detail</span>
+              {% endif %}
+            </div>
+          </td>
+          <td>{{ service.enabled }}</td>
+          <td>{{ service.description or '-' }}</td>
+          <td><a class="ghost-button" href="{{ url_for('service_detail', name=service.name) }}">Open</a></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="empty">No services found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
