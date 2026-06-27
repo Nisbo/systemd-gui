@@ -1,5 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
+  {% set service_tabs = [
+    ("unit", "Unit"),
+    ("logs", "Logs"),
+    ("backups", "Backups"),
+  ] %}
+
   <section class="panel">
     <div class="panel-head">
       <div>
@@ -28,52 +34,89 @@
     </div>
   </section>
 
-  <section class="panel">
-    <div class="panel-head"><div><h2>Start command</h2><p>Important systemd properties for this service.</p></div></div>
-    <dl class="detail-grid two">
-      <div><dt>ExecStart</dt><dd>{{ info.exec_start or '-' }}</dd></div>
-      <div><dt>ExecReload</dt><dd>{{ info.exec_reload or '-' }}</dd></div>
-      <div><dt>Restart</dt><dd>{{ info.restart or '-' }}</dd></div>
-      <div><dt>Drop-ins</dt><dd>{{ info.drop_in_paths or 'None' }}</dd></div>
-    </dl>
+  <section class="panel service-tabs-panel">
+    <nav class="settings-tabs" aria-label="Service sections">
+      {% for tab_key, tab_label in service_tabs %}
+        <a class="settings-tab {% if active_tab == tab_key %}active{% endif %}" href="{{ url_for('service_detail', name=info.name, tab=tab_key, lines=log_lines, refresh='1' if log_refresh else None) }}" {% if active_tab == tab_key %}aria-current="page"{% endif %}>
+          {{ tab_label }}
+        </a>
+      {% endfor %}
+    </nav>
   </section>
 
-  <section class="panel">
-    <div class="panel-head"><div><h2>Unit file</h2><p>Read-only preview from <code>systemctl cat</code>.</p></div></div>
-    <pre class="config-preview"><code>{{ content }}</code></pre>
-  </section>
+  {% if active_tab == "unit" %}
+    <section class="panel">
+      <div class="panel-head"><div><h2>Start command</h2><p>Important systemd properties for this service.</p></div></div>
+      <dl class="detail-grid two">
+        <div><dt>ExecStart</dt><dd>{{ info.exec_start or '-' }}</dd></div>
+        <div><dt>ExecReload</dt><dd>{{ info.exec_reload or '-' }}</dd></div>
+        <div><dt>Restart</dt><dd>{{ info.restart or '-' }}</dd></div>
+        <div><dt>Drop-ins</dt><dd>{{ info.drop_in_paths or 'None' }}</dd></div>
+      </dl>
+    </section>
 
-  <section class="panel">
-    <div class="panel-head">
-      <div>
-        <h2>Backups</h2>
-        <p>Saved copies created before unit-file edits.</p>
+    <section class="panel">
+      <div class="panel-head"><div><h2>Unit file</h2><p>Read-only preview from <code>systemctl cat</code>.</p></div></div>
+      <pre class="config-preview"><code>{{ content }}</code></pre>
+    </section>
+  {% elif active_tab == "logs" %}
+    <section class="panel" data-log-panel data-refresh-enabled="{{ 'true' if log_refresh else 'false' }}">
+      <div class="panel-head">
+        <div>
+          <h2>Logs</h2>
+          <p>Last {{ log_lines }} lines from <code>journalctl -u {{ info.name }}</code>.</p>
+        </div>
       </div>
-      {% if editable %}<a class="ghost-button" href="{{ url_for('edit_service', name=info.name) }}">Edit unit</a>{% endif %}
-    </div>
-    {% if backups %}
-      <div class="table-wrap compact-table">
-        <table>
-          <thead><tr><th>Backup</th><th>Created</th><th>Size</th><th></th></tr></thead>
-          <tbody>
-            {% for backup in backups %}
-              <tr>
-                <td><code>{{ backup.name }}</code></td>
-                <td>{{ backup.created }}</td>
-                <td>{{ backup.size }} bytes</td>
-                <td><a class="ghost-button" href="{{ url_for('service_backup', name=info.name, backup_name=backup.name) }}">View</a></td>
-              </tr>
+      <form class="log-controls" method="get" action="{{ url_for('service_detail', name=info.name) }}">
+        <input type="hidden" name="tab" value="logs">
+        <label>
+          Lines
+          <select name="lines">
+            {% for option in [50, 100, 200, 500, 1000] %}
+              <option value="{{ option }}" {% if log_lines == option %}selected{% endif %}>{{ option }}</option>
             {% endfor %}
-          </tbody>
-        </table>
+          </select>
+        </label>
+        <label class="toggle-label">
+          <input name="refresh" type="checkbox" value="1" {% if log_refresh %}checked{% endif %}>
+          Auto-refresh
+        </label>
+        <button class="primary-button" type="submit">Apply</button>
+        <a class="ghost-button" href="{{ url_for('service_detail', name=info.name, tab='logs', lines=log_lines, refresh='1' if log_refresh else None) }}">Refresh now</a>
+      </form>
+      {% if log_refresh %}
+        <div class="diagnostic warning"><strong>Live view</strong><span>This page refreshes every 5 seconds while auto-refresh is enabled.</span></div>
+      {% endif %}
+      <pre class="config-preview log-preview"><code>{{ logs.output or 'No logs available.' }}</code></pre>
+    </section>
+  {% elif active_tab == "backups" %}
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Backups</h2>
+          <p>Saved copies created before unit-file edits.</p>
+        </div>
+        {% if editable %}<a class="ghost-button" href="{{ url_for('edit_service', name=info.name) }}">Edit unit</a>{% endif %}
       </div>
-    {% else %}
-      <p class="empty-note">No backups have been created for this service yet.</p>
-    {% endif %}
-  </section>
-
-  <section class="panel">
-    <div class="panel-head"><div><h2>Logs</h2><p>Last 200 lines from <code>journalctl -u {{ info.name }}</code>.</p></div></div>
-    <pre class="config-preview log-preview"><code>{{ logs.output or 'No logs available.' }}</code></pre>
-  </section>
+      {% if backups %}
+        <div class="table-wrap compact-table">
+          <table>
+            <thead><tr><th>Backup</th><th>Created</th><th>Size</th><th></th></tr></thead>
+            <tbody>
+              {% for backup in backups %}
+                <tr>
+                  <td><code>{{ backup.name }}</code></td>
+                  <td>{{ backup.created }}</td>
+                  <td>{{ backup.size }} bytes</td>
+                  <td><a class="ghost-button" href="{{ url_for('service_backup', name=info.name, backup_name=backup.name) }}">View</a></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="empty-note">No backups have been created for this service yet.</p>
+      {% endif %}
+    </section>
+  {% endif %}
 {% endblock %}

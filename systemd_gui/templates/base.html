@@ -15,11 +15,17 @@
         </div>
         <div class="top-actions">
           <a class="ghost-button" href="{{ url_for('index') }}">Home</a>
-          <a class="ghost-button" href="{{ url_for('settings') }}">Settings</a>
           <div class="theme-switch" aria-label="Theme">
-            <button class="ghost-button theme-option" type="button" data-theme-choice="light" aria-label="Use light theme">Light</button>
-            <button class="ghost-button theme-option" type="button" data-theme-choice="dark" aria-label="Use dark theme">Dark</button>
+            <button class="ghost-button theme-option" type="button" data-theme-choice="light" title="Use light theme" aria-label="Use light theme">
+              <span aria-hidden="true">☀</span>
+              Light
+            </button>
+            <button class="ghost-button theme-option" type="button" data-theme-choice="dark" title="Use dark theme" aria-label="Use dark theme">
+              <span aria-hidden="true">◐</span>
+              Dark
+            </button>
           </div>
+          <a class="ghost-button" href="{{ url_for('settings') }}">Settings</a>
           {% if session.get("logged_in") %}
             <form method="post" action="{{ url_for('logout') }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

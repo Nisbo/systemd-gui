@@ -31,4 +31,11 @@
   modal?.addEventListener("click", (event) => { if (event.target === modal) close(); });
   submit?.addEventListener("click", () => { if (!pending) return; pending.dataset.confirmed = "true"; pending.requestSubmit(); });
   document.addEventListener("keydown", (event) => { if (event.key === "Escape" && modal && !modal.hidden) close(); });
+
+  const logPanel = document.querySelector("[data-log-panel]");
+  if (logPanel?.dataset.refreshEnabled === "true") {
+    window.setTimeout(() => {
+      window.location.reload();
+    }, 5000);
+  }
 })();

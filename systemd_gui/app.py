@@ -268,13 +268,21 @@ def create_app() -> Flask:
     def service_detail(name: str):
         if not _valid_or_flash(name):
             return redirect(url_for("index"))
+        active_tab = request.args.get("tab", "unit")
+        if active_tab not in {"unit", "logs", "backups"}:
+            active_tab = "unit"
+        log_lines = _log_line_count(request.args.get("lines", "200"))
+        log_refresh = request.args.get("refresh") == "1"
         info = service_info(name)
         content = unit_content(name)
-        logs = run_journalctl(name, 200)
+        logs = run_journalctl(name, log_lines)
         editable = _editable(name)
         backups = list_unit_backups(name, _backup_dir(app))
         return render_template(
             "service_detail.html",
+            active_tab=active_tab,
+            log_lines=log_lines,
+            log_refresh=log_refresh,
             info=info,
             content=content,
             logs=logs,
@@ -465,6 +473,14 @@ def _valid_or_flash(name: str) -> bool:
         return True
     flash("Only .service units are supported.", "error")
     return False
+
+
+def _log_line_count(value: str) -> int:
+    try:
+        lines = int(value)
+    except (TypeError, ValueError):
+        return 200
+    return lines if lines in {50, 100, 200, 500, 1000} else 200
 
 
 def _blocked_protected(app: Flask, name: str) -> bool:
