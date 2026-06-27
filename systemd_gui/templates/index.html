@@ -19,9 +19,8 @@
       </form>
     </div>
 
-    <form class="search-row" method="get" action="{{ url_for('index') }}">
-      <input name="q" value="{{ query }}" placeholder="Search service name or description">
-      <button class="primary-button" type="submit">Search</button>
+    <form class="search-row" method="get" action="{{ url_for('index') }}" data-live-search>
+      <input name="q" value="{{ query }}" placeholder="Search service name or description" autocomplete="off">
       {% if query %}<a class="ghost-button" href="{{ url_for('index') }}">Clear</a>{% endif %}
     </form>
 
@@ -38,7 +37,12 @@
                 </form>
               </td>
               <td><a class="table-link" href="{{ url_for('service_detail', name=service.name) }}">{{ service.name }}</a>{% if service.protected %}<span class="tag danger">Protected</span>{% endif %}</td>
-              <td><span class="status-pill {{ service.active }}">{{ service.active }}</span><small>{{ service.sub }}</small></td>
+              <td>
+                <div class="status-stack">
+                  <span class="status-pill {{ service.active }}">{{ service.active }}</span>
+                  <span class="status-pill sub-state">{{ service.sub }}</span>
+                </div>
+              </td>
               <td>{{ service.enabled }}</td>
               <td>{{ service.description or '-' }}</td>
               <td><a class="ghost-button" href="{{ url_for('service_detail', name=service.name) }}">Open</a></td>

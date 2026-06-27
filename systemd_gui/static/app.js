@@ -32,10 +32,28 @@
   submit?.addEventListener("click", () => { if (!pending) return; pending.dataset.confirmed = "true"; pending.requestSubmit(); });
   document.addEventListener("keydown", (event) => { if (event.key === "Escape" && modal && !modal.hidden) close(); });
 
+  document.querySelectorAll("form[data-live-search]").forEach((form) => {
+    const input = form.querySelector("input[name='q']");
+    if (!input) return;
+    let timer = null;
+    input.addEventListener("input", () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => form.requestSubmit(), 350);
+    });
+  });
+
+  document.querySelectorAll("form[data-auto-submit]").forEach((form) => {
+    form.querySelectorAll("select,input[type='checkbox']").forEach((control) => {
+      control.addEventListener("change", () => form.requestSubmit());
+    });
+  });
+
   const logPanel = document.querySelector("[data-log-panel]");
   if (logPanel?.dataset.refreshEnabled === "true") {
+    const seconds = Number.parseInt(logPanel.dataset.refreshInterval || "5", 10);
+    const interval = Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 5000;
     window.setTimeout(() => {
       window.location.reload();
-    }, 5000);
+    }, interval);
   }
 })();

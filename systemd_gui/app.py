@@ -273,6 +273,7 @@ def create_app() -> Flask:
             active_tab = "unit"
         log_lines = _log_line_count(request.args.get("lines", "200"))
         log_refresh = request.args.get("refresh") == "1"
+        log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
         info = service_info(name)
         content = unit_content(name)
         logs = run_journalctl(name, log_lines)
@@ -283,6 +284,7 @@ def create_app() -> Flask:
             active_tab=active_tab,
             log_lines=log_lines,
             log_refresh=log_refresh,
+            log_refresh_interval=log_refresh_interval,
             info=info,
             content=content,
             logs=logs,
@@ -481,6 +483,14 @@ def _log_line_count(value: str) -> int:
     except (TypeError, ValueError):
         return 200
     return lines if lines in {50, 100, 200, 500, 1000} else 200
+
+
+def _log_refresh_interval(value: str) -> int:
+    try:
+        seconds = int(value)
+    except (TypeError, ValueError):
+        return 5
+    return seconds if seconds in {1, 2, 5, 10, 30} else 5
 
 
 def _blocked_protected(app: Flask, name: str) -> bool:
