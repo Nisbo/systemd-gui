@@ -39,6 +39,23 @@
         {% endif %}
       {% endwith %}
 
+      {% if app_update_pending_restart %}
+        <section class="restart-banner" aria-live="polite">
+          <div>
+            <strong>Restart required</strong>
+            <span>Systemd Gui files changed. Restart the app so Gunicorn loads the updated code.</span>
+          </div>
+          <form method="post" action="{{ url_for('restart_app_from_update') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="primary-button" type="submit">Restart app</button>
+          </form>
+          <form method="post" action="{{ url_for('dismiss_app_update_restart') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" title="Dismiss restart reminder" aria-label="Dismiss restart reminder">×</button>
+          </form>
+        </section>
+      {% endif %}
+
       <div class="confirm-modal" data-confirm-modal hidden>
         <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
           <strong id="confirm-title">Confirm action</strong>

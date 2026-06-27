@@ -46,6 +46,7 @@ def create_app() -> Flask:
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_mapping(
         SECRET_KEY=os.environ.get("SYSTEMD_GUI_SECRET", "dev-change-me"),
+        SESSION_COOKIE_NAME=os.environ.get("SYSTEMD_GUI_SESSION_COOKIE", "systemd_gui_session"),
         ADMIN_PASSWORD=os.environ.get("SYSTEMD_GUI_PASSWORD", ""),
         ALLOW_PROTECTED=os.environ.get("SYSTEMD_GUI_ALLOW_PROTECTED", "0") == "1",
         DATA_DIR=Path(os.environ.get("SYSTEMD_GUI_DATA_DIR", "data")),
@@ -79,6 +80,7 @@ def create_app() -> Flask:
             "csrf_token": session["csrf_token"],
             "systemctl_available": systemctl_available(),
             "journalctl_available": journalctl_available(),
+            "app_update_pending_restart": session.get("app_update_pending_restart", False),
         }
 
     @app.after_request
@@ -214,6 +216,17 @@ def create_app() -> Flask:
             session["app_update_pending_restart"] = True
         flash(result.message, "success" if result.ok else "error")
         return redirect(url_for("settings", tab="updates"))
+
+    @app.post("/settings/update/restart-app")
+    def restart_app_from_update():
+        session.pop("app_update_pending_restart", None)
+        return restart_app()
+
+    @app.post("/settings/update/dismiss-restart")
+    def dismiss_app_update_restart():
+        session.pop("app_update_pending_restart", None)
+        flash("Restart reminder dismissed.", "success")
+        return redirect(request.referrer or url_for("settings", tab="updates"))
 
     @app.post("/settings/security/password")
     def change_password():
