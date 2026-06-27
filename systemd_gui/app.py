@@ -11,6 +11,7 @@ from pathlib import Path
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 
 from .systemd import (
+    create_unit_backup,
     is_protected_service,
     journalctl_available,
     list_unit_backups,
@@ -322,6 +323,18 @@ def create_app() -> Flask:
         log_lines = _log_line_count(request.args.get("lines", "200"))
         logs = run_journalctl(name, log_lines)
         return render_template("_service_logs.html", logs=logs)
+
+    @app.post("/service/<name>/backup/create")
+    def create_service_backup(name: str):
+        if not _valid_or_flash(name):
+            return redirect(url_for("index"))
+        try:
+            backup_path = create_unit_backup(name, _backup_dir(app))
+        except (OSError, ValueError) as exc:
+            flash(f"Backup could not be created: {exc}", "error")
+            return redirect(request.referrer or url_for("service_detail", name=name, tab="backups"))
+        flash(f"Backup created: {backup_path}.", "success")
+        return redirect(request.referrer or url_for("service_detail", name=name, tab="backups"))
 
     @app.post("/service/<name>/<action>")
     def service_action(name: str, action: str):

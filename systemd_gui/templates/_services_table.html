@@ -10,7 +10,12 @@
               <button class="star-button" type="submit" title="Toggle favorite">{% if service.favorite %}★{% else %}☆{% endif %}</button>
             </form>
           </td>
-          <td><a class="table-link" href="{{ url_for('service_detail', name=service.name) }}">{{ service.name }}</a>{% if service.protected %}<span class="tag danger">Protected</span>{% endif %}</td>
+          <td>
+            <span class="name-cell">
+              <a class="table-link" href="{{ url_for('service_detail', name=service.name) }}">{{ service.name }}</a>
+              {% if service.protected %}<span class="tag danger" title="Protected services are blocked from start, stop, restart, reload, enable and disable actions because they are important for login, networking or systemd itself." aria-label="Protected services are blocked from risky actions because they are important for login, networking or systemd itself.">Protected</span>{% endif %}
+            </span>
+          </td>
           <td>
             <div class="status-stack">
               <span class="status-pill {{ service.active }}" title="{{ service.active_help }}" aria-label="{{ service.active_help }}">{{ service.active }}</span>
@@ -23,7 +28,12 @@
           </td>
           <td>{{ service.enabled }}</td>
           <td>{{ service.description or '-' }}</td>
-          <td><a class="ghost-button" href="{{ url_for('service_detail', name=service.name) }}">Open</a></td>
+          <td>
+            <span class="table-actions">
+              <a class="ghost-button" href="{{ url_for('service_detail', name=service.name) }}" title="Open the service detail page.">Details</a>
+              <a class="ghost-button icon-button" href="{{ url_for('service_detail', name=service.name, tab='logs') }}" title="Open logs for this service." aria-label="Open logs for {{ service.name }}"><span aria-hidden="true">≡</span></a>
+            </span>
+          </td>
         </tr>
       {% else %}
         <tr><td colspan="6" class="empty">No services found.</td></tr>

@@ -190,6 +190,19 @@ def unit_content(name: str) -> str:
     return result.output
 
 
+def create_unit_backup(name: str, backup_dir: Path) -> Path:
+    if not valid_service_name(name):
+        raise ValueError("Only .service units are supported.")
+    result = run_systemctl(["cat", name, "--no-pager"])
+    if not result.ok:
+        raise ValueError(result.output or "Unit content could not be read.")
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    backup_path = backup_dir / f"{name}.manual.{stamp}.bak"
+    backup_path.write_text(result.output.rstrip() + "\n", encoding="utf-8")
+    return backup_path
+
+
 def editable_unit_path(name: str) -> Path:
     info = service_info(name)
     path = Path(str(info.get("fragment_path") or ""))
