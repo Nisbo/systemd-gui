@@ -12,6 +12,7 @@ from pathlib import Path
 from flask import Flask, Response, flash, redirect, render_template, request, session, url_for
 
 from .systemd import (
+    analyze_drop_in_content,
     create_unit_backup,
     delete_drop_in_override,
     delete_unit_backup,
@@ -370,6 +371,7 @@ def create_app() -> Flask:
         editable = _editable(name)
         backups = list_unit_backups(name, _backup_dir(app))
         override_path, override_content, override_exists = read_drop_in_override(name)
+        override_analysis = analyze_drop_in_content(override_content)
         action_states = _service_action_states(app, info)
         notes = read_service_notes(_notes_path(app)).get(name, "")
         service_meta = _service_metadata(info)
@@ -389,6 +391,7 @@ def create_app() -> Flask:
             override_path=override_path,
             override_content=override_content,
             override_exists=override_exists,
+            override_analysis=override_analysis,
             action_states=action_states,
             notes=notes,
             service_meta=service_meta,
@@ -625,7 +628,8 @@ def create_app() -> Flask:
     def daemon_reload():
         result = run_systemctl(["daemon-reload"])
         flash(result.output or "systemctl daemon-reload completed.", "success" if result.ok else "error")
-        return redirect(request.referrer or url_for("index"))
+        next_url = _safe_next_url(request.form.get("next", "")) if result.ok else ""
+        return redirect(next_url or request.referrer or url_for("index"))
 
     @app.post("/restart-app")
     def restart_app():
@@ -777,6 +781,12 @@ def _backup_file(path: Path, backup_dir: Path | None) -> Path | None:
     backup_path = backup_dir / f"{path.name}.{stamp}.bak"
     backup_path.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
     return backup_path
+
+
+def _safe_next_url(value: str) -> str:
+    if value.startswith("/") and not value.startswith("//"):
+        return value
+    return ""
 
 
 def _valid_or_flash(name: str) -> bool:

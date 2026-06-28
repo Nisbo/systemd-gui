@@ -319,6 +319,40 @@ def flattened_unit_preview(base_content: str, drop_in_paths: list[str]) -> dict[
     return {"lines": lines, "text": "\n".join(text_lines).rstrip() + "\n"}
 
 
+def analyze_drop_in_content(content: str) -> dict[str, object]:
+    active_sections: set[str] = set()
+    active_settings: list[dict[str, str]] = []
+    warnings: list[str] = []
+    current = ""
+
+    for line_number, raw_line in enumerate(content.splitlines(), start=1):
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith("#") or stripped.startswith(";"):
+            continue
+        if stripped.startswith("[") and stripped.endswith("]") and len(stripped) > 2:
+            current = stripped[1:-1]
+            active_sections.add(current)
+            continue
+        if "=" in raw_line:
+            key, value = raw_line.split("=", 1)
+            if not current:
+                warnings.append(f"Line {line_number}: active setting without an active section. Add a section such as [Service] above it.")
+                continue
+            active_settings.append({"section": current, "key": key.strip(), "value": value.strip(), "line": str(line_number)})
+            continue
+        warnings.append(f"Line {line_number}: line is active but is not a section or key=value setting.")
+
+    if content.strip() and not active_settings:
+        warnings.append("This override file exists, but it does not contain active settings.")
+    return {
+        "active_sections": sorted(active_sections),
+        "active_settings": active_settings,
+        "active_setting_count": len(active_settings),
+        "warnings": warnings,
+        "has_active_settings": bool(active_settings),
+    }
+
+
 def _parse_unit_sections(content: str) -> tuple[dict[str, list[dict[str, object]]], list[str], list[dict[str, object]]]:
     sections: dict[str, list[dict[str, object]]] = {}
     order: list[str] = []
