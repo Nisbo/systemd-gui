@@ -343,6 +343,24 @@ def create_app() -> Flask:
         logs = run_journalctl(name, log_lines)
         return render_template("_service_logs.html", logs=logs)
 
+    @app.get("/service/<name>/logs")
+    def service_logs_window(name: str):
+        if not _valid_or_flash(name):
+            return redirect(url_for("index"))
+        log_lines = _log_line_count(request.args.get("lines", "200"))
+        log_refresh = request.args.get("refresh") == "1"
+        log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
+        info = service_info(name)
+        logs = run_journalctl(name, log_lines)
+        return render_template(
+            "service_logs_window.html",
+            info=info,
+            log_lines=log_lines,
+            log_refresh=log_refresh,
+            log_refresh_interval=log_refresh_interval,
+            logs=logs,
+        )
+
     @app.post("/service/<name>/backup/create")
     def create_service_backup(name: str):
         if not _valid_or_flash(name):

@@ -179,8 +179,6 @@
     const intervalSelect = logControls?.querySelector("[data-log-interval]");
     const searchInput = logControls?.querySelector("[data-log-search]");
     const refreshNow = logControls?.querySelector("[data-log-refresh-now]");
-    const liveNote = document.querySelector("[data-log-live-note]");
-    const liveNoteText = document.querySelector("[data-log-live-note-text]");
     const searchStatus = document.querySelector("[data-log-search-status]");
     let timer = null;
     let loading = false;
@@ -193,17 +191,9 @@
       return Number.isFinite(seconds) && seconds > 0 ? seconds : 5;
     };
     const refreshEnabled = () => Boolean(refreshCheckbox?.checked);
-    const updateLiveNote = () => {
-      if (!liveNote) return;
-      liveNote.hidden = !refreshEnabled();
-      if (liveNoteText) {
-        const seconds = selectedInterval();
-        liveNoteText.textContent = `Refreshing every ${seconds} second${seconds === 1 ? "" : "s"} while auto-refresh is enabled.`;
-      }
-    };
     const syncLogUrl = () => {
       const url = new URL(window.location.href);
-      url.searchParams.set("tab", "logs");
+      if (url.pathname.indexOf("/logs") === -1) url.searchParams.set("tab", "logs");
       url.searchParams.set("lines", selectedLines());
       if (refreshEnabled()) {
         url.searchParams.set("refresh", "1");
@@ -263,9 +253,17 @@
       renderLogText(output?.dataset.rawLog ?? code?.textContent ?? "");
       syncLogUrl();
     };
-    const refreshLogs = async ({ followBottom = true } = {}) => {
+    const hasActiveLogSelection = () => {
+      const output = document.querySelector("[data-log-output]");
+      const selection = window.getSelection();
+      if (!output || !selection || selection.isCollapsed || selection.rangeCount === 0) return false;
+      const range = selection.getRangeAt(0);
+      return output.contains(range.commonAncestorContainer);
+    };
+    const refreshLogs = async ({ followBottom = true, skipWhenSelecting = false } = {}) => {
       if (loading) return;
       const currentLog = document.querySelector("[data-log-output]");
+      if (skipWhenSelecting && hasActiveLogSelection()) return;
       const distanceFromBottom = currentLog ? currentLog.scrollHeight - currentLog.scrollTop - currentLog.clientHeight : 0;
       const wasNearBottom = distanceFromBottom < 32;
       const previousTop = currentLog?.scrollTop || 0;
@@ -297,11 +295,10 @@
     const startTimer = () => {
       stopTimer();
       if (!refreshEnabled()) return;
-      timer = window.setInterval(() => refreshLogs({ followBottom: true }), selectedInterval() * 1000);
+      timer = window.setInterval(() => refreshLogs({ followBottom: true, skipWhenSelecting: true }), selectedInterval() * 1000);
     };
     const applyLogControls = ({ refresh = false } = {}) => {
       syncLogUrl();
-      updateLiveNote();
       startTimer();
       if (refresh) refreshLogs({ followBottom: false });
     };
@@ -318,7 +315,6 @@
       refreshLogs({ followBottom: false });
     });
     applyLogSearch();
-    updateLiveNote();
     startTimer();
   }
 })();

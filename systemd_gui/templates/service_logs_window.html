@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ info.name }} logs - {{ app_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  </head>
+  <body class="log-window-body">
+    <main class="log-window-shell">
+      <section class="panel log-window-panel" data-log-panel data-log-url="{{ url_for('service_logs_fragment', name=info.name) }}" data-refresh-enabled="{{ 'true' if log_refresh else 'false' }}" data-refresh-interval="{{ log_refresh_interval }}">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">journalctl</p>
+            <h1>{{ info.name }}</h1>
+          </div>
+        </div>
+        <form class="log-controls" method="get" action="{{ url_for('service_logs_window', name=info.name) }}" data-log-controls>
+          <label>
+            Lines
+            <select name="lines" data-log-lines>
+              {% for option in [50, 100, 200, 500, 1000] %}
+                <option value="{{ option }}" {% if log_lines == option %}selected{% endif %}>{{ option }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="toggle-label">
+            <input name="refresh" type="checkbox" value="1" data-log-refresh {% if log_refresh %}checked{% endif %}>
+            Auto-refresh
+          </label>
+          <label>
+            Interval
+            <select name="interval" data-log-interval>
+              {% for option in [1, 2, 5, 10, 30] %}
+                <option value="{{ option }}" {% if log_refresh_interval == option %}selected{% endif %}>{{ option }}s</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Search loaded logs
+            <input name="log_q" value="{{ request.args.get('log_q', '') }}" placeholder="Filter visible log lines" autocomplete="off" data-log-search>
+          </label>
+          <button class="ghost-button" type="button" data-log-refresh-now>Refresh now</button>
+        </form>
+        <div class="log-search-status" data-log-search-status hidden></div>
+        {% include "_service_logs.html" %}
+      </section>
+    </main>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>
