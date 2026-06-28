@@ -65,29 +65,49 @@
   document.addEventListener("keydown", (event) => { if (event.key === "Escape" && infoModal && !infoModal.hidden) closeInfo(); });
 
   const markCopied = (button) => {
-    button.classList.remove("copied");
-    window.requestAnimationFrame(() => button.classList.add("copied"));
-    window.setTimeout(() => button.classList.remove("copied"), 1400);
+    button.classList.add("copied");
+    window.setTimeout(() => button.classList.remove("copied"), 850);
+  };
+  const fallbackCopy = (value) => {
+    const textarea = document.createElement("textarea");
+    textarea.value = value;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.style.top = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    textarea.setSelectionRange(0, textarea.value.length);
+    const ok = document.execCommand("copy");
+    textarea.remove();
+    return ok;
+  };
+  const writeClipboard = async (value) => {
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(value);
+        return true;
+      } catch (_error) {}
+    }
+    return fallbackCopy(value);
   };
   const copyValue = async (button) => {
     const target = button.dataset.copyTarget ? document.querySelector(button.dataset.copyTarget) : null;
     const value = target ? target.textContent : button.dataset.copyText;
-    if (!value) return;
-    await navigator.clipboard.writeText(value);
-    markCopied(button);
+    if (!value) return false;
+    return writeClipboard(value);
   };
   document.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-copy-text]");
     const targetButton = event.target.closest("[data-copy-target]");
     const copyButton = button || targetButton;
     if (!copyButton) return;
-    try {
-      await copyValue(copyButton);
-    } catch (_error) {}
+    if (await copyValue(copyButton)) markCopied(copyButton);
   });
 
   const downloadModal = document.querySelector("[data-download-modal]");
   const downloadCheckbox = document.querySelector("[data-download-unit-name]");
+  const downloadLabel = document.querySelector("[data-download-label]");
   const downloadCancel = document.querySelector("[data-download-cancel]");
   const downloadSubmit = document.querySelector("[data-download-submit]");
   let pendingDownload = null;
@@ -97,6 +117,11 @@
     if (!button || !downloadModal) return;
     pendingDownload = button;
     if (downloadCheckbox) downloadCheckbox.checked = false;
+    if (downloadLabel) {
+      const unitName = button.dataset.downloadUnitNameText || "name.service";
+      const backupName = button.dataset.downloadBackupNameText || "backupname";
+      downloadLabel.textContent = `Download as ${unitName} instead of ${backupName}`;
+    }
     downloadModal.hidden = false;
   });
   downloadCancel?.addEventListener("click", closeDownload);

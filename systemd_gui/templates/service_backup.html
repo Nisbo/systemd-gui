@@ -41,7 +41,7 @@
       </div>
     </dl>
     <div class="action-bar">
-      <button class="ghost-button" type="button" title="Download this backup file." data-download-choice data-download-unit-url="{{ url_for('download_service_backup', name=name, backup_name=backup_name, filename='unit') }}" data-download-backup-url="{{ url_for('download_service_backup', name=name, backup_name=backup_name, filename='backup') }}">Download backup</button>
+      <button class="ghost-button" type="button" title="Download this backup file." data-download-choice data-download-unit-url="{{ url_for('download_service_backup', name=name, backup_name=backup_name, filename='unit') }}" data-download-backup-url="{{ url_for('download_service_backup', name=name, backup_name=backup_name, filename='backup') }}" data-download-unit-name-text="{{ name }}" data-download-backup-name-text="{{ backup_name }}">Download backup</button>
       <form class="inline-form" method="post" action="{{ url_for('restore_service_backup', name=name, backup_name=backup_name) }}" data-confirm="Restore this backup for {{ name }}? You can choose whether the current unit file should be backed up first.">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <label class="toggle-label" title="Create another backup from the currently installed editable unit file before restoring this backup.">
