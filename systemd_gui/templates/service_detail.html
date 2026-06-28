@@ -165,12 +165,13 @@
         </div>
         <div class="panel-head">
           <div>
-            <h2>Merged unit with overrides</h2>
-            <p>Combined output from <code>systemctl cat {{ info.name }}</code>. This is the view systemd uses when reading the base unit plus drop-ins.</p>
+            <h2>Flattened unit with overrides</h2>
+            <p>Copy-ready unit file preview with drop-in settings folded into their sections. Highlighted values come from overrides.</p>
           </div>
           <button class="ghost-button icon-button" type="button" title="Copy merged unit content" aria-label="Copy merged unit content" data-copy-target="#unit-content">⧉</button>
         </div>
-        <pre class="config-preview override-merged"><code id="unit-content">{{ content }}</code></pre>
+        <pre class="config-preview override-merged"><code id="unit-content">{% for line in flattened_unit.lines %}{% if line.kind == 'assignment' %}{{ line.key }}{% if line.changed %}<span class="override-value-changed">{{ line.value }}</span>{% else %}{{ line.value }}{% endif %}{% else %}{{ line.text }}{% endif %}{% if not loop.last %}
+{% endif %}{% endfor %}</code></pre>
       </section>
     {% endif %}
   {% elif active_tab == "override" %}

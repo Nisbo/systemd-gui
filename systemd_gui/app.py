@@ -15,6 +15,7 @@ from .systemd import (
     create_unit_backup,
     delete_drop_in_override,
     delete_unit_backup,
+    flattened_unit_preview,
     is_protected_service,
     is_template_unit,
     journalctl_available,
@@ -360,6 +361,11 @@ def create_app() -> Flask:
         info = service_info(name)
         content = unit_content(name)
         original_content = unit_fragment_content(str(info.get("fragment_path") or ""))
+        drop_in_paths = list(dict.fromkeys([
+            *list(info.get("drop_in_path_list") or []),
+            *list(info.get("local_drop_in_paths") or []),
+        ]))
+        flattened_unit = flattened_unit_preview(original_content, drop_in_paths) if original_content else {"lines": [], "text": ""}
         logs = run_journalctl(name, log_lines)
         editable = _editable(name)
         backups = list_unit_backups(name, _backup_dir(app))
@@ -376,6 +382,7 @@ def create_app() -> Flask:
             info=info,
             content=content,
             original_content=original_content,
+            flattened_unit=flattened_unit,
             logs=logs,
             editable=editable,
             backups=backups,

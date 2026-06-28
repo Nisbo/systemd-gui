@@ -295,6 +295,108 @@ def unit_fragment_content(fragment_path: str) -> str:
         return ""
 
 
+def flattened_unit_preview(base_content: str, drop_in_paths: list[str]) -> dict[str, object]:
+    sections, order, preamble = _parse_unit_sections(base_content)
+    for path_value in drop_in_paths:
+        path = Path(path_value)
+        if not path.is_file():
+            continue
+        try:
+            drop_in_content = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        _apply_drop_in_sections(sections, order, drop_in_content)
+
+    lines: list[dict[str, object]] = []
+    lines.extend(preamble)
+    for section in order:
+        if lines and str(lines[-1].get("text", "")):
+            lines.append({"kind": "raw", "text": ""})
+        lines.append({"kind": "raw", "text": f"[{section}]"})
+        lines.extend(sections[section])
+
+    text_lines = [_unit_preview_line_text(line) for line in lines]
+    return {"lines": lines, "text": "\n".join(text_lines).rstrip() + "\n"}
+
+
+def _parse_unit_sections(content: str) -> tuple[dict[str, list[dict[str, object]]], list[str], list[dict[str, object]]]:
+    sections: dict[str, list[dict[str, object]]] = {}
+    order: list[str] = []
+    preamble: list[dict[str, object]] = []
+    current = ""
+
+    for raw_line in content.splitlines():
+        stripped = raw_line.strip()
+        if stripped.startswith("[") and stripped.endswith("]") and len(stripped) > 2:
+            current = stripped[1:-1]
+            if current not in sections:
+                sections[current] = []
+                order.append(current)
+            continue
+
+        entry = _unit_line_entry(raw_line, changed=False)
+        if current:
+            sections[current].append(entry)
+        else:
+            preamble.append(entry)
+    return sections, order, preamble
+
+
+def _apply_drop_in_sections(sections: dict[str, list[dict[str, object]]], order: list[str], content: str) -> None:
+    current = ""
+    for raw_line in content.splitlines():
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith("#") or stripped.startswith(";"):
+            continue
+        if stripped.startswith("[") and stripped.endswith("]") and len(stripped) > 2:
+            current = stripped[1:-1]
+            if current not in sections:
+                sections[current] = []
+                order.append(current)
+            continue
+        if not current or "=" not in raw_line:
+            continue
+
+        key, value = raw_line.split("=", 1)
+        key = key.strip()
+        replacement = {"kind": "assignment", "key": f"{key}=", "value": value.strip(), "changed": True}
+        existing_index = _assignment_index(sections[current], key)
+        if existing_index is None:
+            insert_at = _section_append_index(sections[current])
+            sections[current].insert(insert_at, replacement)
+        else:
+            sections[current][existing_index] = replacement
+
+
+def _unit_line_entry(line: str, changed: bool) -> dict[str, object]:
+    stripped = line.strip()
+    if not stripped or stripped.startswith("#") or stripped.startswith(";") or "=" not in line:
+        return {"kind": "raw", "text": line}
+    key, value = line.split("=", 1)
+    return {"kind": "assignment", "key": f"{key.strip()}=", "value": value.strip(), "changed": changed}
+
+
+def _assignment_index(lines: list[dict[str, object]], key: str) -> int | None:
+    key_prefix = f"{key}="
+    for index, line in enumerate(lines):
+        if line.get("kind") == "assignment" and line.get("key") == key_prefix:
+            return index
+    return None
+
+
+def _section_append_index(lines: list[dict[str, object]]) -> int:
+    index = len(lines)
+    while index > 0 and lines[index - 1].get("kind") == "raw" and not str(lines[index - 1].get("text", "")):
+        index -= 1
+    return index
+
+
+def _unit_preview_line_text(line: dict[str, object]) -> str:
+    if line.get("kind") == "assignment":
+        return f"{line.get('key', '')}{line.get('value', '')}"
+    return str(line.get("text", ""))
+
+
 def create_unit_backup(name: str, backup_dir: Path) -> Path:
     if not valid_service_name(name):
         raise ValueError("Only .service units are supported.")
