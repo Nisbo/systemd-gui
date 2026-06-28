@@ -194,6 +194,7 @@
     const searchInput = logControls?.querySelector("[data-log-search]");
     const refreshNow = logControls?.querySelector("[data-log-refresh-now]");
     const searchStatus = document.querySelector("[data-log-search-status]");
+    const refreshPaused = document.querySelector("[data-log-refresh-paused]");
     let timer = null;
     let loading = false;
     let searchTimer = null;
@@ -274,9 +275,15 @@
       const range = selection.getRangeAt(0);
       return output.contains(range.commonAncestorContainer);
     };
+    const updateRefreshPaused = () => {
+      const paused = refreshEnabled() && hasActiveLogSelection();
+      if (logControls) logControls.classList.toggle("refresh-paused", paused);
+      if (refreshPaused) refreshPaused.hidden = !paused;
+    };
     const refreshLogs = async ({ followBottom = true, skipWhenSelecting = false } = {}) => {
       if (loading) return;
       const currentLog = document.querySelector("[data-log-output]");
+      updateRefreshPaused();
       if (skipWhenSelecting && hasActiveLogSelection()) return;
       const distanceFromBottom = currentLog ? currentLog.scrollHeight - currentLog.scrollTop - currentLog.clientHeight : 0;
       const wasNearBottom = distanceFromBottom < 32;
@@ -305,6 +312,7 @@
     const stopTimer = () => {
       if (timer) window.clearInterval(timer);
       timer = null;
+      updateRefreshPaused();
     };
     const startTimer = () => {
       stopTimer();
@@ -324,11 +332,13 @@
       window.clearTimeout(searchTimer);
       searchTimer = window.setTimeout(applyLogSearch, 120);
     });
+    document.addEventListener("selectionchange", updateRefreshPaused);
     refreshNow?.addEventListener("click", () => {
       syncLogUrl();
       refreshLogs({ followBottom: false });
     });
     applyLogSearch();
+    updateRefreshPaused();
     startTimer();
   }
 })();

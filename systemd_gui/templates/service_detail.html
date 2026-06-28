@@ -156,6 +156,7 @@
         <button class="ghost-button" type="button" data-log-refresh-now>Refresh now</button>
         <a class="ghost-button" href="{{ url_for('service_logs_window', name=info.name, lines=log_lines, refresh='1' if log_refresh else None, interval=log_refresh_interval if log_refresh else None, log_q=request.args.get('log_q') or None) }}" target="_blank" rel="noopener noreferrer" data-log-window>Open window</a>
       </form>
+      <div class="log-refresh-paused" data-log-refresh-paused hidden>Auto-refresh paused while text is selected.</div>
       <div class="log-search-status" data-log-search-status hidden></div>
       {% include "_service_logs.html" %}
     </section>
