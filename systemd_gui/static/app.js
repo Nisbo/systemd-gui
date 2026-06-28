@@ -134,6 +134,20 @@
   });
   document.addEventListener("keydown", (event) => { if (event.key === "Escape" && downloadModal && !downloadModal.hidden) closeDownload(); });
 
+  document.addEventListener("click", (event) => {
+    const link = event.target.closest("[data-log-window]");
+    if (!link) return;
+    event.preventDefault();
+    const width = Math.min(1180, Math.max(860, Math.round(window.screen.availWidth * 0.72)));
+    const height = Math.min(900, Math.max(640, Math.round(window.screen.availHeight * 0.78)));
+    const left = Math.max(0, Math.round((window.screen.availWidth - width) / 2));
+    const top = Math.max(0, Math.round((window.screen.availHeight - height) / 2));
+    const features = `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`;
+    const popup = window.open(link.href, "systemdGuiLogWindow", features);
+    if (popup) popup.focus();
+    else window.open(link.href, "_blank", "noopener,noreferrer");
+  });
+
   document.querySelectorAll("form[data-live-search]").forEach((form) => {
     const input = form.querySelector("input[name='q']");
     if (!input) return;
