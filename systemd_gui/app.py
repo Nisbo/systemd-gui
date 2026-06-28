@@ -34,7 +34,11 @@ from .systemd import (
 )
 from .updater import (
     check_for_update,
+    create_app_backup,
+    delete_app_backup,
     git_update_state,
+    list_app_backups,
+    restore_app_backup,
     update_from_git,
     update_from_release,
     update_from_zip,
@@ -185,6 +189,7 @@ def create_app() -> Flask:
             password_enabled=bool(app.config["ADMIN_PASSWORD"]),
             systemd_gui_service=app.config["SYSTEMD_GUI_SERVICE"],
             git_state=git_update_state(_app_root(app)),
+            app_update_backups=list_app_backups(_app_root(app)),
             update_status=session.pop("update_status", None),
             update_result=session.pop("update_result", None),
             app_update_pending_restart=session.get("app_update_pending_restart", False),
@@ -257,6 +262,38 @@ def create_app() -> Flask:
         if result.ok:
             session["app_update_pending_restart"] = True
         flash(result.message, "success" if result.ok else "error")
+        return redirect(url_for("settings", tab="updates"))
+
+    @app.post("/settings/update/backups")
+    def create_app_update_backup():
+        comment = request.form.get("comment", "").strip()
+        try:
+            backup_path = create_app_backup(_app_root(app), "Manual app backup", comment)
+        except OSError as exc:
+            flash(f"App backup failed: {exc}", "error")
+            return redirect(url_for("settings", tab="updates"))
+
+        flash(f"App backup created: {backup_path}", "success")
+        return redirect(url_for("settings", tab="updates"))
+
+    @app.post("/settings/update/backups/<backup_id>/restore")
+    def restore_app_update_backup(backup_id: str):
+        result = restore_app_backup(_app_root(app), backup_id)
+        session["update_result"] = _update_result_dict(result)
+        if result.ok:
+            session["app_update_pending_restart"] = True
+        flash(result.message, "success" if result.ok else "error")
+        return redirect(url_for("settings", tab="updates"))
+
+    @app.post("/settings/update/backups/<backup_id>/delete")
+    def delete_app_update_backup(backup_id: str):
+        try:
+            delete_app_backup(_app_root(app), backup_id)
+        except (OSError, ValueError) as exc:
+            flash(f"App update backup delete failed: {exc}", "error")
+            return redirect(url_for("settings", tab="updates"))
+
+        flash("App update backup deleted.", "success")
         return redirect(url_for("settings", tab="updates"))
 
     @app.post("/settings/update/restart-app")

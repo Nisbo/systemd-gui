@@ -19,6 +19,8 @@ from .version import APP_VERSION, RELEASES_LIST_API_URL
 
 PROJECT_DIRS = ("systemd_gui", "scripts")
 PROJECT_FILES = ("run.py", "README.md", ".gitignore")
+RUNTIME_DATA_ITEMS = ("favorites.json", "service-notes.json", "unit-backups", "env-backups")
+APP_BACKUP_META_FILE = "backup-meta.txt"
 
 
 @dataclass
@@ -27,6 +29,16 @@ class UpdateResult:
     message: str
     details: list[str] = field(default_factory=list)
     backup_path: Path | None = None
+
+
+@dataclass
+class AppBackupEntry:
+    backup_id: str
+    path: Path
+    created_at: str
+    size: int
+    reason: str
+    comment: str
 
 
 @dataclass
@@ -225,7 +237,7 @@ def update_from_zip(app_root: Path, zip_stream: BinaryIO, backup_reason: str = "
 
 def create_app_backup(app_root: Path, reason: str = "Manual app backup", comment: str = "") -> Path:
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
-    backup_root = app_root / "data" / "app-updates" / "backups" / timestamp
+    backup_root = _app_backup_root(app_root) / timestamp
     backup_root.mkdir(parents=True, exist_ok=False)
 
     for directory in PROJECT_DIRS:
@@ -238,11 +250,58 @@ def create_app_backup(app_root: Path, reason: str = "Manual app backup", comment
         if source.exists():
             shutil.copy2(source, backup_root / filename)
 
-    (backup_root / "backup-meta.txt").write_text(
-        f"reason={_clean_meta_value(reason)}\ncomment={_clean_meta_value(comment)}\n",
-        encoding="utf-8",
-    )
+    _copy_runtime_data(app_root / "data", backup_root / "data")
+    _write_backup_meta(backup_root, reason, comment)
     return backup_root
+
+
+def list_app_backups(app_root: Path) -> list[AppBackupEntry]:
+    backup_root = _app_backup_root(app_root)
+    if not backup_root.exists():
+        return []
+
+    entries: list[AppBackupEntry] = []
+    for path in backup_root.iterdir():
+        if not path.is_dir():
+            continue
+        meta = _read_backup_meta(path)
+        entries.append(
+            AppBackupEntry(
+                backup_id=path.name,
+                path=path,
+                created_at=_format_backup_id(path.name),
+                size=_directory_size(path),
+                reason=meta["reason"],
+                comment=meta["comment"],
+            )
+        )
+    return sorted(entries, key=lambda entry: entry.backup_id, reverse=True)
+
+
+def restore_app_backup(app_root: Path, backup_id: str) -> UpdateResult:
+    try:
+        backup_path = _app_backup_path(app_root, backup_id)
+    except ValueError as exc:
+        return UpdateResult(False, str(exc))
+    if not backup_path.exists() or not backup_path.is_dir():
+        return UpdateResult(False, f"App update backup not found: {backup_id}")
+
+    safety_backup = create_app_backup(app_root, "Before app backup restore", f"Created automatically before restoring app backup {backup_id}.")
+    details = [f"Safety backup created: {safety_backup}", f"Restored from: {backup_path}"]
+    try:
+        copied = _copy_project_files(backup_path, app_root)
+        copied.extend(_copy_runtime_data(backup_path / "data", app_root / "data"))
+    except (OSError, ValueError) as exc:
+        return UpdateResult(False, f"App backup restore failed: {exc}", details, safety_backup)
+    details.extend(f"Restored: {item}" for item in copied)
+    return UpdateResult(True, "App backup restored. Restart Systemd Gui to run the restored code.", details, safety_backup)
+
+
+def delete_app_backup(app_root: Path, backup_id: str) -> None:
+    backup_path = _app_backup_path(app_root, backup_id)
+    if not backup_path.exists() or not backup_path.is_dir():
+        raise FileNotFoundError(f"App update backup not found: {backup_id}")
+    shutil.rmtree(backup_path)
 
 
 @dataclass
@@ -357,11 +416,87 @@ def _copy_project_files(source_root: Path, app_root: Path) -> list[str]:
     return copied
 
 
+def _copy_runtime_data(source_data: Path, target_data: Path) -> list[str]:
+    copied: list[str] = []
+    if not source_data.exists():
+        return copied
+    target_data.mkdir(parents=True, exist_ok=True)
+    for item_name in RUNTIME_DATA_ITEMS:
+        source = source_data / item_name
+        if not source.exists():
+            continue
+        target = target_data / item_name
+        if source.is_dir():
+            if target.exists():
+                shutil.rmtree(target)
+            shutil.copytree(source, target, ignore=_ignore_runtime_files)
+        else:
+            shutil.copy2(source, target)
+        copied.append(f"data/{item_name}")
+    return copied
+
+
 def _ignore_runtime_files(directory: str, names: list[str]) -> set[str]:
     ignored = {"__pycache__", ".DS_Store"}
     if Path(directory).name == "systemd_gui":
         ignored.add("data")
     return ignored.intersection(names)
+
+
+def _app_backup_root(app_root: Path) -> Path:
+    return app_root / "data" / "app-updates" / "backups"
+
+
+def _app_backup_path(app_root: Path, backup_id: str) -> Path:
+    if not backup_id or "/" in backup_id or "\\" in backup_id or backup_id in {".", ".."}:
+        raise ValueError("Invalid app backup id.")
+    backup_root = _app_backup_root(app_root).resolve()
+    backup_path = (backup_root / backup_id).resolve()
+    if not backup_path.is_relative_to(backup_root):
+        raise ValueError("Invalid app backup path.")
+    return backup_path
+
+
+def _directory_size(path: Path) -> int:
+    total = 0
+    for item in path.rglob("*"):
+        if item.is_file():
+            total += item.stat().st_size
+    return total
+
+
+def _format_backup_id(backup_id: str) -> str:
+    try:
+        stamp = backup_id.split("-", 2)
+        if len(stamp) < 2:
+            return backup_id
+        base = "-".join(stamp[:2])
+        parsed = datetime.strptime(base, "%Y%m%d-%H%M%S")
+        return parsed.strftime("%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return backup_id
+
+
+def _write_backup_meta(path: Path, reason: str, comment: str) -> None:
+    content = "\n".join(
+        (
+            f"reason={_clean_meta_value(reason)}",
+            f"comment={_clean_meta_value(comment)}",
+        )
+    )
+    (path / APP_BACKUP_META_FILE).write_text(content + "\n", encoding="utf-8")
+
+
+def _read_backup_meta(path: Path) -> dict[str, str]:
+    meta = {"reason": "Unknown", "comment": ""}
+    meta_path = path / APP_BACKUP_META_FILE
+    if not meta_path.exists():
+        return meta
+    for line in meta_path.read_text(encoding="utf-8", errors="replace").splitlines():
+        key, separator, value = line.partition("=")
+        if separator and key in meta:
+            meta[key] = value.strip()
+    return meta
 
 
 def _release_version(release: dict[str, object]) -> str:
