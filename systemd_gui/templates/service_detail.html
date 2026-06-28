@@ -9,7 +9,10 @@
   <section class="panel">
     <div class="panel-head">
       <div>
-        <h2>{{ info.name }}</h2>
+        <h2 class="heading-with-action">
+          <span>{{ info.name }}</span>
+          <button class="ghost-button icon-button" type="button" title="Copy service name" aria-label="Copy service name" data-copy-text="{{ info.name }}">⧉</button>
+        </h2>
         <p>{{ info.description or 'No description available.' }}</p>
       </div>
       <form method="post" action="{{ url_for('toggle_favorite', name=info.name) }}">
@@ -110,8 +113,11 @@
     </section>
 
     <section class="panel">
-      <div class="panel-head"><div><h2>Unit file</h2><p>Read-only preview from <code>systemctl cat</code>.</p></div></div>
-      <pre class="config-preview"><code>{{ content }}</code></pre>
+      <div class="panel-head">
+        <div><h2>Unit file</h2><p>Read-only preview from <code>systemctl cat</code>.</p></div>
+        <button class="ghost-button icon-button" type="button" title="Copy unit file content" aria-label="Copy unit file content" data-copy-target="#unit-content">⧉</button>
+      </div>
+      <pre class="config-preview"><code id="unit-content">{{ content }}</code></pre>
     </section>
   {% elif active_tab == "logs" %}
     <section class="panel" data-log-panel data-log-url="{{ url_for('service_logs_fragment', name=info.name) }}" data-refresh-enabled="{{ 'true' if log_refresh else 'false' }}" data-refresh-interval="{{ log_refresh_interval }}">

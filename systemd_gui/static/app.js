@@ -64,18 +64,50 @@
   infoModal?.addEventListener("click", (event) => { if (event.target === infoModal) closeInfo(); });
   document.addEventListener("keydown", (event) => { if (event.key === "Escape" && infoModal && !infoModal.hidden) closeInfo(); });
 
+  const markCopied = (button) => {
+    button.classList.remove("copied");
+    window.requestAnimationFrame(() => button.classList.add("copied"));
+    window.setTimeout(() => button.classList.remove("copied"), 1400);
+  };
+  const copyValue = async (button) => {
+    const target = button.dataset.copyTarget ? document.querySelector(button.dataset.copyTarget) : null;
+    const value = target ? target.textContent : button.dataset.copyText;
+    if (!value) return;
+    await navigator.clipboard.writeText(value);
+    markCopied(button);
+  };
   document.addEventListener("click", async (event) => {
     const button = event.target.closest("[data-copy-text]");
-    if (!button) return;
+    const targetButton = event.target.closest("[data-copy-target]");
+    const copyButton = button || targetButton;
+    if (!copyButton) return;
     try {
-      await navigator.clipboard.writeText(button.dataset.copyText || "");
-      const original = button.title;
-      button.title = "Copied";
-      window.setTimeout(() => { button.title = original; }, 1400);
-    } catch (_error) {
-      window.prompt("Copy this value", button.dataset.copyText || "");
-    }
+      await copyValue(copyButton);
+    } catch (_error) {}
   });
+
+  const downloadModal = document.querySelector("[data-download-modal]");
+  const downloadCheckbox = document.querySelector("[data-download-unit-name]");
+  const downloadCancel = document.querySelector("[data-download-cancel]");
+  const downloadSubmit = document.querySelector("[data-download-submit]");
+  let pendingDownload = null;
+  const closeDownload = () => { if (downloadModal) downloadModal.hidden = true; pendingDownload = null; };
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-download-choice]");
+    if (!button || !downloadModal) return;
+    pendingDownload = button;
+    if (downloadCheckbox) downloadCheckbox.checked = false;
+    downloadModal.hidden = false;
+  });
+  downloadCancel?.addEventListener("click", closeDownload);
+  downloadModal?.addEventListener("click", (event) => { if (event.target === downloadModal) closeDownload(); });
+  downloadSubmit?.addEventListener("click", () => {
+    if (!pendingDownload) return;
+    const url = downloadCheckbox?.checked ? pendingDownload.dataset.downloadUnitUrl : pendingDownload.dataset.downloadBackupUrl;
+    closeDownload();
+    if (url) window.location.href = url;
+  });
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape" && downloadModal && !downloadModal.hidden) closeDownload(); });
 
   document.querySelectorAll("form[data-live-search]").forEach((form) => {
     const input = form.querySelector("input[name='q']");
