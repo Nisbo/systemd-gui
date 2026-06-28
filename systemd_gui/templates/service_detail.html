@@ -26,18 +26,21 @@
         <button class="ghost-button" type="submit">Toggle favorite</button>
       </form>
     </div>
-    <dl class="detail-grid">
-      <div>
+    <dl class="detail-grid service-summary-grid">
+      <div class="summary-card">
         <dt>Status</dt>
         <dd>
-          <span class="status-stack">
-            <span class="status-pill {{ info.active }}" title="{{ info.active_help }}" aria-label="{{ info.active_help }}">{{ info.active }}</span>
-            {% if info.sub and info.sub != '-' %}
-              <span class="status-pill sub-state" title="{{ info.sub_help }}" aria-label="{{ info.sub_help }}">{{ info.sub }}</span>
-            {% else %}
-              <span class="status-pill sub-state muted" title="{{ info.sub_help }}" aria-label="{{ info.sub_help }}">No detail</span>
-            {% endif %}
+          <span class="summary-main">
+            <span class="status-stack">
+              <span class="status-pill {{ info.active }}" title="{{ info.active_help }}" aria-label="{{ info.active_help }}">{{ info.active }}</span>
+              {% if info.sub and info.sub != '-' %}
+                <span class="status-pill sub-state" title="{{ info.sub_help }}" aria-label="{{ info.sub_help }}">{{ info.sub }}</span>
+              {% else %}
+                <span class="status-pill sub-state muted" title="{{ info.sub_help }}" aria-label="{{ info.sub_help }}">No detail</span>
+              {% endif %}
+            </span>
           </span>
+          <span class="summary-divider" aria-hidden="true"></span>
           <span class="card-actions">
             {% for action in ['start', 'stop', 'restart', 'reload'] %}
               {{ action_button(action) }}
@@ -45,10 +48,13 @@
           </span>
         </dd>
       </div>
-      <div>
+      <div class="summary-card">
         <dt>Autostart</dt>
         <dd>
-          <span class="state-text" title="{{ info.enabled_help }}" aria-label="{{ info.enabled_help }}">{{ info.enabled }}</span>
+          <span class="summary-main">
+            <span class="state-text" title="{{ info.enabled_help }}" aria-label="{{ info.enabled_help }}">{{ info.enabled }}</span>
+          </span>
+          <span class="summary-divider" aria-hidden="true"></span>
           <span class="card-actions">
             {% for action in ['enable', 'disable'] %}
               {{ action_button(action) }}
@@ -56,23 +62,24 @@
           </span>
         </dd>
       </div>
-      <div>
+      <div class="summary-card">
         <dt>Unit file</dt>
         <dd>
-          <span class="path-copy-row">
-            <span class="path-value">{{ info.fragment_path or 'Unknown' }}</span>
-            {% if info.fragment_path %}<button class="ghost-button icon-button small-icon-button" type="button" title="Copy unit file path" aria-label="Copy unit file path" data-copy-text="{{ info.fragment_path }}">⧉</button>{% endif %}
+          <span class="summary-main">
+            <span class="path-copy-row">
+              <span class="path-value">{{ info.fragment_path or 'Unknown' }}</span>
+              {% if info.fragment_path %}<button class="ghost-button icon-button small-icon-button" type="button" title="Copy unit file path" aria-label="Copy unit file path" data-copy-text="{{ info.fragment_path }}">⧉</button>{% endif %}
+            </span>
           </span>
-        </dd>
-      </div>
-      <div>
-        <dt>Protected</dt>
-        <dd>
-          {% if info.protected %}
-            <span class="tag danger" title="Protected services are blocked from start, stop, restart, reload, enable and disable actions because they are important for login, networking or systemd itself." aria-label="Protected services are blocked from risky actions because they are important for login, networking or systemd itself.">Yes</span>
-          {% else %}
-            No
-          {% endif %}
+          <span class="summary-divider" aria-hidden="true"></span>
+          <span class="summary-meta">
+            <span class="summary-meta-label">Protected</span>
+            {% if info.protected %}
+              <span class="tag danger" title="Protected services are blocked from start, stop, restart, reload, enable and disable actions because they are important for login, networking or systemd itself." aria-label="Protected services are blocked from risky actions because they are important for login, networking or systemd itself.">Yes</span>
+            {% else %}
+              <span class="tag neutral" title="This service is not in the protected list. Normal action rules still apply.">No</span>
+            {% endif %}
+          </span>
         </dd>
       </div>
     </dl>
