@@ -2,6 +2,7 @@
 {% block content %}
   {% set service_tabs = [
     ("unit", "Unit"),
+    ("override", "Override"),
     ("info", "Info"),
     ("logs", "Logs"),
     ("backups", "Backups"),
@@ -73,13 +74,23 @@
             </span>
           </span>
           <span class="summary-divider" aria-hidden="true"></span>
-          <span class="summary-meta">
-            <span class="summary-meta-label">Protected</span>
-            {% if info.protected %}
-              <span class="tag danger" title="Protected services are blocked from start, stop, restart, reload, enable and disable actions because they are important for login, networking or systemd itself." aria-label="Protected services are blocked from risky actions because they are important for login, networking or systemd itself.">Yes</span>
-            {% else %}
-              <span class="tag neutral" title="This service is not in the protected list. Normal action rules still apply.">No</span>
-            {% endif %}
+          <span class="card-actions">
+            <span class="summary-meta">
+              <span class="summary-meta-label">Protected</span>
+              {% if info.protected %}
+                <span class="tag danger" title="Protected services are blocked from start, stop, restart, reload, enable and disable actions because they are important for login, networking or systemd itself." aria-label="Protected services are blocked from risky actions because they are important for login, networking or systemd itself.">Yes</span>
+              {% else %}
+                <span class="tag neutral" title="This service is not in the protected list. Normal action rules still apply.">No</span>
+              {% endif %}
+            </span>
+            <span class="summary-meta">
+              <span class="summary-meta-label">Override</span>
+              {% if info.override %}
+                <span class="tag" title="{{ info.override_help }}" aria-label="{{ info.override_help }}">Yes</span>
+              {% else %}
+                <span class="tag neutral" title="No local drop-in override is known for this service.">No</span>
+              {% endif %}
+            </span>
           </span>
         </dd>
       </div>
@@ -132,6 +143,7 @@
       <div class="panel-head">
         <div><h2>Unit file</h2><p>Read-only preview from <code>systemctl cat</code>.</p></div>
         <div class="panel-actions">
+          {% if info.available and not info.protected and not info.template_unit %}<a class="ghost-button" href="{{ url_for('service_detail', name=info.name, tab='override') }}" title="Create or edit a safe systemd drop-in override for this service.">Edit override</a>{% endif %}
           {% if editable %}<a class="ghost-button" href="{{ url_for('edit_service', name=info.name) }}">Edit unit</a>{% endif %}
           <form method="post" action="{{ url_for('create_service_backup', name=info.name) }}" data-confirm="Create a backup of the current unit output for {{ info.name }}?">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -141,6 +153,58 @@
         </div>
       </div>
       <pre class="config-preview"><code id="unit-content">{{ content }}</code></pre>
+    </section>
+  {% elif active_tab == "override" %}
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Override</h2>
+          <p>Safe drop-in configuration stored as <code>{{ override_path }}</code>.</p>
+        </div>
+        <form method="post" action="{{ url_for('daemon_reload') }}" data-confirm="Run systemctl daemon-reload? This reloads unit and override files after edits.">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="ghost-button" type="submit">Daemon reload</button>
+        </form>
+      </div>
+      <div class="diagnostic warning">
+        <strong>What this does</strong>
+        <span>An override changes selected service settings without editing the original unit file. After saving, run daemon-reload and restart the service when you are ready.</span>
+      </div>
+      {% if not info.available %}
+        <div class="diagnostic error">
+          <strong>Service not found</strong>
+          <span>Override editing is disabled because systemd did not find this service.</span>
+        </div>
+      {% elif info.protected %}
+        <div class="diagnostic error">
+          <strong>Protected service</strong>
+          <span>Override editing is disabled for this service because it is protected by Systemd Gui.</span>
+        </div>
+      {% elif info.template_unit %}
+        <div class="diagnostic warning">
+          <strong>Template unit</strong>
+          <span>Edit an override on a concrete instance instead of the template blueprint.</span>
+        </div>
+      {% else %}
+        <form id="override-save-form" class="form-grid single" method="post" action="{{ url_for('save_service_override', name=info.name) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <label>
+            override.conf content
+            <textarea name="content" rows="18" spellcheck="false" placeholder="[Service]&#10;Restart=always&#10;RestartSec=5">{{ override_content }}</textarea>
+            <span class="field-help">Only put the settings you want to override here. The original unit file remains untouched.</span>
+          </label>
+        </form>
+        <div class="form-actions split-actions">
+          <a class="ghost-button" href="{{ url_for('service_detail', name=info.name) }}">Back to unit</a>
+          {% if override_exists %}
+            <form method="post" action="{{ url_for('delete_service_override', name=info.name) }}" data-confirm="Delete override.conf for {{ info.name }}? A backup copy will be saved first.">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button class="danger-button" type="submit">Delete override</button>
+            </form>
+          {% endif %}
+          <button class="primary-button" type="submit" form="override-save-form">{{ 'Save override' if override_exists else 'Create override' }}</button>
+        </div>
+      {% endif %}
     </section>
   {% elif active_tab == "info" %}
     <section class="panel">

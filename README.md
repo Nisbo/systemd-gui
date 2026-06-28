@@ -15,6 +15,7 @@ Gunicorn.
 - Start, stop, restart and reload services.
 - Enable and disable autostart when systemd supports it.
 - View unit files and drop-ins.
+- Create and edit drop-in overrides without changing package-owned unit files.
 - View service logs from `journalctl`.
 - Open logs in a separate live-view window.
 - Search loaded log lines.

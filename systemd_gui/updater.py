@@ -19,7 +19,7 @@ from .version import APP_VERSION, RELEASES_LIST_API_URL
 
 PROJECT_DIRS = ("systemd_gui", "scripts")
 PROJECT_FILES = ("run.py", "README.md", ".gitignore")
-RUNTIME_DATA_ITEMS = ("favorites.json", "service-notes.json", "unit-backups", "env-backups")
+RUNTIME_DATA_ITEMS = ("favorites.json", "service-notes.json", "unit-backups", "drop-in-backups", "env-backups")
 APP_BACKUP_META_FILE = "backup-meta.txt"
 
 

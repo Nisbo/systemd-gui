@@ -13,12 +13,14 @@ from flask import Flask, Response, flash, redirect, render_template, request, se
 
 from .systemd import (
     create_unit_backup,
+    delete_drop_in_override,
     delete_unit_backup,
     is_protected_service,
     is_template_unit,
     journalctl_available,
     list_unit_backups,
     list_services,
+    read_drop_in_override,
     read_editable_unit,
     read_favorites,
     read_unit_backup,
@@ -29,6 +31,7 @@ from .systemd import (
     systemctl_available,
     unit_content,
     valid_service_name,
+    write_drop_in_override,
     write_editable_unit,
     write_favorites,
 )
@@ -348,7 +351,7 @@ def create_app() -> Flask:
         if not _valid_or_flash(name):
             return redirect(url_for("index"))
         active_tab = request.args.get("tab", "unit")
-        if active_tab not in {"unit", "logs", "backups", "info"}:
+        if active_tab not in {"unit", "override", "logs", "backups", "info"}:
             active_tab = "unit"
         log_lines = _log_line_count(request.args.get("lines", "200"))
         log_refresh = request.args.get("refresh") == "1"
@@ -358,6 +361,7 @@ def create_app() -> Flask:
         logs = run_journalctl(name, log_lines)
         editable = _editable(name)
         backups = list_unit_backups(name, _backup_dir(app))
+        override_path, override_content, override_exists = read_drop_in_override(name)
         action_states = _service_action_states(app, info)
         notes = read_service_notes(_notes_path(app)).get(name, "")
         service_meta = _service_metadata(info)
@@ -372,6 +376,9 @@ def create_app() -> Flask:
             logs=logs,
             editable=editable,
             backups=backups,
+            override_path=override_path,
+            override_content=override_content,
+            override_exists=override_exists,
             action_states=action_states,
             notes=notes,
             service_meta=service_meta,
@@ -484,6 +491,46 @@ def create_app() -> Flask:
             return redirect(url_for("service_detail", name=name))
         backups = list_unit_backups(name, _backup_dir(app))
         return render_template("service_edit.html", name=name, path=path, content=content, backups=backups)
+
+    @app.post("/service/<name>/override")
+    def save_service_override(name: str):
+        if not _valid_or_flash(name):
+            return redirect(url_for("index"))
+        info = service_info(name)
+        if not info.get("available"):
+            flash("This service was not found by systemd. Override editing is disabled.", "error")
+            return redirect(url_for("service_detail", name=name, tab="override"))
+        if _blocked_protected(app, name):
+            return redirect(url_for("service_detail", name=name, tab="override"))
+        if _blocked_template(name):
+            return redirect(url_for("service_detail", name=name, tab="override"))
+        content = request.form.get("content", "")
+        try:
+            backup_path = write_drop_in_override(name, content, Path(app.config["DATA_DIR"]) / "drop-in-backups")
+        except (OSError, ValueError) as exc:
+            flash(f"Override could not be saved: {exc}", "error")
+            return redirect(url_for("service_detail", name=name, tab="override"))
+        backup_note = f" Previous override backup: {backup_path}." if backup_path else ""
+        flash(f"Override saved.{backup_note} Run daemon-reload before restarting the service.", "success")
+        return redirect(url_for("service_detail", name=name, tab="override"))
+
+    @app.post("/service/<name>/override/delete")
+    def delete_service_override(name: str):
+        if not _valid_or_flash(name):
+            return redirect(url_for("index"))
+        info = service_info(name)
+        if not info.get("available"):
+            flash("This service was not found by systemd. Override editing is disabled.", "error")
+            return redirect(url_for("service_detail", name=name, tab="override"))
+        if _blocked_protected(app, name):
+            return redirect(url_for("service_detail", name=name, tab="override"))
+        try:
+            backup_path = delete_drop_in_override(name, Path(app.config["DATA_DIR"]) / "drop-in-backups")
+        except (OSError, ValueError) as exc:
+            flash(f"Override could not be deleted: {exc}", "error")
+            return redirect(url_for("service_detail", name=name, tab="override"))
+        flash(f"Override deleted. Backup: {backup_path}. Run daemon-reload before restarting the service.", "success")
+        return redirect(url_for("service_detail", name=name, tab="override"))
 
     @app.post("/service/<name>/edit")
     def save_service(name: str):

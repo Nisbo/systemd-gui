@@ -25,6 +25,7 @@ PROTECTED_EXACT = {
 PROTECTED_PREFIXES = ("systemd-",)
 VALID_SERVICE_RE = re.compile(r"^[A-Za-z0-9_.@:-]+\.service$")
 SERVICE_CATALOG_PATH = Path(__file__).with_name("service_catalog.json")
+SYSTEMD_ETC_ROOT = Path("/etc/systemd/system")
 ACTIVE_STATE_HELP = {
     "active": "The unit is currently started. For services this can mean it is still running, or it successfully finished and remains active.",
     "inactive": "The unit is currently stopped. Nothing is running for this service right now.",
@@ -162,6 +163,8 @@ def list_services(query: str = "", favorites: set[str] | None = None, state_filt
             "preset": file_state.get("preset", ""),
             "favorite": name in favorites,
             "protected": is_protected_service(name),
+            "override": has_local_drop_ins(name),
+            "override_help": drop_in_help(name),
             "template_unit": is_template_unit(name),
             "active_help": active_state_help(active),
             "sub_help": sub_state_help(sub),
@@ -193,6 +196,13 @@ def unit_file_state_help(state: str, name: str = "") -> str:
     return f"{state}: {help_text}"
 
 
+def drop_in_help(name: str) -> str:
+    return (
+        "Override: this service has local drop-in configuration under "
+        f"/etc/systemd/system/{name}.d. Drop-ins adjust service settings without editing the original unit file."
+    )
+
+
 def service_info(name: str) -> dict[str, str | bool]:
     if not valid_service_name(name):
         raise ValueError("Only .service units are supported.")
@@ -216,6 +226,12 @@ def service_info(name: str) -> dict[str, str | bool]:
         "enabled_help": unit_file_state_help(values.get("UnitFileState", "not-found" if not available else "unknown"), name),
         "fragment_path": values.get("FragmentPath", ""),
         "drop_in_paths": values.get("DropInPaths", ""),
+        "drop_in_path_list": [item for item in values.get("DropInPaths", "").split() if item],
+        "local_drop_in_paths": [str(path) for path in local_drop_in_paths(name)],
+        "override": bool(values.get("DropInPaths", "")) or has_local_drop_ins(name),
+        "override_help": drop_in_help(name),
+        "override_path": str(drop_in_override_path(name)),
+        "override_exists": drop_in_override_path(name).is_file(),
         "exec_start": values.get("ExecStart", ""),
         "exec_reload": values.get("ExecReload", ""),
         "restart": values.get("Restart", ""),
@@ -307,6 +323,71 @@ def write_editable_unit(name: str, content: str, backup_dir: Path) -> Path:
     backup_path = backup_dir / f"{path.name}.{stamp}.bak"
     backup_path.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
     path.write_text(content.rstrip() + "\n", encoding="utf-8")
+    return backup_path
+
+
+def drop_in_dir(name: str) -> Path:
+    if not valid_service_name(name):
+        raise ValueError("Only .service units are supported.")
+    return SYSTEMD_ETC_ROOT / f"{name}.d"
+
+
+def drop_in_override_path(name: str) -> Path:
+    return drop_in_dir(name) / "override.conf"
+
+
+def local_drop_in_paths(name: str) -> list[Path]:
+    try:
+        directory = drop_in_dir(name)
+    except ValueError:
+        return []
+    if not directory.exists() or not directory.is_dir():
+        return []
+    return sorted(path for path in directory.glob("*.conf") if path.is_file())
+
+
+def has_local_drop_ins(name: str) -> bool:
+    return bool(local_drop_in_paths(name))
+
+
+def read_drop_in_override(name: str) -> tuple[Path, str, bool]:
+    path = drop_in_override_path(name)
+    if not path.exists():
+        return path, "", False
+    if not path.is_file():
+        raise ValueError("Override path exists but is not a file.")
+    return path, path.read_text(encoding="utf-8"), True
+
+
+def write_drop_in_override(name: str, content: str, backup_dir: Path) -> Path | None:
+    content = content.rstrip()
+    if not content:
+        raise ValueError("Override content is empty. Use delete override if you want to remove the file.")
+    path = drop_in_override_path(name)
+    backup_path = None
+    if path.exists():
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        backup_path = backup_dir / f"{name}.override.{stamp}.bak"
+        backup_path.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content + "\n", encoding="utf-8")
+    return backup_path
+
+
+def delete_drop_in_override(name: str, backup_dir: Path) -> Path:
+    path, content, exists = read_drop_in_override(name)
+    if not exists:
+        raise ValueError("Override file does not exist.")
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    backup_path = backup_dir / f"{name}.override-delete.{stamp}.bak"
+    backup_path.write_text(content, encoding="utf-8")
+    path.unlink()
+    try:
+        path.parent.rmdir()
+    except OSError:
+        pass
     return backup_path
 
 
