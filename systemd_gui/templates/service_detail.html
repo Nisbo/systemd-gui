@@ -5,6 +5,12 @@
     ("logs", "Logs"),
     ("backups", "Backups"),
   ] %}
+  {% macro action_button(action) -%}
+    <form method="post" action="{{ url_for('service_action', name=info.name, action=action) }}" data-confirm="Run systemctl {{ action }} {{ info.name }}?">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="{% if action in ['stop', 'disable'] %}danger-button{% elif action == 'restart' %}primary-button{% else %}ghost-button{% endif %} compact-button" type="submit" title="{{ action_states[action].help }}" {% if action_states[action].disabled %}disabled{% endif %}>{{ action|capitalize }}</button>
+    </form>
+  {%- endmacro %}
 
   <section class="panel">
     <div class="panel-head">
@@ -32,15 +38,30 @@
               <span class="status-pill sub-state muted" title="{{ info.sub_help }}" aria-label="{{ info.sub_help }}">No detail</span>
             {% endif %}
           </span>
+          <span class="card-actions">
+            {% for action in ['start', 'stop', 'restart', 'reload'] %}
+              {{ action_button(action) }}
+            {% endfor %}
+          </span>
         </dd>
       </div>
-      <div><dt>Autostart</dt><dd><span class="state-text" title="{{ info.enabled_help }}" aria-label="{{ info.enabled_help }}">{{ info.enabled }}</span></dd></div>
+      <div>
+        <dt>Autostart</dt>
+        <dd>
+          <span class="state-text" title="{{ info.enabled_help }}" aria-label="{{ info.enabled_help }}">{{ info.enabled }}</span>
+          <span class="card-actions">
+            {% for action in ['enable', 'disable'] %}
+              {{ action_button(action) }}
+            {% endfor %}
+          </span>
+        </dd>
+      </div>
       <div>
         <dt>Unit file</dt>
         <dd>
-          <span class="value-with-action">
-            <span>{{ info.fragment_path or 'Unknown' }}</span>
-            {% if info.fragment_path %}<button class="ghost-button icon-button" type="button" title="Copy unit file path" aria-label="Copy unit file path" data-copy-text="{{ info.fragment_path }}">⧉</button>{% endif %}
+          <span class="path-copy-row">
+            <span class="path-value">{{ info.fragment_path or 'Unknown' }}</span>
+            {% if info.fragment_path %}<button class="ghost-button icon-button small-icon-button" type="button" title="Copy unit file path" aria-label="Copy unit file path" data-copy-text="{{ info.fragment_path }}">⧉</button>{% endif %}
           </span>
         </dd>
       </div>
@@ -76,19 +97,6 @@
         <span>{{ info.enabled }} units cannot be enabled or disabled directly. Manual start, stop or restart may still be possible when systemd supports it.</span>
       </div>
     {% endif %}
-    <div class="action-bar">
-      {% for action in ['start', 'stop', 'restart', 'reload', 'enable', 'disable'] %}
-        <form method="post" action="{{ url_for('service_action', name=info.name, action=action) }}" data-confirm="Run systemctl {{ action }} {{ info.name }}?">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button class="{% if action in ['stop', 'disable'] %}danger-button{% elif action == 'restart' %}primary-button{% else %}ghost-button{% endif %}" type="submit" title="{{ action_states[action].help }}" {% if action_states[action].disabled %}disabled{% endif %}>{{ action|capitalize }}</button>
-        </form>
-      {% endfor %}
-      {% if editable %}<a class="ghost-button" href="{{ url_for('edit_service', name=info.name) }}">Edit unit</a>{% endif %}
-      <form method="post" action="{{ url_for('create_service_backup', name=info.name) }}" data-confirm="Create a backup of the current unit output for {{ info.name }}?">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button class="ghost-button" type="submit" title="Create a manual backup from the current systemctl cat output for this service.">Create backup</button>
-      </form>
-    </div>
   </section>
 
   <section class="panel service-tabs-panel">
@@ -115,7 +123,14 @@
     <section class="panel">
       <div class="panel-head">
         <div><h2>Unit file</h2><p>Read-only preview from <code>systemctl cat</code>.</p></div>
-        <button class="ghost-button icon-button" type="button" title="Copy unit file content" aria-label="Copy unit file content" data-copy-target="#unit-content">⧉</button>
+        <div class="panel-actions">
+          {% if editable %}<a class="ghost-button" href="{{ url_for('edit_service', name=info.name) }}">Edit unit</a>{% endif %}
+          <form method="post" action="{{ url_for('create_service_backup', name=info.name) }}" data-confirm="Create a backup of the current unit output for {{ info.name }}?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="ghost-button" type="submit" title="Create a manual backup from the current systemctl cat output for this service.">Create backup</button>
+          </form>
+          <button class="ghost-button icon-button" type="button" title="Copy unit file content" aria-label="Copy unit file content" data-copy-target="#unit-content">⧉</button>
+        </div>
       </div>
       <pre class="config-preview"><code id="unit-content">{{ content }}</code></pre>
     </section>
@@ -124,7 +139,7 @@
       <div class="panel-head">
         <div>
           <h2>Logs</h2>
-          <p>Last {{ log_lines }} lines from <code>journalctl -u {{ info.name }}</code>.</p>
+          <p>Showing up to <span data-log-line-count>{{ log_lines }}</span> loaded lines from <code>journalctl -u {{ info.name }}</code>.</p>
         </div>
       </div>
       <form class="log-controls" method="get" action="{{ url_for('service_detail', name=info.name) }}" data-log-controls>

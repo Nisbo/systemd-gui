@@ -195,6 +195,7 @@
     const refreshNow = logControls?.querySelector("[data-log-refresh-now]");
     const searchStatus = document.querySelector("[data-log-search-status]");
     const refreshPaused = document.querySelector("[data-log-refresh-paused]");
+    const lineCountLabel = document.querySelector("[data-log-line-count]");
     let timer = null;
     let loading = false;
     let searchTimer = null;
@@ -220,6 +221,9 @@
       if (selectedSearch()) url.searchParams.set("log_q", selectedSearch());
       else url.searchParams.delete("log_q");
       window.history.replaceState({}, "", url);
+    };
+    const updateLineCountLabel = () => {
+      if (lineCountLabel) lineCountLabel.textContent = selectedLines();
     };
     const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const appendHighlightedText = (fragment, text, query) => {
@@ -320,6 +324,7 @@
       timer = window.setInterval(() => refreshLogs({ followBottom: true, skipWhenSelecting: true }), selectedInterval() * 1000);
     };
     const applyLogControls = ({ refresh = false } = {}) => {
+      updateLineCountLabel();
       syncLogUrl();
       startTimer();
       if (refresh) refreshLogs({ followBottom: false });
@@ -338,6 +343,7 @@
       refreshLogs({ followBottom: false });
     });
     applyLogSearch();
+    updateLineCountLabel();
     updateRefreshPaused();
     startTimer();
   }
