@@ -183,6 +183,7 @@
         </div>
         <form method="post" action="{{ url_for('daemon_reload') }}" data-confirm="Run systemctl daemon-reload? This reloads unit and override files after edits.">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="service_name" value="{{ info.name }}">
           <input type="hidden" name="next" value="{{ url_for('service_detail', name=info.name, tab='override', restart_prompt='1') }}">
           <button class="ghost-button" type="submit">Daemon reload</button>
         </form>
@@ -210,7 +211,7 @@
           {% endif %}
         </section>
       {% endif %}
-      {% if request.args.get('reload_required') %}
+      {% if override_pending_reload %}
         <div class="restart-banner">
           <div>
             <strong>Daemon reload required</strong>
@@ -218,6 +219,7 @@
           </div>
           <form method="post" action="{{ url_for('daemon_reload') }}" data-confirm="Run systemctl daemon-reload now?">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="service_name" value="{{ info.name }}">
             <input type="hidden" name="next" value="{{ url_for('service_detail', name=info.name, tab='override', restart_prompt='1') }}">
             <button class="primary-button" type="submit">Daemon reload</button>
           </form>
@@ -270,6 +272,32 @@
           {% endif %}
           <button class="primary-button" type="submit" form="override-save-form">{{ 'Save override' if override_exists else 'Create override' }}</button>
         </div>
+        <section class="inline-section">
+          <div class="panel-head">
+            <div>
+              <h2>Override backups</h2>
+              <p>Backups created before saving or deleting <code>override.conf</code>.</p>
+            </div>
+          </div>
+          {% if override_backups %}
+            <div class="table-wrap compact-table">
+              <table>
+                <thead><tr><th>Backup</th><th>Created</th><th>Size</th></tr></thead>
+                <tbody>
+                  {% for backup in override_backups %}
+                    <tr>
+                      <td><code>{{ backup.name }}</code></td>
+                      <td>{{ backup.created }}</td>
+                      <td>{{ backup.size }} bytes</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <p class="empty-note">No override backups have been created for this service yet.</p>
+          {% endif %}
+        </section>
       {% endif %}
     </section>
   {% elif active_tab == "info" %}

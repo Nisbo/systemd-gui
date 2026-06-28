@@ -538,6 +538,26 @@ def delete_drop_in_override(name: str, backup_dir: Path) -> Path:
     return backup_path
 
 
+def list_drop_in_backups(name: str, backup_dir: Path) -> list[dict[str, str | int]]:
+    if not valid_service_name(name):
+        raise ValueError("Only .service units are supported.")
+    if not backup_dir.exists():
+        return []
+
+    backups = []
+    for path in backup_dir.glob(f"{name}.override*.bak"):
+        if not path.is_file():
+            continue
+        stat = path.stat()
+        backups.append({
+            "name": path.name,
+            "size": stat.st_size,
+            "created": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+        })
+    backups.sort(key=lambda item: str(item["name"]), reverse=True)
+    return backups
+
+
 def list_unit_backups(name: str, backup_dir: Path) -> list[dict[str, str | int]]:
     if not valid_service_name(name):
         raise ValueError("Only .service units are supported.")

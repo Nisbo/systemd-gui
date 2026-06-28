@@ -25,6 +25,7 @@ h1,h2,h3,p { margin:0; } h1 { font-size:clamp(2rem, 5vw, 3.6rem); line-height:1;
 .panel p,.metric span { color:var(--muted); }
 .panel,.operation-card { background:color-mix(in srgb, var(--panel) 90%, transparent); border:1px solid var(--line); border-radius:8px; box-shadow:var(--shadow); }
 .panel { margin-top:16px; padding:20px; }
+.inline-section { display:grid; gap:12px; border-top:1px solid var(--line); margin-top:18px; padding-top:18px; }
 .panel.narrow { max-width:680px; margin-inline:auto; }
 .settings-panel { max-width:none; }
 .settings-tabs-panel,.service-tabs-panel { padding-bottom:14px; }

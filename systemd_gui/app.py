@@ -20,6 +20,7 @@ from .systemd import (
     is_protected_service,
     is_template_unit,
     journalctl_available,
+    list_drop_in_backups,
     list_unit_backups,
     list_services,
     read_drop_in_override,
@@ -372,6 +373,8 @@ def create_app() -> Flask:
         backups = list_unit_backups(name, _backup_dir(app))
         override_path, override_content, override_exists = read_drop_in_override(name)
         override_analysis = analyze_drop_in_content(override_content)
+        override_backups = list_drop_in_backups(name, _drop_in_backup_dir(app))
+        override_pending_reload = name in _pending_override_reloads()
         action_states = _service_action_states(app, info)
         notes = read_service_notes(_notes_path(app)).get(name, "")
         service_meta = _service_metadata(info)
@@ -392,6 +395,8 @@ def create_app() -> Flask:
             override_content=override_content,
             override_exists=override_exists,
             override_analysis=override_analysis,
+            override_backups=override_backups,
+            override_pending_reload=override_pending_reload,
             action_states=action_states,
             notes=notes,
             service_meta=service_meta,
@@ -524,8 +529,9 @@ def create_app() -> Flask:
             flash(f"Override could not be saved: {exc}", "error")
             return redirect(url_for("service_detail", name=name, tab="override"))
         backup_note = f" Previous override backup: {backup_path}." if backup_path else ""
+        _mark_override_reload_pending(name)
         flash(f"Override saved.{backup_note} Run daemon-reload before restarting the service.", "success")
-        return redirect(url_for("service_detail", name=name, tab="override", reload_required="1"))
+        return redirect(url_for("service_detail", name=name, tab="override"))
 
     @app.post("/service/<name>/override/delete")
     def delete_service_override(name: str):
@@ -542,8 +548,9 @@ def create_app() -> Flask:
         except (OSError, ValueError) as exc:
             flash(f"Override could not be deleted: {exc}", "error")
             return redirect(url_for("service_detail", name=name, tab="override"))
+        _mark_override_reload_pending(name)
         flash(f"Override deleted. Backup: {backup_path}. Run daemon-reload before restarting the service.", "success")
-        return redirect(url_for("service_detail", name=name, tab="override", reload_required="1"))
+        return redirect(url_for("service_detail", name=name, tab="override"))
 
     @app.post("/service/<name>/edit")
     def save_service(name: str):
@@ -628,7 +635,20 @@ def create_app() -> Flask:
     def daemon_reload():
         result = run_systemctl(["daemon-reload"])
         flash(result.output or "systemctl daemon-reload completed.", "success" if result.ok else "error")
-        next_url = _safe_next_url(request.form.get("next", "")) if result.ok else ""
+        service_name = request.form.get("service_name", "").strip()
+        if service_name and not valid_service_name(service_name):
+            service_name = ""
+        pending_names = sorted(_pending_override_reloads())
+        next_url = ""
+        if result.ok:
+            if service_name:
+                _clear_override_reload_pending(service_name)
+            elif len(pending_names) == 1:
+                service_name = pending_names[0]
+                _clear_override_reload_pending(service_name)
+            next_url = _safe_next_url(request.form.get("next", ""))
+            if not next_url and service_name:
+                next_url = url_for("service_detail", name=service_name, tab="override", restart_prompt="1")
         return redirect(next_url or request.referrer or url_for("index"))
 
     @app.post("/restart-app")
@@ -688,6 +708,36 @@ def _service_filter_options(services: list[dict[str, str | bool]]) -> dict[str, 
 
 def _backup_dir(app: Flask) -> Path:
     return Path(app.config["DATA_DIR"]) / "unit-backups"
+
+
+def _drop_in_backup_dir(app: Flask) -> Path:
+    return Path(app.config["DATA_DIR"]) / "drop-in-backups"
+
+
+def _pending_override_reloads() -> set[str]:
+    values = session.get("override_reload_pending", [])
+    if not isinstance(values, list):
+        return set()
+    return {item for item in values if isinstance(item, str) and valid_service_name(item)}
+
+
+def _write_pending_override_reloads(values: set[str]) -> None:
+    if values:
+        session["override_reload_pending"] = sorted(values)
+    else:
+        session.pop("override_reload_pending", None)
+
+
+def _mark_override_reload_pending(name: str) -> None:
+    values = _pending_override_reloads()
+    values.add(name)
+    _write_pending_override_reloads(values)
+
+
+def _clear_override_reload_pending(name: str) -> None:
+    values = _pending_override_reloads()
+    values.discard(name)
+    _write_pending_override_reloads(values)
 
 
 def _service_metadata(info: dict[str, object]) -> dict[str, str]:
