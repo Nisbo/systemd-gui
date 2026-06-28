@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import secrets
 import shlex
@@ -310,7 +311,7 @@ def create_app() -> Flask:
         if not _valid_or_flash(name):
             return redirect(url_for("index"))
         active_tab = request.args.get("tab", "unit")
-        if active_tab not in {"unit", "logs", "backups"}:
+        if active_tab not in {"unit", "logs", "backups", "info"}:
             active_tab = "unit"
         log_lines = _log_line_count(request.args.get("lines", "200"))
         log_refresh = request.args.get("refresh") == "1"
@@ -321,6 +322,8 @@ def create_app() -> Flask:
         editable = _editable(name)
         backups = list_unit_backups(name, _backup_dir(app))
         action_states = _service_action_states(app, info)
+        notes = read_service_notes(_notes_path(app)).get(name, "")
+        service_meta = _service_metadata(info)
         return render_template(
             "service_detail.html",
             active_tab=active_tab,
@@ -333,7 +336,24 @@ def create_app() -> Flask:
             editable=editable,
             backups=backups,
             action_states=action_states,
+            notes=notes,
+            service_meta=service_meta,
         )
+
+    @app.post("/service/<name>/notes")
+    def save_service_notes(name: str):
+        if not _valid_or_flash(name):
+            return redirect(url_for("index"))
+        notes_path = _notes_path(app)
+        notes = read_service_notes(notes_path)
+        note = request.form.get("notes", "").strip()
+        if note:
+            notes[name] = note
+        else:
+            notes.pop(name, None)
+        write_service_notes(notes_path, notes)
+        flash("Service notes saved.", "success")
+        return redirect(url_for("service_detail", name=name, tab="info"))
 
     @app.get("/service/<name>/logs/fragment")
     def service_logs_fragment(name: str):
@@ -532,6 +552,25 @@ def _favorites_path(app: Flask) -> Path:
     return Path(app.config["DATA_DIR"]) / "favorites.json"
 
 
+def _notes_path(app: Flask) -> Path:
+    return Path(app.config["DATA_DIR"]) / "service-notes.json"
+
+
+def read_service_notes(path: Path) -> dict[str, str]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return {str(key): str(value) for key, value in data.items() if isinstance(value, str)}
+
+
+def write_service_notes(path: Path, notes: dict[str, str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(notes, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
 def _service_stats(services: list[dict[str, str | bool]]) -> dict[str, int]:
     return {
         "total": len(services),
@@ -551,6 +590,24 @@ def _service_filter_options(services: list[dict[str, str | bool]]) -> dict[str, 
 
 def _backup_dir(app: Flask) -> Path:
     return Path(app.config["DATA_DIR"]) / "unit-backups"
+
+
+def _service_metadata(info: dict[str, object]) -> dict[str, str]:
+    fragment_path = str(info.get("fragment_path") or "")
+    metadata = {
+        "unit_file_modified": "",
+        "unit_file_metadata_changed": "",
+        "active_since": str(info.get("active_enter_timestamp") or ""),
+        "state_changed": str(info.get("state_change_timestamp") or ""),
+    }
+    if fragment_path:
+        try:
+            stat = Path(fragment_path).stat()
+        except OSError:
+            return metadata
+        metadata["unit_file_modified"] = datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+        metadata["unit_file_metadata_changed"] = datetime.fromtimestamp(stat.st_ctime).strftime("%Y-%m-%d %H:%M:%S")
+    return metadata
 
 
 def _app_root(app: Flask) -> Path:

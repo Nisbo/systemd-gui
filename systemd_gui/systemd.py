@@ -199,7 +199,7 @@ def service_info(name: str) -> dict[str, str | bool]:
     result = run_systemctl([
         "show",
         name,
-        "--property=Id,Description,LoadState,ActiveState,SubState,UnitFileState,FragmentPath,DropInPaths,ExecStart,ExecReload,Restart",
+        "--property=Id,Description,LoadState,ActiveState,SubState,UnitFileState,FragmentPath,DropInPaths,ExecStart,ExecReload,Restart,ActiveEnterTimestamp,StateChangeTimestamp",
         "--no-pager",
     ])
     values = _parse_properties(result.output if result.ok else "")
@@ -219,6 +219,8 @@ def service_info(name: str) -> dict[str, str | bool]:
         "exec_start": values.get("ExecStart", ""),
         "exec_reload": values.get("ExecReload", ""),
         "restart": values.get("Restart", ""),
+        "active_enter_timestamp": values.get("ActiveEnterTimestamp", ""),
+        "state_change_timestamp": values.get("StateChangeTimestamp", ""),
         "protected": is_protected_service(name),
         "template_unit": is_template_unit(name),
         "available": available,

@@ -2,6 +2,7 @@
 {% block content %}
   {% set service_tabs = [
     ("unit", "Unit"),
+    ("info", "Info"),
     ("logs", "Logs"),
     ("backups", "Backups"),
   ] %}
@@ -140,6 +141,58 @@
         </div>
       </div>
       <pre class="config-preview"><code id="unit-content">{{ content }}</code></pre>
+    </section>
+  {% elif active_tab == "info" %}
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>{{ info.info_title }}</h2>
+          <p>Curated beginner information for this service.</p>
+        </div>
+      </div>
+      <div class="info-layout">
+        <div class="info-card">
+          <h3>What this service is</h3>
+          <p>{{ info.info_summary }}</p>
+          {% if info.info_links %}
+            <div class="info-links">
+              {% for link in info.info_links %}
+                {% if link.label and link.url %}
+                  <a class="ghost-button" href="{{ link.url }}" target="_blank" rel="noopener noreferrer">{{ link.label }}</a>
+                {% endif %}
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+        <div class="info-card">
+          <h3>Service dates</h3>
+          <dl class="detail-grid info-meta-grid">
+            <div><dt>Active since</dt><dd>{{ service_meta.active_since or '-' }}</dd></div>
+            <div><dt>State changed</dt><dd>{{ service_meta.state_changed or '-' }}</dd></div>
+            <div><dt>Unit file modified</dt><dd>{{ service_meta.unit_file_modified or '-' }}</dd></div>
+            <div><dt>File metadata changed</dt><dd>{{ service_meta.unit_file_metadata_changed or '-' }}</dd></div>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Notes</h2>
+          <p>Private notes for this service, stored locally in Systemd Gui data.</p>
+        </div>
+      </div>
+      <form method="post" action="{{ url_for('save_service_notes', name=info.name) }}" class="form-grid single">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label>
+          Service notes
+          <textarea name="notes" rows="9" placeholder="Add install notes, maintenance hints, links or reminders for this service.">{{ notes }}</textarea>
+        </label>
+        <div class="form-actions">
+          <button class="primary-button" type="submit">Save notes</button>
+        </div>
+      </form>
     </section>
   {% elif active_tab == "logs" %}
     <section class="panel" data-log-panel data-log-url="{{ url_for('service_logs_fragment', name=info.name) }}" data-refresh-enabled="{{ 'true' if log_refresh else 'false' }}" data-refresh-interval="{{ log_refresh_interval }}">
