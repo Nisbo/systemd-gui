@@ -95,7 +95,10 @@ input,textarea,select { width:100%; border:1px solid var(--line); border-radius:
 .backup-action-row { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:18px; }
 .backup-action-group { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .backup-danger-group { justify-content:flex-end; }
-.backup-create { align-items:end; grid-template-columns:minmax(0, 1fr) auto; margin-top:8px; }
+.app-backup-list { display:grid; gap:16px; margin-top:10px; }
+.backup-create { align-items:end; grid-template-columns:minmax(0, 1fr) auto; margin:0; }
+.backup-create button { min-height:44px; white-space:nowrap; }
+.app-backup-table { margin-top:0; }
 .inline-actions { margin-top:0; }
 .update-actions { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; margin-top:14px; }
 .update-actions.compact-actions { grid-template-columns:1fr; }
