@@ -127,33 +127,34 @@
           <p>Last {{ log_lines }} lines from <code>journalctl -u {{ info.name }}</code>.</p>
         </div>
       </div>
-      <form class="log-controls" method="get" action="{{ url_for('service_detail', name=info.name) }}" data-auto-submit>
+      <form class="log-controls" method="get" action="{{ url_for('service_detail', name=info.name) }}" data-log-controls>
         <input type="hidden" name="tab" value="logs">
         <label>
           Lines
-          <select name="lines">
+          <select name="lines" data-log-lines>
             {% for option in [50, 100, 200, 500, 1000] %}
               <option value="{{ option }}" {% if log_lines == option %}selected{% endif %}>{{ option }}</option>
             {% endfor %}
           </select>
         </label>
         <label class="toggle-label">
-          <input name="refresh" type="checkbox" value="1" {% if log_refresh %}checked{% endif %}>
+          <input name="refresh" type="checkbox" value="1" data-log-refresh {% if log_refresh %}checked{% endif %}>
           Auto-refresh
         </label>
         <label>
           Interval
-          <select name="interval">
+          <select name="interval" data-log-interval>
             {% for option in [1, 2, 5, 10, 30] %}
               <option value="{{ option }}" {% if log_refresh_interval == option %}selected{% endif %}>{{ option }}s</option>
             {% endfor %}
           </select>
         </label>
-        <a class="ghost-button" href="{{ url_for('service_detail', name=info.name, tab='logs', lines=log_lines, refresh='1' if log_refresh else None, interval=log_refresh_interval if log_refresh else None) }}">Refresh now</a>
+        <button class="ghost-button" type="button" data-log-refresh-now>Refresh now</button>
       </form>
-      {% if log_refresh %}
-        <div class="diagnostic warning"><strong>Live view</strong><span>This page refreshes every {{ log_refresh_interval }} second{% if log_refresh_interval != 1 %}s{% endif %} while auto-refresh is enabled.</span></div>
-      {% endif %}
+      <div class="diagnostic warning" data-log-live-note {% if not log_refresh %}hidden{% endif %}>
+        <strong>Live view</strong>
+        <span data-log-live-note-text>Refreshing every {{ log_refresh_interval }} second{% if log_refresh_interval != 1 %}s{% endif %} while auto-refresh is enabled.</span>
+      </div>
       {% include "_service_logs.html" %}
     </section>
   {% elif active_tab == "backups" %}

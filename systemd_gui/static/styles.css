@@ -94,6 +94,8 @@ input,textarea,select { width:100%; border:1px solid var(--line); border-radius:
 .toggle-label { display:flex; align-items:center; gap:8px; min-height:44px; color:var(--ink); }
 .toggle-label input { width:auto; height:auto; }
 .diagnostic { display:grid; gap:4px; border:2px solid color-mix(in srgb, var(--amber) 78%, var(--line)); border-left-width:7px; border-radius:8px; padding:12px 14px; margin-bottom:16px; } .diagnostic.error { border-color:color-mix(in srgb, var(--danger) 72%, var(--line)); } .diagnostic span { color:var(--muted); }
+.diagnostic[hidden] { display:none; }
+button[aria-busy="true"] { opacity:.72; }
 .confirm-modal { position:fixed; inset:0; display:grid; place-items:center; background:rgba(0,0,0,.38); z-index:20; } .confirm-modal[hidden] { display:none; } .confirm-dialog { width:min(460px, calc(100% - 32px)); background:var(--panel); border:1px solid var(--line); border-radius:8px; box-shadow:var(--shadow); padding:18px; } .confirm-dialog p { color:var(--muted); margin-top:8px; } .confirm-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
 .info-dialog { width:min(560px, calc(100% - 32px)); }
 .info-links { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }

@@ -172,18 +172,94 @@
   });
 
   const logPanel = document.querySelector("[data-log-panel]");
-  if (logPanel?.dataset.refreshEnabled === "true") {
-    const seconds = Number.parseInt(logPanel.dataset.refreshInterval || "5", 10);
-    const interval = Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : 5000;
-    const refreshLogs = async () => {
-      const params = new URLSearchParams(window.location.search);
-      const target = `${logPanel.dataset.logUrl}?lines=${encodeURIComponent(params.get("lines") || "200")}`;
-      const response = await fetch(target, { headers: { "X-Requested-With": "fetch" } });
-      if (!response.ok) return;
-      const doc = new DOMParser().parseFromString(await response.text(), "text/html");
-      const nextLog = doc.querySelector("[data-log-output]");
-      if (nextLog) document.querySelector("[data-log-output]")?.replaceWith(nextLog);
+  if (logPanel) {
+    const logControls = document.querySelector("[data-log-controls]");
+    const linesSelect = logControls?.querySelector("[data-log-lines]");
+    const refreshCheckbox = logControls?.querySelector("[data-log-refresh]");
+    const intervalSelect = logControls?.querySelector("[data-log-interval]");
+    const refreshNow = logControls?.querySelector("[data-log-refresh-now]");
+    const liveNote = document.querySelector("[data-log-live-note]");
+    const liveNoteText = document.querySelector("[data-log-live-note-text]");
+    let timer = null;
+    let loading = false;
+
+    const selectedLines = () => linesSelect?.value || "200";
+    const selectedInterval = () => {
+      const seconds = Number.parseInt(intervalSelect?.value || logPanel.dataset.refreshInterval || "5", 10);
+      return Number.isFinite(seconds) && seconds > 0 ? seconds : 5;
     };
-    window.setInterval(refreshLogs, interval);
+    const refreshEnabled = () => Boolean(refreshCheckbox?.checked);
+    const updateLiveNote = () => {
+      if (!liveNote) return;
+      liveNote.hidden = !refreshEnabled();
+      if (liveNoteText) {
+        const seconds = selectedInterval();
+        liveNoteText.textContent = `Refreshing every ${seconds} second${seconds === 1 ? "" : "s"} while auto-refresh is enabled.`;
+      }
+    };
+    const syncLogUrl = () => {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", "logs");
+      url.searchParams.set("lines", selectedLines());
+      if (refreshEnabled()) {
+        url.searchParams.set("refresh", "1");
+        url.searchParams.set("interval", String(selectedInterval()));
+      } else {
+        url.searchParams.delete("refresh");
+        url.searchParams.delete("interval");
+      }
+      window.history.replaceState({}, "", url);
+    };
+    const refreshLogs = async ({ followBottom = true } = {}) => {
+      if (loading) return;
+      const currentLog = document.querySelector("[data-log-output]");
+      const distanceFromBottom = currentLog ? currentLog.scrollHeight - currentLog.scrollTop - currentLog.clientHeight : 0;
+      const wasNearBottom = distanceFromBottom < 32;
+      const previousTop = currentLog?.scrollTop || 0;
+      loading = true;
+      refreshNow?.setAttribute("aria-busy", "true");
+      try {
+        const target = `${logPanel.dataset.logUrl}?lines=${encodeURIComponent(selectedLines())}`;
+        const response = await fetch(target, { headers: { "X-Requested-With": "fetch" } });
+        if (!response.ok) return;
+        const doc = new DOMParser().parseFromString(await response.text(), "text/html");
+        const nextLog = doc.querySelector("[data-log-output]");
+        if (!nextLog || !currentLog) return;
+        currentLog.replaceWith(nextLog);
+        if (followBottom && wasNearBottom) {
+          nextLog.scrollTop = nextLog.scrollHeight;
+        } else {
+          nextLog.scrollTop = Math.min(previousTop, nextLog.scrollHeight);
+        }
+      } finally {
+        loading = false;
+        refreshNow?.removeAttribute("aria-busy");
+      }
+    };
+    const stopTimer = () => {
+      if (timer) window.clearInterval(timer);
+      timer = null;
+    };
+    const startTimer = () => {
+      stopTimer();
+      if (!refreshEnabled()) return;
+      timer = window.setInterval(() => refreshLogs({ followBottom: true }), selectedInterval() * 1000);
+    };
+    const applyLogControls = ({ refresh = false } = {}) => {
+      syncLogUrl();
+      updateLiveNote();
+      startTimer();
+      if (refresh) refreshLogs({ followBottom: false });
+    };
+
+    linesSelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
+    refreshCheckbox?.addEventListener("change", () => applyLogControls({ refresh: refreshEnabled() }));
+    intervalSelect?.addEventListener("change", () => applyLogControls());
+    refreshNow?.addEventListener("click", () => {
+      syncLogUrl();
+      refreshLogs({ followBottom: false });
+    });
+    updateLiveNote();
+    startTimer();
   }
 })();
