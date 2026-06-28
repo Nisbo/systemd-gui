@@ -4,6 +4,7 @@
     ("general", "General"),
     ("security", "Security"),
     ("updates", "Updates"),
+    ("backups", "Backups"),
   ] %}
 
   <section class="panel settings-tabs-panel">
@@ -260,6 +261,45 @@
         <strong>Restart after update</strong>
         <span>Updated files are written to disk, but the running Python process keeps the old code until Systemd Gui is restarted.</span>
       </div>
+
+      <div class="coming-soon">
+        <strong>App update backups</strong>
+        <span>Backups have their own tab now. Open <a class="table-link" href="{{ url_for('settings', tab='backups') }}">Settings > Backups</a> to create, restore or delete app backups.</span>
+      </div>
+    </section>
+  {% elif active_tab == "backups" %}
+    <section class="panel settings-panel">
+      <div class="panel-head">
+        <div>
+          <h2>Backups</h2>
+          <p>Manage app update backups for Systemd Gui.</p>
+        </div>
+      </div>
+
+      {% if update_result %}
+        <div class="update-result {{ 'ok' if update_result.ok else 'error' }}">
+          <strong>{{ update_result.message }}</strong>
+          {% if update_result.backup_path %}
+            <span>Backup: <code>{{ update_result.backup_path }}</code></span>
+          {% endif %}
+          {% if update_result.details %}
+            <pre class="config-preview update-output"><code>{{ update_result.details | join("\n\n") }}</code></pre>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      {% if app_update_pending_restart %}
+        <div class="coming-soon restart-card">
+          <div>
+            <strong>Systemd Gui restart required</strong>
+            <span>An app backup restore changed files on disk. Restart Systemd Gui so Gunicorn loads the restored code.</span>
+          </div>
+          <form method="post" action="{{ url_for('restart_app_from_update') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="primary-button" type="submit">Restart app</button>
+          </form>
+        </div>
+      {% endif %}
 
       <div class="update-section-title">
         <strong>App update backups</strong>

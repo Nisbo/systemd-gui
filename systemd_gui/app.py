@@ -180,7 +180,7 @@ def create_app() -> Flask:
     @app.get("/settings")
     def settings():
         active_tab = request.args.get("tab", "general")
-        if active_tab not in {"general", "security", "updates"}:
+        if active_tab not in {"general", "security", "updates", "backups"}:
             active_tab = "general"
         return render_template(
             "settings.html",
@@ -271,10 +271,10 @@ def create_app() -> Flask:
             backup_path = create_app_backup(_app_root(app), "Manual app backup", comment)
         except OSError as exc:
             flash(f"App backup failed: {exc}", "error")
-            return redirect(url_for("settings", tab="updates"))
+            return redirect(url_for("settings", tab="backups"))
 
         flash(f"App backup created: {backup_path}", "success")
-        return redirect(url_for("settings", tab="updates"))
+        return redirect(url_for("settings", tab="backups"))
 
     @app.post("/settings/update/backups/<backup_id>/restore")
     def restore_app_update_backup(backup_id: str):
@@ -283,7 +283,7 @@ def create_app() -> Flask:
         if result.ok:
             session["app_update_pending_restart"] = True
         flash(result.message, "success" if result.ok else "error")
-        return redirect(url_for("settings", tab="updates"))
+        return redirect(url_for("settings", tab="backups"))
 
     @app.post("/settings/update/backups/<backup_id>/delete")
     def delete_app_update_backup(backup_id: str):
@@ -291,10 +291,10 @@ def create_app() -> Flask:
             delete_app_backup(_app_root(app), backup_id)
         except (OSError, ValueError) as exc:
             flash(f"App update backup delete failed: {exc}", "error")
-            return redirect(url_for("settings", tab="updates"))
+            return redirect(url_for("settings", tab="backups"))
 
         flash("App update backup deleted.", "success")
-        return redirect(url_for("settings", tab="updates"))
+        return redirect(url_for("settings", tab="backups"))
 
     @app.post("/settings/update/restart-app")
     def restart_app_from_update():
