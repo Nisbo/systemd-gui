@@ -86,7 +86,7 @@
             <span class="summary-meta">
               <span class="summary-meta-label">Override</span>
               {% if info.override %}
-                <span class="tag" title="{{ info.override_help }}" aria-label="{{ info.override_help }}">Yes</span>
+                <a class="tag override" href="{{ url_for('service_detail', name=info.name, tab='override') }}" title="{{ info.override_help }}" aria-label="{{ info.override_help }}">Yes</a>
               {% else %}
                 <span class="tag neutral" title="No local drop-in override is known for this service.">No</span>
               {% endif %}
@@ -141,7 +141,7 @@
 
     <section class="panel">
       <div class="panel-head">
-        <div><h2>Unit file</h2><p>Read-only preview from <code>systemctl cat</code>.</p></div>
+        <div><h2>{{ 'Original unit file' if info.override and original_content else 'Unit file' }}</h2><p>{{ 'The base unit file without drop-in override content.' if info.override and original_content else 'Read-only preview from systemctl cat.' }}</p></div>
         <div class="panel-actions">
           {% if info.available and not info.protected and not info.template_unit %}<a class="ghost-button" href="{{ url_for('service_detail', name=info.name, tab='override') }}" title="Create or edit a safe systemd drop-in override for this service.">Edit override</a>{% endif %}
           {% if editable %}<a class="ghost-button" href="{{ url_for('edit_service', name=info.name) }}">Edit unit</a>{% endif %}
@@ -149,11 +149,30 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <button class="ghost-button" type="submit" title="Create a manual backup from the current systemctl cat output for this service.">Create backup</button>
           </form>
-          <button class="ghost-button icon-button" type="button" title="Copy unit file content" aria-label="Copy unit file content" data-copy-target="#unit-content">⧉</button>
+          <button class="ghost-button icon-button" type="button" title="Copy unit file content" aria-label="Copy unit file content" data-copy-target="{{ '#original-unit-content' if info.override and original_content else '#unit-content' }}">⧉</button>
         </div>
       </div>
-      <pre class="config-preview"><code id="unit-content">{{ content }}</code></pre>
+      <pre class="config-preview"><code id="{{ 'original-unit-content' if info.override and original_content else 'unit-content' }}">{{ original_content if info.override and original_content else content }}</code></pre>
     </section>
+    {% if info.override and original_content %}
+      <section class="panel">
+        <div class="restart-banner">
+          <div>
+            <strong>Override active</strong>
+            <span>This service has drop-in configuration. The original unit above is not the complete effective configuration.</span>
+          </div>
+          <a class="ghost-button" href="{{ url_for('service_detail', name=info.name, tab='override') }}">Open override</a>
+        </div>
+        <div class="panel-head">
+          <div>
+            <h2>Merged unit with overrides</h2>
+            <p>Combined output from <code>systemctl cat {{ info.name }}</code>. This is the view systemd uses when reading the base unit plus drop-ins.</p>
+          </div>
+          <button class="ghost-button icon-button" type="button" title="Copy merged unit content" aria-label="Copy merged unit content" data-copy-target="#unit-content">⧉</button>
+        </div>
+        <pre class="config-preview override-merged"><code id="unit-content">{{ content }}</code></pre>
+      </section>
+    {% endif %}
   {% elif active_tab == "override" %}
     <section class="panel">
       <div class="panel-head">
@@ -170,6 +189,18 @@
         <strong>What this does</strong>
         <span>An override changes selected service settings without editing the original unit file. After saving, run daemon-reload and restart the service when you are ready.</span>
       </div>
+      {% if request.args.get('reload_required') %}
+        <div class="restart-banner">
+          <div>
+            <strong>Daemon reload required</strong>
+            <span>The override file changed on disk. Run daemon-reload so systemd reads the updated service configuration.</span>
+          </div>
+          <form method="post" action="{{ url_for('daemon_reload') }}" data-confirm="Run systemctl daemon-reload now?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="primary-button" type="submit">Daemon reload</button>
+          </form>
+        </div>
+      {% endif %}
       {% if not info.available %}
         <div class="diagnostic error">
           <strong>Service not found</strong>

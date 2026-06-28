@@ -30,6 +30,7 @@ from .systemd import (
     service_info,
     systemctl_available,
     unit_content,
+    unit_fragment_content,
     valid_service_name,
     write_drop_in_override,
     write_editable_unit,
@@ -358,6 +359,7 @@ def create_app() -> Flask:
         log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
         info = service_info(name)
         content = unit_content(name)
+        original_content = unit_fragment_content(str(info.get("fragment_path") or ""))
         logs = run_journalctl(name, log_lines)
         editable = _editable(name)
         backups = list_unit_backups(name, _backup_dir(app))
@@ -373,6 +375,7 @@ def create_app() -> Flask:
             log_refresh_interval=log_refresh_interval,
             info=info,
             content=content,
+            original_content=original_content,
             logs=logs,
             editable=editable,
             backups=backups,
@@ -512,7 +515,7 @@ def create_app() -> Flask:
             return redirect(url_for("service_detail", name=name, tab="override"))
         backup_note = f" Previous override backup: {backup_path}." if backup_path else ""
         flash(f"Override saved.{backup_note} Run daemon-reload before restarting the service.", "success")
-        return redirect(url_for("service_detail", name=name, tab="override"))
+        return redirect(url_for("service_detail", name=name, tab="override", reload_required="1"))
 
     @app.post("/service/<name>/override/delete")
     def delete_service_override(name: str):
@@ -530,7 +533,7 @@ def create_app() -> Flask:
             flash(f"Override could not be deleted: {exc}", "error")
             return redirect(url_for("service_detail", name=name, tab="override"))
         flash(f"Override deleted. Backup: {backup_path}. Run daemon-reload before restarting the service.", "success")
-        return redirect(url_for("service_detail", name=name, tab="override"))
+        return redirect(url_for("service_detail", name=name, tab="override", reload_required="1"))
 
     @app.post("/service/<name>/edit")
     def save_service(name: str):

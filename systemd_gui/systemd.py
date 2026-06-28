@@ -285,6 +285,16 @@ def unit_content(name: str) -> str:
     return result.output
 
 
+def unit_fragment_content(fragment_path: str) -> str:
+    path = Path(fragment_path or "")
+    if not path.is_file():
+        return ""
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
+
 def create_unit_backup(name: str, backup_dir: Path) -> Path:
     if not valid_service_name(name):
         raise ValueError("Only .service units are supported.")

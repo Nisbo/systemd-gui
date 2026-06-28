@@ -14,7 +14,7 @@
             <span class="name-cell">
               <a class="table-link" href="{{ url_for('service_detail', name=service.name) }}">{{ service.name }}</a>
               {% if service.protected %}<span class="tag danger" title="Protected services are blocked from start, stop, restart, reload, enable and disable actions because they are important for login, networking or systemd itself." aria-label="Protected services are blocked from risky actions because they are important for login, networking or systemd itself.">Protected</span>{% endif %}
-              {% if service.override %}<span class="tag" title="{{ service.override_help }}" aria-label="{{ service.override_help }}">Override</span>{% endif %}
+              {% if service.override %}<a class="tag override" href="{{ url_for('service_detail', name=service.name, tab='override') }}" title="{{ service.override_help }}" aria-label="{{ service.override_help }}">Override</a>{% endif %}
             </span>
           </td>
           <td>
