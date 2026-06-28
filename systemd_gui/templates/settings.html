@@ -152,7 +152,7 @@
       {% elif update_status and update_status.no_releases %}
         <div class="update-card">
           <strong>No GitHub release yet</strong>
-          <span>Create a release tag such as <code>0.1.0</code> when you want the release check to compare versions.</span>
+          <span>Create a release tag such as <code>1.0.0</code> when you want the release check to compare versions.</span>
         </div>
       {% elif update_status and update_status.update_available and update_status.release_url %}
         <div class="update-card">
@@ -262,10 +262,6 @@
         <span>Updated files are written to disk, but the running Python process keeps the old code until Systemd Gui is restarted.</span>
       </div>
 
-      <div class="coming-soon">
-        <strong>App update backups</strong>
-        <span>Backups have their own tab now. Open <a class="table-link" href="{{ url_for('settings', tab='backups') }}">Settings > Backups</a> to create, restore or delete app backups.</span>
-      </div>
     </section>
   {% elif active_tab == "backups" %}
     <section class="panel settings-panel">

@@ -1,36 +1,57 @@
-# systemd-gui
+# Systemd Gui
 
-A small web GUI for managing systemd `.service` units on Debian-style servers.
-It is designed for beginners who prefer a web interface over editing unit files
-with `nano` or `vi` over SSH.
+Systemd Gui is a small web interface for managing systemd `.service` units on
+Debian-style servers. It is intended for users who prefer a browser UI over
+working with SSH, `nano`, `vi`, `systemctl` and `journalctl`.
 
-## Status
+The app is written in Python with Flask and is installed behind nginx and
+Gunicorn.
 
-Early development prototype.
+## Features
 
-## Planned / Initial Features
+- List `.service` units with status and autostart state.
+- Filter and search services.
+- Mark favorite services.
+- Start, stop, restart and reload services.
+- Enable and disable autostart when systemd supports it.
+- View unit files and drop-ins.
+- View service logs from `journalctl`.
+- Open logs in a separate live-view window.
+- Search loaded log lines.
+- Edit editable unit files below `/etc/systemd/system`.
+- Create, restore, delete and download unit backups.
+- Store per-service notes.
+- Show curated beginner-friendly service information.
+- Run `systemctl daemon-reload`.
+- Change the web login password.
+- Update from release ZIP, uploaded ZIP or git branch.
+- Create, restore and delete app update backups.
 
-- list all `.service` units
-- show active/inactive/failed status
-- show enabled/disabled autostart state
-- start, stop, restart and reload services
-- enable and disable services
-- show unit file content
-- show drop-ins
-- show logs with `journalctl`
-- search and filter services
-- favorites
-- edit unit files with backups
-- run `systemctl daemon-reload`
-- safety: only `.service` units in the first version
-- safety: protected services such as `ssh`, `networking` and `systemd-*` are blocked by default
+## Safety
+
+Systemd Gui can control system services and should be treated as an
+administrative tool. Keep it on a private network or behind your own access
+controls.
+
+The app intentionally limits the first release to `.service` units. Protected
+services such as `ssh`, `networking` and `systemd-*` are blocked by default to
+reduce the risk of locking yourself out of a server.
+
+Direct unit editing is limited to real unit files below `/etc/systemd/system`.
+Vendor units should be changed through proper overrides or drop-ins instead of
+editing package-owned files directly.
 
 ## Ports
 
-The installer uses nginx as public reverse proxy on port `8850` and Gunicorn
-internally on `127.0.0.1:8851`.
+The Debian installer uses:
 
-## Quick Install On Debian 12
+- Public nginx port: `8850`
+- Internal Gunicorn bind: `127.0.0.1:8851`
+
+These can be overridden through environment variables before running the
+installer.
+
+## Install On Debian 12
 
 Run as root:
 
@@ -41,16 +62,52 @@ cd /opt/systemd-gui
 ./scripts/install_debian.sh
 ```
 
-The installer prints the login password at the end.
+At the end, the installer prints the generated login password.
 
-After installation, open `http://YOUR-SERVER-IP:8850` in your browser. The app
-uses nginx on port `8850` and Gunicorn on `127.0.0.1:8851`.
+Open:
 
-## Security Notes
+```text
+http://YOUR-SERVER-IP:8850
+```
 
-This app can control system services and is therefore powerful. Keep it private,
-keep login enabled, and do not expose it publicly without HTTPS and additional
-access controls.
+## Installer Environment Variables
 
-The first version intentionally blocks protected services by default and edits
-only unit files below `/etc/systemd/system`.
+You can override defaults before running the installer:
+
+```bash
+export SYSTEMD_GUI_PUBLIC_PORT=8850
+export SYSTEMD_GUI_HOST=127.0.0.1
+export SYSTEMD_GUI_PORT=8851
+export SYSTEMD_GUI_PASSWORD='change-me'
+./scripts/install_debian.sh
+```
+
+The installer writes `/etc/systemd-gui.env`, creates the
+`systemd-gui.service` systemd unit, configures nginx and starts the app.
+
+## Updates And Backups
+
+The Settings page includes update actions and app update backups.
+
+Before replacing app files, Systemd Gui creates an app backup under:
+
+```text
+data/app-updates/backups
+```
+
+App backups include the application files plus selected runtime data such as
+favorites, service notes, unit backups and environment-file backups. The app
+backup directory itself is not copied recursively.
+
+## Local Development
+
+```bash
+python3 run.py
+```
+
+On non-Linux systems or systems without `systemctl`, the app will load but
+service actions and live service data will be unavailable.
+
+## License
+
+MIT License. See [LICENSE](LICENSE).

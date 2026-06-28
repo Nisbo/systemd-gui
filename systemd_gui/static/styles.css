@@ -103,7 +103,8 @@ input,textarea,select { width:100%; border:1px solid var(--line); border-radius:
 .update-actions { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; margin-top:14px; }
 .update-actions.compact-actions { grid-template-columns:1fr; }
 .update-version-bar { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)) auto; gap:12px; align-items:end; border:1px solid var(--line); border-radius:8px; padding:14px; }
-.update-version-bar span,.update-section-title span { color:var(--muted); font-size:.84rem; font-weight:750; }
+.update-version-bar span { color:var(--muted); font-size:.84rem; font-weight:750; }
+.update-section-title span { color:var(--muted); font-size:.84rem; font-weight:500; }
 .update-version-bar div,.update-section-title,.release-note { display:grid; gap:5px; }
 .update-section-title { margin-top:18px; }
 .update-detail-grid { margin-top:12px; }
