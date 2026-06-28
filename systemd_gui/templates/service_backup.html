@@ -6,7 +6,6 @@
         <h2>Backup for {{ name }}</h2>
         <p>{{ path }}</p>
       </div>
-      <a class="ghost-button" href="{{ url_for('service_detail', name=name) }}">Back to service</a>
     </div>
     <div class="diagnostic warning">
       <strong>Stored backup</strong>
@@ -29,31 +28,40 @@
       </div>
     {% endif %}
     <dl class="detail-grid two">
-      <div><dt>Service</dt><dd>{{ name }}</dd></div>
+      <div>
+        <dt>Service</dt>
+        <dd>
+          <span class="value-with-action">
+            <span>{{ name }}</span>
+            <button class="ghost-button icon-button small-icon-button" type="button" title="Copy service name" aria-label="Copy service name" data-copy-text="{{ name }}">⧉</button>
+          </span>
+        </dd>
+      </div>
       <div>
         <dt>Backup file</dt>
         <dd>
           <span class="value-with-action">
             <span>{{ backup_name }}</span>
-            <button class="ghost-button icon-button" type="button" title="Copy backup filename" aria-label="Copy backup filename" data-copy-text="{{ backup_name }}">⧉</button>
+            <button class="ghost-button icon-button small-icon-button" type="button" title="Copy backup filename" aria-label="Copy backup filename" data-copy-text="{{ backup_name }}">⧉</button>
           </span>
         </dd>
       </div>
     </dl>
-    <div class="action-bar">
-      <button class="ghost-button" type="button" title="Download this backup file." data-download-choice data-download-unit-url="{{ url_for('download_service_backup', name=name, backup_name=backup_name, filename='unit') }}" data-download-backup-url="{{ url_for('download_service_backup', name=name, backup_name=backup_name, filename='backup') }}" data-download-unit-name-text="{{ name }}" data-download-backup-name-text="{{ backup_name }}">Download backup</button>
-      <form class="inline-form" method="post" action="{{ url_for('restore_service_backup', name=name, backup_name=backup_name) }}" data-confirm="Restore this backup for {{ name }}? You can choose whether the current unit file should be backed up first.">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <label class="toggle-label" title="Create another backup from the currently installed editable unit file before restoring this backup.">
-          <input name="backup_current" type="checkbox" value="1" checked>
-          Back up current unit first
-        </label>
-        <button class="primary-button" type="submit" {% if not editable %}disabled title="Only unit files below /etc/systemd/system can be restored directly. Vendor units should be changed with drop-ins."{% else %}title="Restore this backup into the editable unit file."{% endif %}>Restore backup</button>
-      </form>
-      <form method="post" action="{{ url_for('delete_service_backup', name=name, backup_name=backup_name) }}" data-confirm="Delete this backup file permanently?">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <button class="danger-button" type="submit" title="Delete this stored backup file. This does not change the running service.">Delete backup</button>
-      </form>
+    <div class="backup-action-row">
+      <div class="backup-action-group">
+        <a class="ghost-button" href="{{ url_for('service_detail', name=name, tab='backups') }}">Back to service</a>
+        <button class="ghost-button" type="button" title="Download this backup file." data-download-choice data-download-unit-url="{{ url_for('download_service_backup', name=name, backup_name=backup_name, filename='unit') }}" data-download-backup-url="{{ url_for('download_service_backup', name=name, backup_name=backup_name, filename='backup') }}" data-download-unit-name-text="{{ name }}" data-download-backup-name-text="{{ backup_name }}">Download backup</button>
+      </div>
+      <div class="backup-action-group backup-danger-group">
+        <form method="post" action="{{ url_for('restore_service_backup', name=name, backup_name=backup_name) }}" data-confirm="Restore this backup for {{ name }}?" data-confirm-checkbox-name="backup_current" data-confirm-checkbox-label="Back up current unit first" data-confirm-checkbox-value="1" data-confirm-checkbox-checked="true">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="primary-button" type="submit" {% if not editable %}disabled title="Only unit files below /etc/systemd/system can be restored directly. Vendor units should be changed with drop-ins."{% else %}title="Restore this backup into the editable unit file."{% endif %}>Restore backup</button>
+        </form>
+        <form method="post" action="{{ url_for('delete_service_backup', name=name, backup_name=backup_name) }}" data-confirm="Delete this backup file permanently?">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="danger-button" type="submit" title="Delete this stored backup file. This does not change the running service.">Delete backup</button>
+        </form>
+      </div>
     </div>
   </section>
 

@@ -17,19 +17,51 @@
 
   const modal = document.querySelector("[data-confirm-modal]");
   const message = document.querySelector("[data-confirm-message]");
+  const extra = document.querySelector("[data-confirm-extra]");
   const cancel = document.querySelector("[data-confirm-cancel]");
   const submit = document.querySelector("[data-confirm-submit]");
   let pending = null;
-  const close = () => { if (!modal) return; modal.hidden = true; pending = null; };
+  const close = () => { if (!modal) return; modal.hidden = true; pending = null; if (extra) extra.innerHTML = ""; };
+  const renderConfirmExtra = (form) => {
+    if (!extra) return;
+    extra.innerHTML = "";
+    if (!form.dataset.confirmCheckboxName) return;
+    const label = document.createElement("label");
+    label.className = "toggle-label confirm-extra-toggle";
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.name = form.dataset.confirmCheckboxName;
+    checkbox.value = form.dataset.confirmCheckboxValue || "1";
+    checkbox.checked = form.dataset.confirmCheckboxChecked === "true";
+    checkbox.dataset.confirmExtraCheckbox = "true";
+    const text = document.createElement("span");
+    text.textContent = form.dataset.confirmCheckboxLabel || "Confirm option";
+    label.append(checkbox, text);
+    extra.appendChild(label);
+  };
   document.querySelectorAll("form[data-confirm]").forEach((form) => {
     form.addEventListener("submit", (event) => {
       if (form.dataset.confirmed === "true") { delete form.dataset.confirmed; return; }
-      event.preventDefault(); pending = form; if (message) message.textContent = form.dataset.confirm || "Continue?"; if (modal) modal.hidden = false;
+      event.preventDefault(); pending = form; if (message) message.textContent = form.dataset.confirm || "Continue?"; renderConfirmExtra(form); if (modal) modal.hidden = false;
     });
   });
   cancel?.addEventListener("click", close);
   modal?.addEventListener("click", (event) => { if (event.target === modal) close(); });
-  submit?.addEventListener("click", () => { if (!pending) return; pending.dataset.confirmed = "true"; pending.requestSubmit(); });
+  submit?.addEventListener("click", () => {
+    if (!pending) return;
+    pending.querySelectorAll("[data-confirm-extra-field]").forEach((field) => field.remove());
+    extra?.querySelectorAll("[data-confirm-extra-checkbox]").forEach((checkbox) => {
+      if (!checkbox.checked) return;
+      const hidden = document.createElement("input");
+      hidden.type = "hidden";
+      hidden.name = checkbox.name;
+      hidden.value = checkbox.value;
+      hidden.dataset.confirmExtraField = "true";
+      pending.appendChild(hidden);
+    });
+    pending.dataset.confirmed = "true";
+    pending.requestSubmit();
+  });
   document.addEventListener("keydown", (event) => { if (event.key === "Escape" && modal && !modal.hidden) close(); });
 
   const infoModal = document.querySelector("[data-info-modal]");
