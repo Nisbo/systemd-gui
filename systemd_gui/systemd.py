@@ -359,12 +359,13 @@ def _apply_drop_in_sections(sections: dict[str, list[dict[str, object]]], order:
 
         key, value = raw_line.split("=", 1)
         key = key.strip()
-        replacement = {"kind": "assignment", "key": f"{key}=", "value": value.strip(), "changed": True}
         existing_index = _assignment_index(sections[current], key)
         if existing_index is None:
+            replacement = {"kind": "assignment", "key": f"{key}=", "value": value.strip(), "highlight": "line"}
             insert_at = _section_append_index(sections[current])
             sections[current].insert(insert_at, replacement)
         else:
+            replacement = {"kind": "assignment", "key": f"{key}=", "value": value.strip(), "highlight": "value"}
             sections[current][existing_index] = replacement
 
 
@@ -373,7 +374,7 @@ def _unit_line_entry(line: str, changed: bool) -> dict[str, object]:
     if not stripped or stripped.startswith("#") or stripped.startswith(";") or "=" not in line:
         return {"kind": "raw", "text": line}
     key, value = line.split("=", 1)
-    return {"kind": "assignment", "key": f"{key.strip()}=", "value": value.strip(), "changed": changed}
+    return {"kind": "assignment", "key": f"{key.strip()}=", "value": value.strip(), "highlight": "value" if changed else ""}
 
 
 def _assignment_index(lines: list[dict[str, object]], key: str) -> int | None:

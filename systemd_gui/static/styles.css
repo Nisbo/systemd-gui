@@ -82,8 +82,9 @@ input,textarea,select { width:100%; border:1px solid var(--line); border-radius:
 .action-bar { flex-wrap:wrap; margin-top:18px; }
 .config-preview { max-height:70vh; overflow:auto; border:1px solid var(--line); border-radius:8px; background:color-mix(in srgb, var(--panel) 72%, #000 4%); margin:0; padding:16px; white-space:pre-wrap; }
 .config-preview.override-merged { border-left:7px solid color-mix(in srgb, #2563eb 72%, var(--line)); }
+.override-line-added { display:inline; background:color-mix(in srgb, #2563eb 18%, transparent); color:#1d4ed8; border-radius:3px; padding:0 2px; }
 .override-value-changed { background:color-mix(in srgb, #2563eb 18%, transparent); color:#1d4ed8; border-radius:3px; padding:0 2px; }
-:root[data-theme="dark"] .override-value-changed { color:#bfdbfe; }
+:root[data-theme="dark"] .override-line-added,:root[data-theme="dark"] .override-value-changed { color:#bfdbfe; }
 .log-preview { font-size:.9rem; }
 .empty-note { color:var(--muted); font-weight:750; }
 .update-card,.update-result { display:grid; gap:9px; align-content:start; border:1px solid var(--line); border-radius:8px; padding:14px; margin-top:14px; }
