@@ -128,7 +128,7 @@ def run_journalctl(service: str, lines: int = 200) -> CommandResult:
     return CommandResult(result.returncode == 0, output, result.returncode)
 
 
-def list_services(query: str = "", favorites: set[str] | None = None, state_filter: str = "", sub_filter: str = "") -> list[dict[str, str | bool]]:
+def list_services(query: str = "", favorites: set[str] | None = None, state_filter: str = "", sub_filter: str = "", autostart_filter: str = "") -> list[dict[str, str | bool]]:
     favorites = favorites or set()
     units = _active_units()
     files = _unit_files()
@@ -147,6 +147,9 @@ def list_services(query: str = "", favorites: set[str] | None = None, state_filt
             continue
         if sub_filter and sub != sub_filter:
             continue
+        enabled = file_state.get("state", "unknown")
+        if autostart_filter and enabled != autostart_filter:
+            continue
         info = service_catalog_info(name, unit.get("description", ""))
         services.append({
             "name": name,
@@ -154,8 +157,8 @@ def list_services(query: str = "", favorites: set[str] | None = None, state_filt
             "active": active,
             "sub": sub,
             "description": unit.get("description", ""),
-            "enabled": file_state.get("state", "unknown"),
-            "enabled_help": unit_file_state_help(file_state.get("state", "unknown"), name),
+            "enabled": enabled,
+            "enabled_help": unit_file_state_help(enabled, name),
             "preset": file_state.get("preset", ""),
             "favorite": name in favorites,
             "protected": is_protected_service(name),

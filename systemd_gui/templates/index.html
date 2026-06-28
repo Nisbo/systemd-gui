@@ -28,7 +28,13 @@
           <option value="{{ sub }}" {% if sub_filter == sub %}selected{% endif %}>{{ sub }}</option>
         {% endfor %}
       </select>
-      {% if query or state_filter or sub_filter %}<a class="ghost-button" href="{{ url_for('index') }}">Clear</a>{% endif %}
+      <select name="autostart" aria-label="Filter by autostart">
+        <option value="">All autostart</option>
+        {% for autostart in filter_options.autostarts %}
+          <option value="{{ autostart }}" {% if autostart_filter == autostart %}selected{% endif %}>{{ autostart }}</option>
+        {% endfor %}
+      </select>
+      {% if query or state_filter or sub_filter or autostart_filter %}<a class="ghost-button" href="{{ url_for('index') }}">Clear</a>{% endif %}
     </form>
 
     {% include "_services_table.html" %}

@@ -30,9 +30,27 @@
     {% endif %}
     <dl class="detail-grid two">
       <div><dt>Service</dt><dd>{{ name }}</dd></div>
-      <div><dt>Backup file</dt><dd>{{ backup_name }}</dd></div>
+      <div>
+        <dt>Backup file</dt>
+        <dd>
+          <span class="value-with-action">
+            <span>{{ backup_name }}</span>
+            <button class="ghost-button icon-button" type="button" title="Copy backup filename" aria-label="Copy backup filename" data-copy-text="{{ backup_name }}">⧉</button>
+          </span>
+        </dd>
+      </div>
     </dl>
     <div class="action-bar">
+      <form class="inline-form" method="get" action="{{ url_for('download_service_backup', name=name, backup_name=backup_name) }}">
+        <label>
+          Download filename
+          <select name="filename">
+            <option value="unit">{{ name }}</option>
+            <option value="backup">{{ backup_name }}</option>
+          </select>
+        </label>
+        <button class="ghost-button" type="submit" title="Download this backup file.">Download backup</button>
+      </form>
       <form class="inline-form" method="post" action="{{ url_for('restore_service_backup', name=name, backup_name=backup_name) }}" data-confirm="Restore this backup for {{ name }}? You can choose whether the current unit file should be backed up first.">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <label class="toggle-label" title="Create another backup from the currently installed editable unit file before restoring this backup.">

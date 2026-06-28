@@ -8,7 +8,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask import Flask, Response, flash, redirect, render_template, request, session, url_for
 
 from .systemd import (
     create_unit_backup,
@@ -135,10 +135,11 @@ def create_app() -> Flask:
         query = request.args.get("q", "").strip()
         state_filter = request.args.get("state", "").strip()
         sub_filter = request.args.get("sub", "").strip()
+        autostart_filter = request.args.get("autostart", "").strip()
         favorites = read_favorites(_favorites_path(app))
         all_services = list_services(query, favorites)
         filter_options = _service_filter_options(all_services)
-        services = list_services(query, favorites, state_filter, sub_filter)
+        services = list_services(query, favorites, state_filter, sub_filter, autostart_filter)
         stats = _service_stats(services)
         return render_template(
             "index.html",
@@ -146,6 +147,7 @@ def create_app() -> Flask:
             query=query,
             state_filter=state_filter,
             sub_filter=sub_filter,
+            autostart_filter=autostart_filter,
             filter_options=filter_options,
             **stats,
         )
@@ -155,15 +157,17 @@ def create_app() -> Flask:
         query = request.args.get("q", "").strip()
         state_filter = request.args.get("state", "").strip()
         sub_filter = request.args.get("sub", "").strip()
+        autostart_filter = request.args.get("autostart", "").strip()
         favorites = read_favorites(_favorites_path(app))
         all_services = list_services(query, favorites)
         filter_options = _service_filter_options(all_services)
-        services = list_services(query, favorites, state_filter, sub_filter)
+        services = list_services(query, favorites, state_filter, sub_filter, autostart_filter)
         return render_template(
             "_services_fragment.html",
             services=services,
             state_filter=state_filter,
             sub_filter=sub_filter,
+            autostart_filter=autostart_filter,
             filter_options=filter_options,
             **_service_stats(services),
         )
@@ -440,6 +444,23 @@ def create_app() -> Flask:
             restored=request.args.get("restored") == "1",
         )
 
+    @app.get("/service/<name>/backup/<backup_name>/download")
+    def download_service_backup(name: str, backup_name: str):
+        if not _valid_or_flash(name):
+            return redirect(url_for("index"))
+        try:
+            _path, content = read_unit_backup(name, backup_name, _backup_dir(app))
+        except (OSError, ValueError) as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("service_detail", name=name, tab="backups"))
+
+        filename = name if request.args.get("filename") == "unit" else backup_name
+        return Response(
+            content,
+            mimetype="text/plain; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
     @app.post("/service/<name>/backup/<backup_name>/restore")
     def restore_service_backup(name: str, backup_name: str):
         if not _valid_or_flash(name):
@@ -506,6 +527,7 @@ def _service_filter_options(services: list[dict[str, str | bool]]) -> dict[str, 
     return {
         "states": sorted({str(item["active"]) for item in services if item.get("active")}),
         "subs": sorted({str(item["sub"]) for item in services if item.get("sub") and item["sub"] != "-"}),
+        "autostarts": sorted({str(item["enabled"]) for item in services if item.get("enabled")}),
     }
 
 

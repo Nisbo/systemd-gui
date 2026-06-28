@@ -64,6 +64,19 @@
   infoModal?.addEventListener("click", (event) => { if (event.target === infoModal) closeInfo(); });
   document.addEventListener("keydown", (event) => { if (event.key === "Escape" && infoModal && !infoModal.hidden) closeInfo(); });
 
+  document.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-copy-text]");
+    if (!button) return;
+    try {
+      await navigator.clipboard.writeText(button.dataset.copyText || "");
+      const original = button.title;
+      button.title = "Copied";
+      window.setTimeout(() => { button.title = original; }, 1400);
+    } catch (_error) {
+      window.prompt("Copy this value", button.dataset.copyText || "");
+    }
+  });
+
   document.querySelectorAll("form[data-live-search]").forEach((form) => {
     const input = form.querySelector("input[name='q']");
     if (!input) return;

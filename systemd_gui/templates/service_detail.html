@@ -32,7 +32,15 @@
         </dd>
       </div>
       <div><dt>Autostart</dt><dd><span class="state-text" title="{{ info.enabled_help }}" aria-label="{{ info.enabled_help }}">{{ info.enabled }}</span></dd></div>
-      <div><dt>Unit file</dt><dd>{{ info.fragment_path or 'Unknown' }}</dd></div>
+      <div>
+        <dt>Unit file</dt>
+        <dd>
+          <span class="value-with-action">
+            <span>{{ info.fragment_path or 'Unknown' }}</span>
+            {% if info.fragment_path %}<button class="ghost-button icon-button" type="button" title="Copy unit file path" aria-label="Copy unit file path" data-copy-text="{{ info.fragment_path }}">⧉</button>{% endif %}
+          </span>
+        </dd>
+      </div>
       <div>
         <dt>Protected</dt>
         <dd>
