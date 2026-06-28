@@ -107,6 +107,8 @@ def create_app() -> Flask:
             "systemctl_available": systemctl_available(),
             "journalctl_available": journalctl_available(),
             "app_update_pending_restart": session.get("app_update_pending_restart", False),
+            "pending_override_reloads": sorted(_pending_override_reloads()),
+            "pending_override_restarts": sorted(_pending_override_restarts()),
         }
 
     @app.after_request
@@ -478,6 +480,8 @@ def create_app() -> Flask:
             result = run_systemctl([action, name])
         else:
             result = run_systemctl([action, name])
+        if result.ok and action == "restart":
+            _clear_override_restart_pending(name)
         flash(result.output or f"systemctl {action} completed.", "success" if result.ok else "error")
         return redirect(url_for("service_detail", name=name))
 
@@ -551,6 +555,14 @@ def create_app() -> Flask:
         _mark_override_reload_pending(name)
         flash(f"Override deleted. Backup: {backup_path}. Run daemon-reload before restarting the service.", "success")
         return redirect(url_for("service_detail", name=name, tab="override"))
+
+    @app.post("/service/<name>/override/restart-dismiss")
+    def dismiss_override_restart(name: str):
+        if not _valid_or_flash(name):
+            return redirect(url_for("index"))
+        _clear_override_restart_pending(name)
+        flash("Service restart reminder dismissed.", "success")
+        return redirect(request.referrer or url_for("service_detail", name=name, tab="override"))
 
     @app.post("/service/<name>/edit")
     def save_service(name: str):
@@ -643,9 +655,11 @@ def create_app() -> Flask:
         if result.ok:
             if service_name:
                 _clear_override_reload_pending(service_name)
+                _mark_override_restart_pending(service_name)
             elif len(pending_names) == 1:
                 service_name = pending_names[0]
                 _clear_override_reload_pending(service_name)
+                _mark_override_restart_pending(service_name)
             next_url = _safe_next_url(request.form.get("next", ""))
             if not next_url and service_name:
                 next_url = url_for("service_detail", name=service_name, tab="override", restart_prompt="1")
@@ -738,6 +752,32 @@ def _clear_override_reload_pending(name: str) -> None:
     values = _pending_override_reloads()
     values.discard(name)
     _write_pending_override_reloads(values)
+
+
+def _pending_override_restarts() -> set[str]:
+    values = session.get("override_restart_pending", [])
+    if not isinstance(values, list):
+        return set()
+    return {item for item in values if isinstance(item, str) and valid_service_name(item)}
+
+
+def _write_pending_override_restarts(values: set[str]) -> None:
+    if values:
+        session["override_restart_pending"] = sorted(values)
+    else:
+        session.pop("override_restart_pending", None)
+
+
+def _mark_override_restart_pending(name: str) -> None:
+    values = _pending_override_restarts()
+    values.add(name)
+    _write_pending_override_restarts(values)
+
+
+def _clear_override_restart_pending(name: str) -> None:
+    values = _pending_override_restarts()
+    values.discard(name)
+    _write_pending_override_restarts(values)
 
 
 def _service_metadata(info: dict[str, object]) -> dict[str, str]:

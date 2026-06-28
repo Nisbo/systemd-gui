@@ -46,7 +46,7 @@ button:disabled { opacity:.48; cursor:not-allowed; }
 .restart-banner { display:flex; align-items:center; justify-content:space-between; gap:14px; border:2px solid color-mix(in srgb, var(--amber) 75%, var(--line)); border-left-width:7px; border-radius:8px; background:color-mix(in srgb, var(--amber) 16%, transparent); color:var(--ink); margin-bottom:16px; padding:12px 14px; }
 .restart-banner div { display:grid; gap:3px; }
 .restart-banner span { color:var(--muted); }
-.restart-banner form:last-child button { min-width:36px; padding:0; }
+.restart-banner .dismiss-button { min-width:36px; padding:0; }
 .form-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; } .form-grid.single { grid-template-columns:1fr; }
 label { display:grid; gap:7px; color:var(--muted); font-size:.9rem; font-weight:800; }
 .field-help { color:var(--muted); font-size:.84rem; font-weight:650; line-height:1.35; }

@@ -45,6 +45,38 @@
         {% endif %}
       {% endwith %}
 
+      {% for service_name in pending_override_reloads %}
+        <section class="restart-banner" aria-live="polite">
+          <div>
+            <strong>Daemon reload required</strong>
+            <span><code>{{ service_name }}</code> override changed. Run daemon-reload so systemd reads the updated service configuration.</span>
+          </div>
+          <form method="post" action="{{ url_for('daemon_reload') }}" data-confirm="Run systemctl daemon-reload now?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="service_name" value="{{ service_name }}">
+            <button class="primary-button" type="submit">Daemon reload</button>
+          </form>
+          <a class="ghost-button" href="{{ url_for('service_detail', name=service_name, tab='override') }}">Open override</a>
+        </section>
+      {% endfor %}
+
+      {% for service_name in pending_override_restarts %}
+        <section class="restart-banner" aria-live="polite">
+          <div>
+            <strong>Restart service?</strong>
+            <span><code>{{ service_name }}</code> was reloaded by systemd. Some changes only affect future starts; restart if you want the running service behavior to reload now.</span>
+          </div>
+          <form method="post" action="{{ url_for('service_action', name=service_name, action='restart') }}" data-confirm="Restart {{ service_name }} now?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="primary-button" type="submit">Yes, restart</button>
+          </form>
+          <form method="post" action="{{ url_for('dismiss_override_restart', name=service_name) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="ghost-button" type="submit">No</button>
+          </form>
+        </section>
+      {% endfor %}
+
       {% if app_update_pending_restart %}
         <section class="restart-banner" aria-live="polite">
           <div>
@@ -57,7 +89,7 @@
           </form>
           <form method="post" action="{{ url_for('dismiss_app_update_restart') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button type="submit" title="Dismiss restart reminder" aria-label="Dismiss restart reminder">×</button>
+            <button class="dismiss-button" type="submit" title="Dismiss restart reminder" aria-label="Dismiss restart reminder">×</button>
           </form>
         </section>
       {% endif %}

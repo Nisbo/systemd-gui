@@ -184,7 +184,7 @@
         <form method="post" action="{{ url_for('daemon_reload') }}" data-confirm="Run systemctl daemon-reload? This reloads unit and override files after edits.">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <input type="hidden" name="service_name" value="{{ info.name }}">
-          <input type="hidden" name="next" value="{{ url_for('service_detail', name=info.name, tab='override', restart_prompt='1') }}">
+          <input type="hidden" name="next" value="{{ url_for('service_detail', name=info.name, tab='override') }}">
           <button class="ghost-button" type="submit">Daemon reload</button>
         </form>
       </div>
@@ -210,33 +210,6 @@
             <p>Systemd Gui found active override settings in this file.</p>
           {% endif %}
         </section>
-      {% endif %}
-      {% if override_pending_reload %}
-        <div class="restart-banner">
-          <div>
-            <strong>Daemon reload required</strong>
-            <span>The override file changed on disk. Run daemon-reload so systemd reads the updated service configuration.</span>
-          </div>
-          <form method="post" action="{{ url_for('daemon_reload') }}" data-confirm="Run systemctl daemon-reload now?">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <input type="hidden" name="service_name" value="{{ info.name }}">
-            <input type="hidden" name="next" value="{{ url_for('service_detail', name=info.name, tab='override', restart_prompt='1') }}">
-            <button class="primary-button" type="submit">Daemon reload</button>
-          </form>
-        </div>
-      {% endif %}
-      {% if request.args.get('restart_prompt') and info.available and not info.protected and not info.template_unit %}
-        <div class="restart-banner">
-          <div>
-            <strong>Restart service?</strong>
-            <span>Some changes only affect future starts. Restart if you want the running service behavior to reload now.</span>
-          </div>
-          <form method="post" action="{{ url_for('service_action', name=info.name, action='restart') }}" data-confirm="Restart {{ info.name }} now?">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button class="primary-button" type="submit">Yes, restart</button>
-          </form>
-          <a class="ghost-button" href="{{ url_for('service_detail', name=info.name, tab='override') }}">No</a>
-        </div>
       {% endif %}
       {% if not info.available %}
         <div class="diagnostic error">
