@@ -149,8 +149,13 @@
             {% endfor %}
           </select>
         </label>
+        <label>
+          Search loaded logs
+          <input name="log_q" value="{{ request.args.get('log_q', '') }}" placeholder="Filter visible log lines" autocomplete="off" data-log-search>
+        </label>
         <button class="ghost-button" type="button" data-log-refresh-now>Refresh now</button>
       </form>
+      <div class="log-search-status" data-log-search-status hidden></div>
       <div class="diagnostic warning" data-log-live-note {% if not log_refresh %}hidden{% endif %}>
         <strong>Live view</strong>
         <span data-log-live-note-text>Refreshing every {{ log_refresh_interval }} second{% if log_refresh_interval != 1 %}s{% endif %} while auto-refresh is enabled.</span>

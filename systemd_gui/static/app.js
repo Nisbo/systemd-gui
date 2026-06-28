@@ -177,13 +177,17 @@
     const linesSelect = logControls?.querySelector("[data-log-lines]");
     const refreshCheckbox = logControls?.querySelector("[data-log-refresh]");
     const intervalSelect = logControls?.querySelector("[data-log-interval]");
+    const searchInput = logControls?.querySelector("[data-log-search]");
     const refreshNow = logControls?.querySelector("[data-log-refresh-now]");
     const liveNote = document.querySelector("[data-log-live-note]");
     const liveNoteText = document.querySelector("[data-log-live-note-text]");
+    const searchStatus = document.querySelector("[data-log-search-status]");
     let timer = null;
     let loading = false;
+    let searchTimer = null;
 
     const selectedLines = () => linesSelect?.value || "200";
+    const selectedSearch = () => searchInput?.value.trim() || "";
     const selectedInterval = () => {
       const seconds = Number.parseInt(intervalSelect?.value || logPanel.dataset.refreshInterval || "5", 10);
       return Number.isFinite(seconds) && seconds > 0 ? seconds : 5;
@@ -208,7 +212,56 @@
         url.searchParams.delete("refresh");
         url.searchParams.delete("interval");
       }
+      if (selectedSearch()) url.searchParams.set("log_q", selectedSearch());
+      else url.searchParams.delete("log_q");
       window.history.replaceState({}, "", url);
+    };
+    const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const appendHighlightedText = (fragment, text, query) => {
+      if (!query) {
+        fragment.appendChild(document.createTextNode(text));
+        return;
+      }
+      const regex = new RegExp(escapeRegex(query), "gi");
+      let cursor = 0;
+      for (const match of text.matchAll(regex)) {
+        if (match.index > cursor) fragment.appendChild(document.createTextNode(text.slice(cursor, match.index)));
+        const mark = document.createElement("mark");
+        mark.textContent = match[0];
+        fragment.appendChild(mark);
+        cursor = match.index + match[0].length;
+      }
+      if (cursor < text.length) fragment.appendChild(document.createTextNode(text.slice(cursor)));
+    };
+    const renderLogText = (rawText) => {
+      const output = document.querySelector("[data-log-output]");
+      const code = output?.querySelector("code");
+      if (!output || !code) return;
+      const query = selectedSearch();
+      output.dataset.rawLog = rawText;
+      code.textContent = "";
+      const fragment = document.createDocumentFragment();
+      const lines = rawText.split("\n");
+      const matchingLines = query ? lines.filter((line) => line.toLowerCase().includes(query.toLowerCase())) : lines;
+      if (query && matchingLines.length === 0) {
+        fragment.appendChild(document.createTextNode("No loaded log lines match this search."));
+      } else {
+        matchingLines.forEach((line, index) => {
+          if (index > 0) fragment.appendChild(document.createTextNode("\n"));
+          appendHighlightedText(fragment, line, query);
+        });
+      }
+      code.appendChild(fragment);
+      if (searchStatus) {
+        searchStatus.hidden = !query;
+        searchStatus.textContent = query ? `${matchingLines.length} matching line${matchingLines.length === 1 ? "" : "s"} in the loaded logs.` : "";
+      }
+    };
+    const applyLogSearch = () => {
+      const output = document.querySelector("[data-log-output]");
+      const code = output?.querySelector("code");
+      renderLogText(output?.dataset.rawLog ?? code?.textContent ?? "");
+      syncLogUrl();
     };
     const refreshLogs = async ({ followBottom = true } = {}) => {
       if (loading) return;
@@ -225,11 +278,12 @@
         const doc = new DOMParser().parseFromString(await response.text(), "text/html");
         const nextLog = doc.querySelector("[data-log-output]");
         if (!nextLog || !currentLog) return;
-        currentLog.replaceWith(nextLog);
+        const nextCode = nextLog.querySelector("code");
+        renderLogText(nextCode?.textContent || "");
         if (followBottom && wasNearBottom) {
-          nextLog.scrollTop = nextLog.scrollHeight;
+          currentLog.scrollTop = currentLog.scrollHeight;
         } else {
-          nextLog.scrollTop = Math.min(previousTop, nextLog.scrollHeight);
+          currentLog.scrollTop = Math.min(previousTop, currentLog.scrollHeight);
         }
       } finally {
         loading = false;
@@ -255,10 +309,15 @@
     linesSelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
     refreshCheckbox?.addEventListener("change", () => applyLogControls({ refresh: refreshEnabled() }));
     intervalSelect?.addEventListener("change", () => applyLogControls());
+    searchInput?.addEventListener("input", () => {
+      window.clearTimeout(searchTimer);
+      searchTimer = window.setTimeout(applyLogSearch, 120);
+    });
     refreshNow?.addEventListener("click", () => {
       syncLogUrl();
       refreshLogs({ followBottom: false });
     });
+    applyLogSearch();
     updateLiveNote();
     startTimer();
   }
