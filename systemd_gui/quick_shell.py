@@ -104,20 +104,15 @@ def quick_shell_helper_status(path: Path, app_root: Path | None = None, data_dir
             content = path.read_text(encoding="utf-8")
         except OSError:
             content = ""
-    expected_root = f'export SYSTEMD_GUI_ROOT="{app_root}"' if app_root else ""
-    expected_data = f'export SYSTEMD_GUI_DATA_DIR="{data_dir}"' if data_dir else ""
-    matches_paths = bool(
-        installed
-        and (not expected_root or expected_root in content)
-        and (not expected_data or expected_data in content)
-    )
-    ready = bool(executable and matches_paths)
+    expected_content = _quick_shell_helper_content(app_root, data_dir) if app_root and data_dir else ""
+    matches_content = bool(installed and (not expected_content or content == expected_content))
+    ready = bool(executable and matches_content)
     if not installed:
         message = "Helper is not installed yet."
     elif not executable:
         message = "Helper exists but is not executable."
-    elif not matches_paths:
-        message = "Helper is installed but should be updated for the current app path."
+    elif not matches_content:
+        message = "Helper is installed but should be updated."
     else:
         message = "Helper is installed."
     return QuickShellHelperStatus(path=path, installed=installed, executable=executable, ready=ready, message=message)
@@ -125,7 +120,12 @@ def quick_shell_helper_status(path: Path, app_root: Path | None = None, data_dir
 
 def install_quick_shell_helper(path: Path, app_root: Path, data_dir: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    content = "\n".join(
+    path.write_text(_quick_shell_helper_content(app_root, data_dir), encoding="utf-8")
+    path.chmod(0o755)
+
+
+def _quick_shell_helper_content(app_root: Path, data_dir: Path) -> str:
+    return "\n".join(
         [
             "#!/usr/bin/env sh",
             f'export SYSTEMD_GUI_ROOT="{app_root}"',
@@ -134,8 +134,6 @@ def install_quick_shell_helper(path: Path, app_root: Path, data_dir: Path) -> No
             "",
         ]
     )
-    path.write_text(content, encoding="utf-8")
-    path.chmod(0o755)
 
 
 def shell_integration_statuses(helper_path: Path) -> list[ShellIntegrationStatus]:

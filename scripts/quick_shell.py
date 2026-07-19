@@ -62,6 +62,23 @@ def _parse_direct_path(args: list[str]) -> list[int]:
     return numbers
 
 
+def _print_debug(args: list[str], shell_action_file: Path | None) -> int:
+    print("Quick Shell debug")
+    print(f"script: {Path(__file__).resolve()}")
+    print(f"app root: {_app_root()}")
+    print(f"data dir: {_data_dir()}")
+    print(f"data file: {_data_dir() / 'quick-shell.json'}")
+    print(f"shell action file: {shell_action_file or '-'}")
+    print(f"arguments: {args or '-'}")
+    try:
+        direct_path = _parse_direct_path(args)
+    except ValueError as exc:
+        print(f"direct path: invalid ({exc})")
+    else:
+        print(f"direct path: {direct_path or '-'}")
+    return 0
+
+
 def _menu_name(stack: list[str]) -> str:
     return " / ".join(stack) if stack else "root menu"
 
@@ -140,6 +157,8 @@ def main() -> int:
             return 2
         shell_action_file = Path(args[1])
         args = args[2:]
+    if args[:1] == ["--debug"]:
+        return _print_debug(args[1:], shell_action_file)
 
     try:
         direct_path = _parse_direct_path(args)
