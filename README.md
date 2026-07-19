@@ -119,7 +119,9 @@ data/quick-shell.json
 Entries can be nested into categories and subcategories. Disabled entries stay
 stored in the web UI but are hidden from the `qs` menu. Commands are not run
 from the browser; the web UI only manages the list, and execution happens in
-the local server shell.
+the local server shell. By default, `qs` exits after a command runs. Enable
+**Show menu after command** on individual commands when you want the menu to
+open again afterward.
 
 Fresh installations create `/usr/local/bin/qs` automatically. If you added Quick
 Shell through a Git update, open **Quick Shell** in the web UI and use **Install

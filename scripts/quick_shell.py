@@ -42,20 +42,22 @@ def _prompt_choice(max_number: int, can_go_back: bool) -> str:
     return input(f"Choose ({'/'.join(hints)}): ").strip().lower()
 
 
-def _run_command(item, label: str) -> None:
+def _run_command(item) -> int:
     command = str(item.get("command") or "").strip()
     if not command:
         print("This entry has no command.")
-        return
+        return 1
     if item.get("confirm", True):
         answer = input(f'Run "{command}"? [y/N] ').strip().lower()
         if answer not in {"y", "yes"}:
             print("Skipped.")
-            return
+            return 0
     print()
     result = subprocess.run(command, shell=True)
-    print()
-    print(f"{label} finished with exit code {result.returncode}.")
+    if result.returncode != 0:
+        print()
+        print(f"Command finished with exit code {result.returncode}.")
+    return result.returncode
 
 
 def main() -> int:
@@ -101,7 +103,9 @@ def main() -> int:
             stack.append(label)
             menu_stack.append(list(item.get("items") or []))
             continue
-        _run_command(item, label)
+        result_code = _run_command(item)
+        if not item.get("show_menu_after", False):
+            return result_code
 
 
 if __name__ == "__main__":

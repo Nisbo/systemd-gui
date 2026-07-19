@@ -40,6 +40,7 @@ def default_quick_shell() -> dict[str, Any]:
                         "command": "ls -al",
                         "enabled": True,
                         "confirm": True,
+                        "show_menu_after": False,
                     }
                 ],
             }
@@ -127,6 +128,7 @@ def normalize_item(item: dict[str, Any]) -> dict[str, Any]:
     else:
         normalized["command"] = str(item.get("command") or "").strip()
         normalized["confirm"] = bool(item.get("confirm", True))
+        normalized["show_menu_after"] = bool(item.get("show_menu_after", False))
     return normalized
 
 

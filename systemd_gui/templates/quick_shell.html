@@ -65,6 +65,7 @@
               <th>Name</th>
               <th>Command</th>
               <th>State</th>
+              <th>After run</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -90,6 +91,13 @@
                 </td>
                 <td>
                   <span class="status-pill {{ '' if item.enabled else 'inactive' }}">{{ "Enabled" if item.enabled else "Disabled" }}</span>
+                </td>
+                <td>
+                  {% if item.type == "command" %}
+                    {{ "Show menu" if item.show_menu_after else "Exit" }}
+                  {% else %}
+                    <span class="empty-note">-</span>
+                  {% endif %}
                 </td>
                 <td>
                   <div class="table-actions quick-shell-actions">
@@ -163,6 +171,10 @@
         <label class="toggle-label">
           <input type="checkbox" name="confirm" value="1" checked>
           <span>Ask before running</span>
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" name="show_menu_after" value="1">
+          <span>Show menu after command</span>
         </label>
         <div class="form-actions">
           <button class="primary-button" type="submit">Add command</button>

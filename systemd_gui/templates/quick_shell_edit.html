@@ -42,6 +42,10 @@
           <input type="checkbox" name="confirm" value="1" {% if item.confirm is not defined or item.confirm %}checked{% endif %}>
           <span>Ask before running</span>
         </label>
+        <label class="toggle-label">
+          <input type="checkbox" name="show_menu_after" value="1" {% if item.show_menu_after %}checked{% endif %}>
+          <span>Show menu after command</span>
+        </label>
       {% endif %}
       <label class="toggle-label">
         <input type="checkbox" name="enabled" value="1" {% if item.enabled %}checked{% endif %}>

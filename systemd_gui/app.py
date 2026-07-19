@@ -836,6 +836,7 @@ def _quick_shell_item_from_form() -> dict[str, object]:
             raise ValueError("Commands need a command line.")
         item["command"] = command
         item["confirm"] = request.form.get("confirm") == "1"
+        item["show_menu_after"] = request.form.get("show_menu_after") == "1"
     return item
 
 
