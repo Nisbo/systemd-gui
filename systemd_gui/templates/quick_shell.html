@@ -18,6 +18,23 @@
       <div><dt>Storage</dt><dd><code>data/quick-shell.json</code></dd></div>
       <div><dt>Disabled entries</dt><dd>Hidden in the shell menu</dd></div>
     </dl>
+
+    <div class="inline-section">
+      <div class="quick-shell-helper">
+        <div>
+          <h3>Shell helper</h3>
+          <p>{{ helper_status.message }} Git updates do not create system commands automatically, so install or update the helper here after pulling new app files.</p>
+        </div>
+        <dl class="detail-grid two quick-shell-helper-grid">
+          <div><dt>Path</dt><dd><code>{{ helper_status.path }}</code></dd></div>
+          <div><dt>Status</dt><dd>{{ "Ready" if helper_status.executable else "Needs install" }}</dd></div>
+        </dl>
+        <form method="post" action="{{ url_for('install_quick_shell') }}" data-confirm="Install or update the qs helper at {{ helper_status.path }}?">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="primary-button" type="submit">Install or update helper</button>
+        </form>
+      </div>
+    </div>
   </section>
 
   <section class="panel">

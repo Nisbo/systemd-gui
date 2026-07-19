@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,14 @@ class QuickShellEntry:
     item: dict[str, Any]
     path: str
     depth: int
+
+
+@dataclass
+class QuickShellHelperStatus:
+    path: Path
+    installed: bool
+    executable: bool
+    message: str
 
 
 def default_quick_shell() -> dict[str, Any]:
@@ -48,6 +57,33 @@ def read_quick_shell(path: Path) -> dict[str, Any]:
 def write_quick_shell(path: Path, data: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(normalize_tree(data), indent=2, sort_keys=False) + "\n", encoding="utf-8")
+
+
+def quick_shell_helper_status(path: Path) -> QuickShellHelperStatus:
+    installed = path.exists()
+    executable = installed and os.access(path, os.X_OK)
+    if not installed:
+        message = "Helper is not installed yet."
+    elif not executable:
+        message = "Helper exists but is not executable."
+    else:
+        message = "Helper is installed."
+    return QuickShellHelperStatus(path=path, installed=installed, executable=executable, message=message)
+
+
+def install_quick_shell_helper(path: Path, app_root: Path, data_dir: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    content = "\n".join(
+        [
+            "#!/usr/bin/env sh",
+            f'export SYSTEMD_GUI_ROOT="{app_root}"',
+            f'export SYSTEMD_GUI_DATA_DIR="{data_dir}"',
+            f'exec /usr/bin/python3 "{app_root / "scripts" / "quick_shell.py"}" "$@"',
+            "",
+        ]
+    )
+    path.write_text(content, encoding="utf-8")
+    path.chmod(0o755)
 
 
 def normalize_tree(data: Any) -> dict[str, Any]:

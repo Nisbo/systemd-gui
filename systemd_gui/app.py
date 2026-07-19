@@ -17,8 +17,10 @@ from .quick_shell import (
     delete_item,
     entry_label,
     flatten_entries,
+    install_quick_shell_helper,
     item_for_path,
     move_item,
+    quick_shell_helper_status,
     read_quick_shell,
     update_item,
     write_quick_shell,
@@ -90,6 +92,7 @@ def create_app() -> Flask:
         DATA_DIR=Path(os.environ.get("SYSTEMD_GUI_DATA_DIR", "data")),
         ENV_FILE=Path(os.environ.get("SYSTEMD_GUI_ENV_FILE", "/etc/systemd-gui.env")),
         SYSTEMD_GUI_SERVICE=os.environ.get("SYSTEMD_GUI_SERVICE", "systemd-gui"),
+        QUICK_SHELL_BIN=Path(os.environ.get("SYSTEMD_GUI_QS_BIN", "/usr/local/bin/qs")),
     )
     _sync_settings_from_env(app)
 
@@ -233,8 +236,19 @@ def create_app() -> Flask:
             parent_path=parent_path,
             breadcrumbs=_quick_shell_breadcrumbs(data, parent_path),
             flat_entries=flatten_entries(data.get("items") or []),
+            helper_status=quick_shell_helper_status(_quick_shell_bin(app)),
             entry_label=entry_label,
         )
+
+    @app.post("/quick-shell/install-helper")
+    def install_quick_shell():
+        try:
+            install_quick_shell_helper(_quick_shell_bin(app), _app_root(app), Path(app.config["DATA_DIR"]))
+        except OSError as exc:
+            flash(f"Quick Shell helper could not be installed: {exc}", "error")
+            return redirect(url_for("quick_shell"))
+        flash(f"Quick Shell helper installed at {_quick_shell_bin(app)}.", "success")
+        return redirect(url_for("quick_shell"))
 
     @app.post("/quick-shell/item")
     def create_quick_shell_item():
@@ -776,6 +790,10 @@ def _notes_path(app: Flask) -> Path:
 
 def _quick_shell_path(app: Flask) -> Path:
     return Path(app.config["DATA_DIR"]) / "quick-shell.json"
+
+
+def _quick_shell_bin(app: Flask) -> Path:
+    return Path(app.config["QUICK_SHELL_BIN"])
 
 
 def _quick_shell_item_from_form() -> dict[str, object]:

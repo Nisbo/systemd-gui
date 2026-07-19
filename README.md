@@ -121,6 +121,10 @@ stored in the web UI but are hidden from the `qs` menu. Commands are not run
 from the browser; the web UI only manages the list, and execution happens in
 the local server shell.
 
+Fresh installations create `/usr/local/bin/qs` automatically. If you added Quick
+Shell through a Git update, open **Quick Shell** in the web UI and use **Install
+or update helper** once.
+
 ## Local Development
 
 ```bash
