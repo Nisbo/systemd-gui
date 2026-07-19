@@ -262,6 +262,15 @@
     form.querySelectorAll("select,input[type='checkbox']").forEach((control) => {
       control.addEventListener("change", () => form.requestSubmit());
     });
+    form.querySelectorAll("input[name='position']").forEach((control) => {
+      control.addEventListener("change", () => form.requestSubmit());
+      control.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          form.requestSubmit();
+        }
+      });
+    });
   });
 
   document.querySelectorAll("select[data-quick-shell-type]").forEach((select) => {

@@ -121,7 +121,7 @@ th.actions-heading { text-align:right; }
 .quick-shell-setup .quick-shell-actions { min-width:230px; }
 .quick-shell-add-form { align-items:end; margin-top:14px; }
 .position-select-label { display:block; }
-.position-select { width:62px; height:30px; padding:3px 6px; font-size:.84rem; font-weight:850; }
+.position-input { width:56px; height:30px; padding:3px 6px; font-size:.84rem; font-weight:850; text-align:center; }
 .quick-shell-dialog { width:min(680px, calc(100% - 32px)); }
 .quick-shell-dialog .settings-tabs { margin-bottom:14px; }
 .quick-shell-dialog .panel-head { margin-bottom:14px; }

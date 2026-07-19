@@ -348,6 +348,8 @@ def create_app() -> Flask:
             return redirect(url_for("quick_shell", tab="menu", path=parent_path))
         try:
             if direction == "position":
+                if not position_raw.isdigit():
+                    raise ValueError("Position must be a whole number.")
                 move_item_to_position(data, item_path, int(position_raw))
             else:
                 move_item(data, item_path, direction)
