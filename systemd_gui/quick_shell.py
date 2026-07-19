@@ -35,6 +35,7 @@ class ShellIntegrationStatus:
     installed: bool
     supported: bool
     description: str
+    refresh_command: str
     message: str
 
 
@@ -44,12 +45,14 @@ SHELL_INTEGRATIONS = {
         "names": {"bash", "sh", "dash"},
         "target": Path("/etc/profile.d/systemd-gui-qs.sh"),
         "description": "Loaded by many POSIX-style login shells, including bash on Debian.",
+        "refresh_command": "source /etc/profile.d/systemd-gui-qs.sh",
     },
     "zsh": {
         "label": "zsh",
         "names": {"zsh"},
         "target": Path("/etc/zsh/zshrc"),
         "description": "Loaded by interactive zsh sessions on Debian systems with zsh installed.",
+        "refresh_command": "source /etc/zsh/zshrc",
     },
 }
 INTEGRATION_BEGIN_TEMPLATE = "# >>> systemd-gui quick shell:{shell_id} >>>"
@@ -156,6 +159,7 @@ def shell_integration_statuses(helper_path: Path) -> list[ShellIntegrationStatus
                 installed=installed,
                 supported=True,
                 description=str(config["description"]),
+                refresh_command=str(config["refresh_command"]),
                 message=message,
             )
         )

@@ -21,7 +21,7 @@
     <dl class="detail-grid three">
       <div><dt>Command</dt><dd><code>qs</code></dd></div>
       <div><dt>Storage</dt><dd><code>{{ quick_shell_path }}</code></dd></div>
-      <div><dt>Disabled entries</dt><dd>Hidden in the shell menu</dd></div>
+      <div><dt>Disabled shortcuts</dt><dd>Kept in the GUI but hidden from <code>qs</code></dd></div>
     </dl>
 
     <div class="inline-section quick-shell-setup">
@@ -58,6 +58,7 @@
               <th>Detected</th>
               <th>Integration</th>
               <th>Loaded from</th>
+              <th>Refresh command</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -76,10 +77,17 @@
                 </td>
                 <td><code>{{ integration.target }}</code></td>
                 <td>
+                  {% if integration.detected or integration.installed %}
+                    <code>{{ integration.refresh_command }}</code>
+                  {% else %}
+                    <span class="empty-note">Install {{ integration.label }} first</span>
+                  {% endif %}
+                </td>
+                <td>
                   <div class="table-actions quick-shell-actions">
                     <form method="post" action="{{ url_for('install_quick_shell_integration', shell_id=integration.shell_id) }}" data-confirm="Install or update Quick Shell integration for {{ integration.label }}? Existing systemd-gui blocks will be replaced.">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                      <button class="primary-button compact-button" type="submit">Install/update</button>
+                      <button class="primary-button compact-button" type="submit" {% if not integration.detected and not integration.installed %}disabled title="{{ integration.label }} was not detected on this system."{% endif %}>Install/update</button>
                     </form>
                     <form method="post" action="{{ url_for('remove_quick_shell_integration', shell_id=integration.shell_id) }}" data-confirm="Remove Quick Shell integration for {{ integration.label }}? The normal qs helper will remain installed.">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -93,7 +101,7 @@
         </table>
       </div>
 
-      <p class="field-help">After installing or removing an integration, open a new shell. Existing shells can also load the change with <code>source /etc/profile.d/systemd-gui-qs.sh</code> for bash/sh or <code>source /etc/zsh/zshrc</code> for zsh.</p>
+      <p class="field-help">After installing or removing an integration, open a new shell or run the refresh command shown for that shell.</p>
     </div>
   </section>
 

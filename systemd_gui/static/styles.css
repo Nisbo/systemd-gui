@@ -110,6 +110,7 @@ input,textarea,select { width:100%; border:1px solid var(--line); border-radius:
 .inline-actions { margin-top:0; }
 .quick-shell-table table { min-width:1080px; }
 .quick-shell-setup { gap:16px; }
+.quick-shell-setup table { min-width:1120px; }
 .quick-shell-helper { display:grid; grid-template-columns:minmax(0, 1fr) minmax(260px, .8fr) auto; gap:14px; align-items:end; }
 .quick-shell-helper p { margin-top:5px; }
 .quick-shell-helper-grid { margin:0; }
