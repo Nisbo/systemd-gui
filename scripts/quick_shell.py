@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import json
 import os
 import importlib.util
 import shlex
@@ -16,6 +17,10 @@ def _app_root() -> Path:
 
 def _data_dir() -> Path:
     return Path(os.environ.get("SYSTEMD_GUI_DATA_DIR") or (_app_root() / "data"))
+
+
+def _state_path() -> Path:
+    return _data_dir() / "quick-shell-state.json"
 
 
 def _load_helpers():
@@ -79,6 +84,7 @@ def _print_debug(args: list[str], shell_action_file: Path | None) -> int:
     print(f"app root: {_app_root()}")
     print(f"data dir: {_data_dir()}")
     print(f"data file: {_data_dir() / 'quick-shell.json'}")
+    print(f"state file: {_state_path()}")
     print(f"shell action file: {shell_action_file or '-'}")
     print(f"arguments: {args or '-'}")
     try:
@@ -115,6 +121,25 @@ def _select_direct_path(items: list[dict], numbers: list[int], entry_label):
     raise ValueError("No menu number was selected.")
 
 
+def _read_resume_path() -> list[int]:
+    try:
+        data = json.loads(_state_path().read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    value = data.get("resume_path")
+    if not isinstance(value, list) or not all(isinstance(item, int) and item > 0 for item in value):
+        return []
+    return value
+
+
+def _write_resume_path(numbers: list[int]) -> None:
+    try:
+        _state_path().parent.mkdir(parents=True, exist_ok=True)
+        _state_path().write_text(json.dumps({"resume_path": numbers}, indent=2) + "\n", encoding="utf-8")
+    except OSError:
+        pass
+
+
 def _parse_cd_target(command: str) -> Path | None:
     try:
         parts = shlex.split(command)
@@ -146,7 +171,11 @@ def _print_command(item) -> int:
     if not command:
         print("This entry has no command.")
         return 1
+    print()
+    print("Print")
+    print("=====")
     print(command)
+    print()
     return 0
 
 
@@ -178,10 +207,18 @@ def _copy_command(item) -> int:
         print("This entry has no command.")
         return 1
     if _copy_to_clipboard(command):
+        print()
+        print("Copy")
+        print("====")
         print("Command copied to clipboard.")
+        print()
         return 0
+    print()
+    print("Copy")
+    print("====")
     print("Clipboard tool not available. Use print instead.")
     print(command)
+    print()
     return 2
 
 
@@ -213,6 +250,7 @@ def _run_command(item, shell_action_file: Path | None = None) -> int:
 def main() -> int:
     shell_action_file = None
     output_mode = "run"
+    resume_last = False
     args = sys.argv[1:]
     if args[:1] == ["--shell-action-file"]:
         if len(args) < 2:
@@ -222,6 +260,9 @@ def main() -> int:
         args = args[2:]
     if args[:1] == ["--debug"]:
         return _print_debug(args[1:], shell_action_file)
+    if args[:1] in (["--resume"], ["--r"]):
+        resume_last = True
+        args = args[1:]
     if args[:1] in (["--print"], ["--p"], ["--copy"], ["--c"]):
         output_mode = "print" if args[0] in {"--print", "--p"} else "copy"
         args = args[1:]
@@ -240,6 +281,7 @@ def main() -> int:
     data = read_quick_shell(data_path)
     items = data.get("items") or []
     initial_stack: list[str] = []
+    initial_path: list[int] = []
 
     if direct_path:
         try:
@@ -255,13 +297,29 @@ def main() -> int:
             stack.append(entry_label(item))
             items = list(item.get("items") or [])
             initial_stack = stack
+            initial_path = direct_path
         else:
             return _run_command(item, shell_action_file)
+    elif resume_last:
+        resume_path = _read_resume_path()
+        if resume_path:
+            try:
+                item, stack = _select_direct_path(items, resume_path, entry_label)
+            except ValueError:
+                _write_resume_path([])
+            else:
+                if item.get("type") == "category":
+                    stack.append(entry_label(item))
+                    items = list(item.get("items") or [])
+                    initial_stack = stack
+                    initial_path = resume_path
 
     stack = initial_stack
     menu_stack: list[list[dict]] = [items]
+    path_stack: list[list[int]] = [initial_path]
 
     while True:
+        _write_resume_path(path_stack[-1])
         current_items = _enabled_items(menu_stack[-1])
         print()
         print(_menu_title(stack))
@@ -275,7 +333,7 @@ def main() -> int:
         if len(menu_stack) > 1:
             print("b Back")
         print("q Quit")
-        print("Tip: p2/print2 prints a command, c2/copy2 copies it when a clipboard tool is available.")
+        print("Tip: p2 means print item 2. c2 means copy item 2 when a clipboard tool is available.")
 
         choice = _prompt_choice(len(current_items), len(menu_stack) > 1)
         if choice == "q":
@@ -283,6 +341,7 @@ def main() -> int:
         if choice == "b" and len(menu_stack) > 1:
             menu_stack.pop()
             stack.pop()
+            path_stack.pop()
             continue
         prefixed_choice = _parse_prefixed_choice(choice)
         if prefixed_choice:
@@ -306,6 +365,7 @@ def main() -> int:
         if item.get("type") == "category":
             stack.append(label)
             menu_stack.append(list(item.get("items") or []))
+            path_stack.append([*path_stack[-1], selected_index + 1])
             continue
         result_code = _run_command(item, shell_action_file)
         if not item.get("show_menu_after", False):
