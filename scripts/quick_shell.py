@@ -351,7 +351,9 @@ def main() -> int:
                 print("That number is not in the menu.")
                 continue
             item = current_items[selected_index]
-            _print_command(item) if action == "print" else _copy_command(item)
+            result_code = _print_command(item) if action == "print" else _copy_command(item)
+            if not item.get("show_menu_after", False):
+                return result_code
             continue
         if not choice.isdigit():
             print("Please enter a number, pN, cN, b or q.")
