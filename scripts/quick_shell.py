@@ -8,6 +8,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+from collections import deque
 from pathlib import Path
 
 
@@ -87,7 +88,7 @@ def _menu_title(stack):
 
 
 def _prompt_choice(max_number: int, can_go_back: bool) -> str:
-    hints = ["number", "pN", "cN"]
+    hints = ["number", "pN", "cN", "S"]
     if can_go_back:
         hints.append("b")
     hints.append("q")
@@ -159,6 +160,32 @@ def _select_direct_path(items: list[dict], numbers: list[int], entry_label):
             continue
         return item, stack
     raise ValueError("No menu number was selected.")
+
+
+def _build_category_stacks(items: list[dict], numbers: list[int], entry_label):
+    current_items = items
+    menu_stack: list[list[dict]] = [items]
+    label_stack: list[str] = []
+    path_stack: list[list[int]] = [[]]
+    current_path: list[int] = []
+
+    for number in numbers:
+        enabled = _enabled_items(current_items)
+        if not enabled:
+            raise ValueError(f"The {_menu_name(label_stack)} has no active entries.")
+        if number > len(enabled):
+            raise ValueError(f"Menu number {number} is not available in {_menu_name(label_stack)}. Available range: 1-{len(enabled)}.")
+        item = enabled[number - 1]
+        label = entry_label(item)
+        if item.get("type") != "category":
+            raise ValueError(f'"{label}" is a command, not a category.')
+        current_path = [*current_path, number]
+        current_items = list(item.get("items") or [])
+        label_stack.append(label)
+        menu_stack.append(current_items)
+        path_stack.append(current_path)
+
+    return menu_stack, label_stack, path_stack
 
 
 def _read_resume_path() -> list[int]:
@@ -265,6 +292,64 @@ def _copy_command(item) -> int:
     return 2
 
 
+def _history_candidates() -> list[Path]:
+    home = Path.home()
+    candidates = [
+        Path(os.environ["HISTFILE"]).expanduser(),
+    ] if os.environ.get("HISTFILE") else []
+    candidates.extend([home / ".bash_history", home / ".zsh_history"])
+    if os.geteuid() == 0:
+        candidates.extend([Path("/root/.bash_history"), Path("/root/.zsh_history")])
+
+    unique: list[Path] = []
+    seen: set[str] = set()
+    for path in candidates:
+        key = str(path)
+        if key not in seen:
+            unique.append(path)
+            seen.add(key)
+    return unique
+
+
+def _history_command_from_line(line: str, source: Path) -> str:
+    value = line.strip()
+    if source.name == ".zsh_history" and value.startswith(": ") and ";" in value:
+        value = value.split(";", 1)[1].strip()
+    return value
+
+
+def _read_shell_history(limit: int = 80) -> list[tuple[Path, str]]:
+    entries: deque[tuple[Path, str]] = deque(maxlen=limit)
+    for source in _history_candidates():
+        try:
+            lines = source.read_text(encoding="utf-8", errors="replace").splitlines()
+        except OSError:
+            continue
+        for line in lines:
+            command = _history_command_from_line(line, source)
+            if command:
+                entries.append((source, command))
+    return list(entries)
+
+
+def _print_shell_history() -> int:
+    entries = _read_shell_history()
+    print()
+    print(_heading("Shell history", "blue"))
+    print(_style("=============", "blue"))
+    if not entries:
+        print(_muted("No readable shell history file was found for this user."))
+        print(_muted("Some shells write history only after logout or after running history -a."))
+        print()
+        return 0
+    print(_muted("Showing the newest readable entries for the current server user."))
+    for index, (source, command) in enumerate(entries, start=1):
+        number = _style(str(index).rjust(2), "bold")
+        print(f"{number} {_muted(source.name)} {command}")
+    print()
+    return 0
+
+
 def _run_command(item, shell_action_file: Path | None = None) -> int:
     command = _command_for_item(item)
     if not command:
@@ -303,7 +388,7 @@ def main() -> int:
         args = args[2:]
     if args[:1] == ["--debug"]:
         return _print_debug(args[1:], shell_action_file)
-    if args[:1] in (["--resume"], ["--r"]):
+    if args[:1] in (["--resume"], ["--r"], ["-r"], ["-rr"]):
         resume_last = True
         args = args[1:]
     if args[:1] in (["--print"], ["--p"], ["--copy"], ["--c"]):
@@ -325,6 +410,8 @@ def main() -> int:
     items = data.get("items") or []
     initial_stack: list[str] = []
     initial_path: list[int] = []
+    initial_menu_stack: list[list[dict]] | None = None
+    initial_path_stack: list[list[int]] | None = None
 
     if direct_path:
         try:
@@ -337,9 +424,11 @@ def main() -> int:
         if output_mode == "copy":
             return _copy_command(item)
         if item.get("type") == "category":
-            stack.append(entry_label(item))
-            items = list(item.get("items") or [])
-            initial_stack = stack
+            try:
+                initial_menu_stack, initial_stack, initial_path_stack = _build_category_stacks(items, direct_path, entry_label)
+            except ValueError as exc:
+                print(_error(str(exc)), file=sys.stderr)
+                return 1
             initial_path = direct_path
         else:
             return _run_command(item, shell_action_file)
@@ -352,14 +441,16 @@ def main() -> int:
                 _write_resume_path([])
             else:
                 if item.get("type") == "category":
-                    stack.append(entry_label(item))
-                    items = list(item.get("items") or [])
-                    initial_stack = stack
-                    initial_path = resume_path
+                    try:
+                        initial_menu_stack, initial_stack, initial_path_stack = _build_category_stacks(items, resume_path, entry_label)
+                    except ValueError:
+                        _write_resume_path([])
+                    else:
+                        initial_path = resume_path
 
     stack = initial_stack
-    menu_stack: list[list[dict]] = [items]
-    path_stack: list[list[int]] = [initial_path]
+    menu_stack: list[list[dict]] = initial_menu_stack or [items]
+    path_stack: list[list[int]] = initial_path_stack or [initial_path]
 
     while True:
         _write_resume_path(path_stack[-1])
@@ -370,6 +461,7 @@ def main() -> int:
         print(_style("=" * len(title), "green"))
         if not current_items:
             print(_muted("No active entries in this menu."))
+        print(f"{_style('S', 'yellow')} Shell history")
         for index, item in enumerate(current_items, start=1):
             label = entry_label(item)
             number = _style(str(index), "bold")
@@ -385,6 +477,9 @@ def main() -> int:
         choice = _prompt_choice(len(current_items), len(menu_stack) > 1)
         if choice == "q":
             return 0
+        if choice == "s":
+            _print_shell_history()
+            continue
         if choice == "b" and len(menu_stack) > 1:
             menu_stack.pop()
             stack.pop()
@@ -403,7 +498,7 @@ def main() -> int:
                 return result_code
             continue
         if not choice.isdigit():
-            print(_error("Please enter a number, pN, cN, b or q."))
+            print(_error("Please enter a number, pN, cN, S, b or q."))
             continue
         selected_index = int(choice) - 1
         if selected_index < 0 or selected_index >= len(current_items):
