@@ -4,285 +4,300 @@
   {% if add_tab not in ["command", "category"] %}
     {% set add_tab = "command" %}
   {% endif %}
+  {% set quick_tabs = [
+    ("menu", "Menu"),
+    ("tree", "Full tree"),
+    ("setup", "Shell setup"),
+  ] %}
 
-  <section class="panel">
+  <section class="panel settings-tabs-panel">
     <div class="panel-head">
       <div>
         <h2>Quick Shell</h2>
         <p>Build a small numbered command menu for your server shell.</p>
       </div>
     </div>
-
-    <dl class="detail-grid two">
-      <div><dt>Shell command</dt><dd><code>qs</code></dd></div>
-      <div><dt>Storage</dt><dd><code>{{ quick_shell_path }}</code></dd></div>
-    </dl>
-
-    <div class="inline-section quick-shell-setup">
-      <div class="quick-shell-helper">
-        <div>
-          <h3>Shell helper</h3>
-          <p>{{ helper_status.message }} This installs the global <code>qs</code> command for normal shortcuts like status checks, restarts and log commands.</p>
-        </div>
-        <dl class="detail-grid two quick-shell-helper-grid">
-          <div><dt>Path</dt><dd><code>{{ helper_status.path }}</code></dd></div>
-          <div><dt>Status</dt><dd>{{ "Ready" if helper_status.ready else "Needs update" }}</dd></div>
-        </dl>
-        <form method="post" action="{{ url_for('install_quick_shell') }}" data-confirm="Install or update the qs helper at {{ helper_status.path }}?">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button class="primary-button" type="submit">Install/update helper</button>
-        </form>
-      </div>
-
-      <div class="update-section-title">
-        <strong>Shell Integrations</strong>
-        <span>Install this for shells where shortcuts should change the current shell, for example <code>cd /opt</code> or <code>cd ~/project</code>. New GUI entries are picked up automatically.</span>
-      </div>
-
-      <div class="table-wrap compact-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Shell</th>
-              <th>Detected</th>
-              <th>Integration</th>
-              <th>Loaded from</th>
-              <th>Refresh command</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for integration in shell_integrations %}
-              <tr>
-                <td>
-                  <strong>{{ integration.label }}</strong>
-                  <span class="field-help">{{ integration.description }}</span>
-                </td>
-                <td>
-                  <span class="status-pill {{ '' if integration.detected else 'inactive' }}">{{ "Yes" if integration.detected else "No" }}</span>
-                </td>
-                <td>
-                  <span class="status-pill {{ '' if integration.installed else 'inactive' }}">{{ "Installed" if integration.installed else "Missing" }}</span>
-                </td>
-                <td><code>{{ integration.target }}</code></td>
-                <td>
-                  {% if integration.detected or integration.installed %}
-                    <code>{{ integration.refresh_command }}</code>
-                  {% else %}
-                    <span class="empty-note">Install {{ integration.label }} first</span>
-                  {% endif %}
-                </td>
-                <td>
-                  <div class="table-actions quick-shell-actions">
-                    <form method="post" action="{{ url_for('install_quick_shell_integration', shell_id=integration.shell_id) }}" data-confirm="Install or update Quick Shell integration for {{ integration.label }}? Existing systemd-gui blocks will be replaced.">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                      <button class="primary-button compact-button" type="submit" {% if not integration.detected and not integration.installed %}disabled title="{{ integration.label }} was not detected on this system."{% endif %}>Install/update</button>
-                    </form>
-                    <form method="post" action="{{ url_for('remove_quick_shell_integration', shell_id=integration.shell_id) }}" data-confirm="Remove Quick Shell integration for {{ integration.label }}? The normal qs helper will remain installed.">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                      <button class="danger-button compact-button" type="submit" {% if not integration.installed %}disabled{% endif %}>Remove</button>
-                    </form>
-                  </div>
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-
-      <p class="field-help">After installing or removing an integration, open a new shell or run the refresh command shown for that shell.</p>
-    </div>
-  </section>
-
-  <section class="panel">
-    <div class="panel-head">
-      <div>
-        <h2>{{ entry_label(parent) if parent else "Root menu" }}</h2>
-        <p>Categories open another menu. Commands are shown as selectable shell actions.</p>
-      </div>
-    </div>
-
-    <nav class="breadcrumb-row" aria-label="Quick Shell path">
-      {% for crumb in breadcrumbs %}
-        <a class="settings-tab {% if crumb.path == parent_path %}active{% endif %}" href="{{ url_for('quick_shell', path=crumb.path) }}">{{ crumb.label }}</a>
+    <nav class="settings-tabs" aria-label="Quick Shell sections">
+      {% for tab_key, tab_label in quick_tabs %}
+        <a class="settings-tab {% if active_tab == tab_key %}active{% endif %}" href="{{ url_for('quick_shell', tab=tab_key, path=parent_path, add=add_tab) }}" {% if active_tab == tab_key %}aria-current="page"{% endif %}>
+          {{ tab_label }}
+        </a>
       {% endfor %}
     </nav>
-
-    {% if entries %}
-      <div class="table-wrap quick-shell-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Type</th>
-              <th>Name</th>
-              <th>Command</th>
-              <th>State</th>
-              <th>After run</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for item in entries %}
-              {% set item_path = parent_path ~ "." ~ loop.index0 if parent_path else loop.index0|string %}
-              <tr>
-                <td>
-                  <span class="tag {{ 'override' if item.type == 'category' else 'neutral' }}">{{ item.type }}</span>
-                </td>
-                <td>
-                  <strong>{{ entry_label(item) }}</strong>
-                  {% if not item.name and item.type == "command" %}
-                    <span class="field-help">Using command as display name.</span>
-                  {% endif %}
-                </td>
-                <td>
-                  {% if item.type == "command" %}
-                    <code>{{ item.command }}</code>
-                  {% else %}
-                    <span class="empty-note">{{ item["items"]|length }} entries</span>
-                  {% endif %}
-                </td>
-                <td>
-                  <span class="status-pill {{ '' if item.enabled else 'inactive' }}">{{ "Enabled" if item.enabled else "Disabled" }}</span>
-                </td>
-                <td>
-                  {% if item.type == "command" %}
-                    {{ "Show menu" if item.show_menu_after else "Exit" }}
-                  {% else %}
-                    <span class="empty-note">-</span>
-                  {% endif %}
-                </td>
-                <td>
-                  <div class="table-actions quick-shell-actions">
-                    {% if item.type == "category" %}
-                      <a class="ghost-button compact-button" href="{{ url_for('quick_shell', path=item_path) }}">Open</a>
-                    {% endif %}
-                    <a class="ghost-button compact-button" href="{{ url_for('edit_quick_shell_item', item_path=item_path) }}">Edit</a>
-                    <form method="post" action="{{ url_for('move_quick_shell_item', item_path=item_path) }}">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                      <input type="hidden" name="direction" value="up">
-                      <button class="ghost-button small-icon-button" type="submit" title="Move up" aria-label="Move up">↑</button>
-                    </form>
-                    <form method="post" action="{{ url_for('move_quick_shell_item', item_path=item_path) }}">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                      <input type="hidden" name="direction" value="down">
-                      <button class="ghost-button small-icon-button" type="submit" title="Move down" aria-label="Move down">↓</button>
-                    </form>
-                    <form method="post" action="{{ url_for('delete_quick_shell_item', item_path=item_path) }}" data-confirm="Delete this Quick Shell entry? Child entries inside a category will be deleted too.">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                      <button class="danger-button compact-button" type="submit">Delete</button>
-                    </form>
-                  </div>
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    {% else %}
-      <p class="empty-note">This menu is empty.</p>
-    {% endif %}
   </section>
 
-  <section class="panel">
-    <div class="panel-head">
-      <div>
-        <h2>Add entry</h2>
-        <p>Add a command or category to any parent menu.</p>
-      </div>
-    </div>
-
-    <nav class="settings-tabs" aria-label="Entry type">
-      <a class="settings-tab {% if add_tab == 'command' %}active{% endif %}" href="{{ url_for('quick_shell', path=parent_path, add='command') }}">Command</a>
-      <a class="settings-tab {% if add_tab == 'category' %}active{% endif %}" href="{{ url_for('quick_shell', path=parent_path, add='category') }}">Category</a>
-    </nav>
-
-    {% if add_tab == "command" %}
-      <form class="form-grid quick-shell-add-form" method="post" action="{{ url_for('create_quick_shell_item') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <input type="hidden" name="type" value="command">
-        <label>
-          Parent category
-          <select name="parent_path">
-            {% for option in category_options %}
-              <option value="{{ option.path }}" {% if option.path == parent_path %}selected{% endif %}>{{ "-- " * option.depth }}{{ option.label }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <label>
-          Name
-          <input name="name" placeholder="Optional; command is used when empty">
-        </label>
-        <label>
-          Command
-          <input name="command" placeholder="systemctl restart frp-gui" required>
-        </label>
-        <label class="toggle-label">
-          <input type="checkbox" name="enabled" value="1" checked>
-          <span>Enabled</span>
-        </label>
-        <label class="toggle-label">
-          <input type="checkbox" name="confirm" value="1" checked>
-          <span>Ask before running</span>
-        </label>
-        <label class="toggle-label">
-          <input type="checkbox" name="show_menu_after" value="1">
-          <span>Show menu after command</span>
-        </label>
-        <div class="form-actions">
-          <button class="primary-button" type="submit">Add command</button>
+  {% if active_tab == "menu" %}
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Add entry</h2>
+          <p>Add a command or category to any parent menu.</p>
         </div>
-      </form>
-    {% else %}
-      <form class="form-grid quick-shell-add-form" method="post" action="{{ url_for('create_quick_shell_item') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <input type="hidden" name="type" value="category">
-        <label>
-          Parent category
-          <select name="parent_path">
-            {% for option in category_options %}
-              <option value="{{ option.path }}" {% if option.path == parent_path %}selected{% endif %}>{{ "-- " * option.depth }}{{ option.label }}</option>
-            {% endfor %}
-          </select>
-        </label>
-        <label>
-          Name
-          <input name="name" placeholder="System commands">
-        </label>
-        <label class="toggle-label">
-          <input type="checkbox" name="enabled" value="1" checked>
-          <span>Enabled</span>
-        </label>
-        <div class="form-actions">
-          <button class="primary-button" type="submit">Add category</button>
-        </div>
-      </form>
-    {% endif %}
-  </section>
-
-  <section class="panel">
-    <div class="panel-head">
-      <div>
-        <h2>Full tree</h2>
-        <p>Quick overview of every configured entry, including disabled ones.</p>
       </div>
-    </div>
-    {% if flat_entries %}
-      <div class="quick-shell-tree">
-        {% for entry in flat_entries %}
-          <div class="quick-shell-tree-item" style="--depth: {{ entry.depth }}">
-            <span class="tag {{ 'override' if entry.item.type == 'category' else 'neutral' }}">{{ entry.item.type }}</span>
-            <strong>{{ entry_label(entry.item) }}</strong>
-            {% if not entry.item.enabled %}
-              <span class="status-pill inactive">Disabled</span>
-            {% endif %}
-            {% if entry.item.type == "command" %}
-              <code>{{ entry.item.command }}</code>
-            {% endif %}
+
+      <nav class="settings-tabs" aria-label="Entry type">
+        <a class="settings-tab {% if add_tab == 'command' %}active{% endif %}" href="{{ url_for('quick_shell', tab='menu', path=parent_path, add='command') }}">Command</a>
+        <a class="settings-tab {% if add_tab == 'category' %}active{% endif %}" href="{{ url_for('quick_shell', tab='menu', path=parent_path, add='category') }}">Category</a>
+      </nav>
+
+      {% if add_tab == "command" %}
+        <form class="form-grid quick-shell-add-form" method="post" action="{{ url_for('create_quick_shell_item') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="type" value="command">
+          <label>
+            Parent category
+            <select name="parent_path">
+              {% for option in category_options %}
+                <option value="{{ option.path }}" {% if option.path == parent_path %}selected{% endif %}>{{ "-- " * option.depth }}{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Name
+            <input name="name" placeholder="Optional; command is used when empty">
+          </label>
+          <label>
+            Command
+            <input name="command" placeholder="systemctl restart frp-gui" required>
+          </label>
+          <label class="toggle-label">
+            <input type="checkbox" name="enabled" value="1" checked>
+            <span>Enabled</span>
+          </label>
+          <label class="toggle-label">
+            <input type="checkbox" name="confirm" value="1" checked>
+            <span>Ask before running</span>
+          </label>
+          <label class="toggle-label">
+            <input type="checkbox" name="show_menu_after" value="1">
+            <span>Show menu after command</span>
+          </label>
+          <div class="form-actions">
+            <button class="primary-button" type="submit">Add command</button>
           </div>
-        {% endfor %}
+        </form>
+      {% else %}
+        <form class="form-grid quick-shell-add-form" method="post" action="{{ url_for('create_quick_shell_item') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="type" value="category">
+          <label>
+            Parent category
+            <select name="parent_path">
+              {% for option in category_options %}
+                <option value="{{ option.path }}" {% if option.path == parent_path %}selected{% endif %}>{{ "-- " * option.depth }}{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Name
+            <input name="name" placeholder="System commands">
+          </label>
+          <label class="toggle-label">
+            <input type="checkbox" name="enabled" value="1" checked>
+            <span>Enabled</span>
+          </label>
+          <div class="form-actions">
+            <button class="primary-button" type="submit">Add category</button>
+          </div>
+        </form>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>{{ entry_label(parent) if parent else "Root menu" }}</h2>
+          <p>Categories open another menu. Commands are shown as selectable shell actions.</p>
+        </div>
       </div>
-    {% else %}
-      <p class="empty-note">No Quick Shell entries yet.</p>
-    {% endif %}
-  </section>
+
+      <nav class="breadcrumb-row" aria-label="Quick Shell path">
+        {% for crumb in breadcrumbs %}
+          <a class="settings-tab {% if crumb.path == parent_path %}active{% endif %}" href="{{ url_for('quick_shell', tab='menu', path=crumb.path, add=add_tab) }}">{{ crumb.label }}</a>
+        {% endfor %}
+      </nav>
+
+      {% if entries %}
+        <div class="table-wrap quick-shell-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Name</th>
+                <th>Command</th>
+                <th>State</th>
+                <th>After run</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in entries %}
+                {% set item_path = parent_path ~ "." ~ loop.index0 if parent_path else loop.index0|string %}
+                <tr>
+                  <td><span class="tag {{ 'override' if item.type == 'category' else 'neutral' }}">{{ item.type }}</span></td>
+                  <td>
+                    <strong>{{ entry_label(item) }}</strong>
+                    {% if not item.name and item.type == "command" %}
+                      <span class="field-help">Using command as display name.</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if item.type == "command" %}
+                      <code>{{ item.command }}</code>
+                    {% else %}
+                      <span class="empty-note">{{ item["items"]|length }} entries</span>
+                    {% endif %}
+                  </td>
+                  <td><span class="status-pill {{ '' if item.enabled else 'inactive' }}">{{ "Enabled" if item.enabled else "Disabled" }}</span></td>
+                  <td>
+                    {% if item.type == "command" %}
+                      {{ "Show menu" if item.show_menu_after else "Exit" }}
+                    {% else %}
+                      <span class="empty-note">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div class="table-actions quick-shell-actions">
+                      {% if item.type == "category" %}
+                        <a class="ghost-button compact-button" href="{{ url_for('quick_shell', tab='menu', path=item_path, add=add_tab) }}">Open</a>
+                      {% endif %}
+                      <a class="ghost-button compact-button" href="{{ url_for('edit_quick_shell_item', item_path=item_path) }}">Edit</a>
+                      <form method="post" action="{{ url_for('move_quick_shell_item', item_path=item_path) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="direction" value="up">
+                        <button class="ghost-button small-icon-button" type="submit" title="Move up" aria-label="Move up">↑</button>
+                      </form>
+                      <form method="post" action="{{ url_for('move_quick_shell_item', item_path=item_path) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="direction" value="down">
+                        <button class="ghost-button small-icon-button" type="submit" title="Move down" aria-label="Move down">↓</button>
+                      </form>
+                      <form method="post" action="{{ url_for('delete_quick_shell_item', item_path=item_path) }}" data-confirm="Delete this Quick Shell entry? Child entries inside a category will be deleted too.">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button class="danger-button compact-button" type="submit">Delete</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="empty-note">This menu is empty.</p>
+      {% endif %}
+    </section>
+  {% elif active_tab == "tree" %}
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Full tree</h2>
+          <p>Quick overview of every configured entry, including disabled ones.</p>
+        </div>
+      </div>
+      {% if flat_entries %}
+        <div class="quick-shell-tree">
+          {% for entry in flat_entries %}
+            <div class="quick-shell-tree-item" style="--depth: {{ entry.depth }}">
+              <span class="tag {{ 'override' if entry.item.type == 'category' else 'neutral' }}">{{ entry.item.type }}</span>
+              <strong>{{ entry_label(entry.item) }}</strong>
+              {% if not entry.item.enabled %}
+                <span class="status-pill inactive">Disabled</span>
+              {% endif %}
+              {% if entry.item.type == "command" %}
+                <code>{{ entry.item.command }}</code>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="empty-note">No Quick Shell entries yet.</p>
+      {% endif %}
+    </section>
+  {% elif active_tab == "setup" %}
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Shell setup</h2>
+          <p>Install the helper and optional shell integrations for <code>qs</code>.</p>
+        </div>
+      </div>
+
+      <dl class="detail-grid two">
+        <div><dt>Shell command</dt><dd><code>qs</code></dd></div>
+        <div><dt>Storage</dt><dd><code>{{ quick_shell_path }}</code></dd></div>
+      </dl>
+
+      <div class="inline-section quick-shell-setup">
+        <div class="quick-shell-helper">
+          <div>
+            <h3>Shell helper</h3>
+            <p>{{ helper_status.message }} This installs the global <code>qs</code> command for normal shortcuts like status checks, restarts and log commands.</p>
+          </div>
+          <dl class="detail-grid two quick-shell-helper-grid">
+            <div><dt>Path</dt><dd><code>{{ helper_status.path }}</code></dd></div>
+            <div><dt>Status</dt><dd>{{ "Ready" if helper_status.ready else "Needs update" }}</dd></div>
+          </dl>
+          <form method="post" action="{{ url_for('install_quick_shell') }}" data-confirm="Install or update the qs helper at {{ helper_status.path }}?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="primary-button" type="submit">Install/update helper</button>
+          </form>
+        </div>
+
+        <div class="update-section-title">
+          <strong>Shell Integrations</strong>
+          <span>Install this for shells where shortcuts should change the current shell, for example <code>cd /opt</code> or <code>cd ~/project</code>. New GUI entries are picked up automatically.</span>
+        </div>
+
+        <div class="table-wrap compact-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Shell</th>
+                <th>Detected</th>
+                <th>Integration</th>
+                <th>Loaded from</th>
+                <th>Refresh command</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for integration in shell_integrations %}
+                <tr>
+                  <td>
+                    <strong>{{ integration.label }}</strong>
+                    <span class="field-help">{{ integration.description }}</span>
+                  </td>
+                  <td><span class="status-pill {{ '' if integration.detected else 'inactive' }}">{{ "Yes" if integration.detected else "No" }}</span></td>
+                  <td><span class="status-pill {{ '' if integration.installed else 'inactive' }}">{{ "Installed" if integration.installed else "Missing" }}</span></td>
+                  <td><code>{{ integration.target }}</code></td>
+                  <td>
+                    {% if integration.detected or integration.installed %}
+                      <code>{{ integration.refresh_command }}</code>
+                    {% else %}
+                      <span class="empty-note">Install {{ integration.label }} first</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div class="table-actions quick-shell-actions">
+                      <form method="post" action="{{ url_for('install_quick_shell_integration', shell_id=integration.shell_id) }}" data-confirm="Install or update Quick Shell integration for {{ integration.label }}? Existing systemd-gui blocks will be replaced.">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button class="primary-button compact-button" type="submit" {% if not integration.detected and not integration.installed %}disabled title="{{ integration.label }} was not detected on this system."{% endif %}>Install/update</button>
+                      </form>
+                      <form method="post" action="{{ url_for('remove_quick_shell_integration', shell_id=integration.shell_id) }}" data-confirm="Remove Quick Shell integration for {{ integration.label }}? The normal qs helper will remain installed.">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button class="danger-button compact-button" type="submit" {% if not integration.installed %}disabled{% endif %}>Remove</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <p class="field-help">After installing or removing an integration, open a new shell or run the refresh command shown for that shell.</p>
+      </div>
+    </section>
+  {% endif %}
 {% endblock %}

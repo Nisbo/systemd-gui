@@ -226,6 +226,9 @@ def create_app() -> Flask:
     def quick_shell():
         data = read_quick_shell(_quick_shell_path(app))
         parent_path = request.args.get("path", "").strip()
+        active_tab = request.args.get("tab", "menu")
+        if active_tab not in {"menu", "tree", "setup"}:
+            active_tab = "menu"
         try:
             parent = item_for_path(data, parent_path) if parent_path else None
             entries = children_for_path(data, parent_path)
@@ -237,6 +240,7 @@ def create_app() -> Flask:
             entries=entries,
             parent=parent,
             parent_path=parent_path,
+            active_tab=active_tab,
             breadcrumbs=_quick_shell_breadcrumbs(data, parent_path),
             flat_entries=flatten_entries(data.get("items") or []),
             category_options=_quick_shell_category_options(data),
