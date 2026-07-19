@@ -30,85 +30,10 @@
     <section class="panel">
       <div class="panel-head">
         <div>
-          <h2>Add entry</h2>
-          <p>Add a command or category to any parent menu.</p>
-        </div>
-      </div>
-
-      <nav class="settings-tabs" aria-label="Entry type">
-        <a class="settings-tab {% if add_tab == 'command' %}active{% endif %}" href="{{ url_for('quick_shell', tab='menu', path=parent_path, add='command') }}">Command</a>
-        <a class="settings-tab {% if add_tab == 'category' %}active{% endif %}" href="{{ url_for('quick_shell', tab='menu', path=parent_path, add='category') }}">Category</a>
-      </nav>
-
-      {% if add_tab == "command" %}
-        <form class="form-grid quick-shell-add-form" method="post" action="{{ url_for('create_quick_shell_item') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <input type="hidden" name="type" value="command">
-          <label>
-            Parent category
-            <select name="parent_path">
-              {% for option in category_options %}
-                <option value="{{ option.path }}" {% if option.path == parent_path %}selected{% endif %}>{{ "-- " * option.depth }}{{ option.label }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <label>
-            Name
-            <input name="name" placeholder="Optional; command is used when empty">
-          </label>
-          <label>
-            Command
-            <input name="command" placeholder="systemctl restart frp-gui" required>
-          </label>
-          <label class="toggle-label">
-            <input type="checkbox" name="enabled" value="1" checked>
-            <span>Enabled</span>
-          </label>
-          <label class="toggle-label">
-            <input type="checkbox" name="confirm" value="1" checked>
-            <span>Ask before running</span>
-          </label>
-          <label class="toggle-label">
-            <input type="checkbox" name="show_menu_after" value="1">
-            <span>Show menu after command</span>
-          </label>
-          <div class="form-actions">
-            <button class="primary-button" type="submit">Add command</button>
-          </div>
-        </form>
-      {% else %}
-        <form class="form-grid quick-shell-add-form" method="post" action="{{ url_for('create_quick_shell_item') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <input type="hidden" name="type" value="category">
-          <label>
-            Parent category
-            <select name="parent_path">
-              {% for option in category_options %}
-                <option value="{{ option.path }}" {% if option.path == parent_path %}selected{% endif %}>{{ "-- " * option.depth }}{{ option.label }}</option>
-              {% endfor %}
-            </select>
-          </label>
-          <label>
-            Name
-            <input name="name" placeholder="System commands">
-          </label>
-          <label class="toggle-label">
-            <input type="checkbox" name="enabled" value="1" checked>
-            <span>Enabled</span>
-          </label>
-          <div class="form-actions">
-            <button class="primary-button" type="submit">Add category</button>
-          </div>
-        </form>
-      {% endif %}
-    </section>
-
-    <section class="panel">
-      <div class="panel-head">
-        <div>
           <h2>{{ entry_label(parent) if parent else "Root menu" }}</h2>
           <p>Categories open another menu. Commands are shown as selectable shell actions.</p>
         </div>
+        <button class="primary-button" type="button" data-quick-shell-add-open data-parent-path="{{ parent_path }}" data-entry-type="{{ add_tab }}">Add entry</button>
       </div>
 
       <nav class="breadcrumb-row" aria-label="Quick Shell path">
@@ -159,9 +84,10 @@
                   <td>
                     <div class="table-actions quick-shell-actions">
                       {% if item.type == "category" %}
+                        <button class="ghost-button small-icon-button" type="button" title="Add entry inside this category" aria-label="Add entry inside this category" data-quick-shell-add-open data-parent-path="{{ item_path }}" data-entry-type="command">+</button>
                         <a class="ghost-button compact-button" href="{{ url_for('quick_shell', tab='menu', path=item_path, add=add_tab) }}">Open</a>
                       {% endif %}
-                      <a class="ghost-button compact-button" href="{{ url_for('edit_quick_shell_item', item_path=item_path) }}">Edit</a>
+                      <button class="ghost-button compact-button" type="button" data-quick-shell-edit-open data-target="#quick-shell-edit-{{ loop.index0 }}">Edit</button>
                       <form method="post" action="{{ url_for('move_quick_shell_item', item_path=item_path) }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <input type="hidden" name="direction" value="up">
@@ -187,6 +113,134 @@
         <p class="empty-note">This menu is empty.</p>
       {% endif %}
     </section>
+
+    <div class="confirm-modal" data-quick-shell-add-modal hidden>
+      <div class="confirm-dialog quick-shell-dialog" role="dialog" aria-modal="true" aria-labelledby="quick-shell-add-title">
+        <div class="panel-head">
+          <div>
+            <h2 id="quick-shell-add-title">Add entry</h2>
+            <p>Add a command or category to the selected menu.</p>
+          </div>
+          <button class="ghost-button small-icon-button" type="button" data-quick-shell-modal-close aria-label="Close">×</button>
+        </div>
+
+        <nav class="settings-tabs" aria-label="Entry type">
+          <button class="settings-tab" type="button" data-quick-shell-add-tab="command">Command</button>
+          <button class="settings-tab" type="button" data-quick-shell-add-tab="category">Category</button>
+        </nav>
+
+        <form class="form-grid single quick-shell-add-form" method="post" action="{{ url_for('create_quick_shell_item') }}" data-quick-shell-add-panel="command">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="type" value="command">
+          <label>
+            Parent category
+            <select name="parent_path" data-quick-shell-parent-select>
+              {% for option in category_options %}
+                <option value="{{ option.path }}" {% if option.path == parent_path %}selected{% endif %}>{{ "-- " * option.depth }}{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Name
+            <input name="name" placeholder="Optional; command is used when empty">
+          </label>
+          <label>
+            Command
+            <input name="command" placeholder="systemctl restart frp-gui" required>
+          </label>
+          <label class="toggle-label">
+            <input type="checkbox" name="enabled" value="1" checked>
+            <span>Enabled</span>
+          </label>
+          <label class="toggle-label">
+            <input type="checkbox" name="confirm" value="1" checked>
+            <span>Ask before running</span>
+          </label>
+          <label class="toggle-label">
+            <input type="checkbox" name="show_menu_after" value="1">
+            <span>Show menu after command</span>
+          </label>
+          <div class="form-actions">
+            <button class="primary-button" type="submit">Add command</button>
+            <button class="ghost-button" type="button" data-quick-shell-modal-close>Cancel</button>
+          </div>
+        </form>
+
+        <form class="form-grid single quick-shell-add-form" method="post" action="{{ url_for('create_quick_shell_item') }}" data-quick-shell-add-panel="category" hidden>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="type" value="category">
+          <label>
+            Parent category
+            <select name="parent_path" data-quick-shell-parent-select>
+              {% for option in category_options %}
+                <option value="{{ option.path }}" {% if option.path == parent_path %}selected{% endif %}>{{ "-- " * option.depth }}{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Name
+            <input name="name" placeholder="System commands">
+          </label>
+          <label class="toggle-label">
+            <input type="checkbox" name="enabled" value="1" checked>
+            <span>Enabled</span>
+          </label>
+          <div class="form-actions">
+            <button class="primary-button" type="submit">Add category</button>
+            <button class="ghost-button" type="button" data-quick-shell-modal-close>Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {% for item in entries %}
+      {% set item_path = parent_path ~ "." ~ loop.index0 if parent_path else loop.index0|string %}
+      <div class="confirm-modal" data-quick-shell-edit-modal id="quick-shell-edit-{{ loop.index0 }}" hidden>
+        <div class="confirm-dialog quick-shell-dialog" role="dialog" aria-modal="true" aria-labelledby="quick-shell-edit-title-{{ loop.index0 }}">
+          <div class="panel-head">
+            <div>
+              <h2 id="quick-shell-edit-title-{{ loop.index0 }}">Edit entry</h2>
+              <p>Change this {{ item.type }} entry.</p>
+            </div>
+            <button class="ghost-button small-icon-button" type="button" data-quick-shell-modal-close aria-label="Close">×</button>
+          </div>
+
+          <form class="form-grid single" method="post" action="{{ url_for('update_quick_shell_item', item_path=item_path) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="type" value="{{ item.type }}">
+            <label>
+              Name
+              <input name="name" value="{{ item.name }}" placeholder="{{ item.command if item.type == 'command' else 'Category name' }}">
+              {% if item.type == "command" %}
+                <span class="field-help">Leave empty to use the command as display name.</span>
+              {% endif %}
+            </label>
+            {% if item.type == "command" %}
+              <label>
+                Command
+                <input name="command" value="{{ item.command }}" required>
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" name="confirm" value="1" {% if item.confirm is not defined or item.confirm %}checked{% endif %}>
+                <span>Ask before running</span>
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" name="show_menu_after" value="1" {% if item.show_menu_after %}checked{% endif %}>
+                <span>Show menu after command</span>
+              </label>
+            {% endif %}
+            <label class="toggle-label">
+              <input type="checkbox" name="enabled" value="1" {% if item.enabled %}checked{% endif %}>
+              <span>Enabled</span>
+            </label>
+            <div class="form-actions">
+              <button class="primary-button" type="submit">Save entry</button>
+              <button class="ghost-button" type="button" data-quick-shell-modal-close>Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
   {% elif active_tab == "tree" %}
     <section class="panel">
       <div class="panel-head">

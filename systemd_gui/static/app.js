@@ -166,6 +166,53 @@
   });
   document.addEventListener("keydown", (event) => { if (event.key === "Escape" && downloadModal && !downloadModal.hidden) closeDownload(); });
 
+  const quickShellAddModal = document.querySelector("[data-quick-shell-add-modal]");
+  const quickShellAddTabs = document.querySelectorAll("[data-quick-shell-add-tab]");
+  const quickShellAddPanels = document.querySelectorAll("[data-quick-shell-add-panel]");
+  const closeQuickShellModals = () => {
+    document.querySelectorAll("[data-quick-shell-add-modal],[data-quick-shell-edit-modal]").forEach((modalNode) => { modalNode.hidden = true; });
+  };
+  const setQuickShellAddType = (type) => {
+    const cleanType = type === "category" ? "category" : "command";
+    quickShellAddTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.quickShellAddTab === cleanType));
+    quickShellAddPanels.forEach((panel) => {
+      const active = panel.dataset.quickShellAddPanel === cleanType;
+      panel.hidden = !active;
+      panel.querySelectorAll("input,select,button").forEach((control) => { control.disabled = !active; });
+    });
+  };
+  setQuickShellAddType("command");
+  quickShellAddTabs.forEach((tab) => {
+    tab.addEventListener("click", () => setQuickShellAddType(tab.dataset.quickShellAddTab));
+  });
+  document.addEventListener("click", (event) => {
+    const addButton = event.target.closest("[data-quick-shell-add-open]");
+    if (addButton && quickShellAddModal) {
+      const parentPath = addButton.dataset.parentPath || "";
+      document.querySelectorAll("[data-quick-shell-parent-select]").forEach((select) => { select.value = parentPath; });
+      setQuickShellAddType(addButton.dataset.entryType || "command");
+      quickShellAddModal.hidden = false;
+      quickShellAddModal.querySelector("input[name='name']")?.focus();
+      return;
+    }
+    const editButton = event.target.closest("[data-quick-shell-edit-open]");
+    if (editButton) {
+      const target = editButton.dataset.target ? document.querySelector(editButton.dataset.target) : null;
+      if (target) {
+        target.hidden = false;
+        target.querySelector("input[name='name']")?.focus();
+      }
+      return;
+    }
+    if (event.target.closest("[data-quick-shell-modal-close]")) {
+      closeQuickShellModals();
+      return;
+    }
+    const shellModal = event.target.closest("[data-quick-shell-add-modal],[data-quick-shell-edit-modal]");
+    if (shellModal && event.target === shellModal) closeQuickShellModals();
+  });
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeQuickShellModals(); });
+
   document.addEventListener("click", (event) => {
     const link = event.target.closest("[data-log-window]");
     if (!link) return;

@@ -6,7 +6,7 @@
         <h2>Edit Quick Shell entry</h2>
         <p>Change the selected {{ item.type }} entry.</p>
       </div>
-      <a class="ghost-button" href="{{ url_for('quick_shell', path=parent_path) }}">Back to Quick Shell</a>
+      <a class="ghost-button" href="{{ url_for('quick_shell', tab='menu', path=parent_path) }}">Back to Quick Shell</a>
     </div>
 
     <dl class="detail-grid two">
@@ -53,7 +53,7 @@
       </label>
       <div class="form-actions">
         <button class="primary-button" type="submit">Save entry</button>
-        <a class="ghost-button" href="{{ url_for('quick_shell', path=parent_path) }}">Cancel</a>
+        <a class="ghost-button" href="{{ url_for('quick_shell', tab='menu', path=parent_path) }}">Cancel</a>
       </div>
     </form>
   </section>

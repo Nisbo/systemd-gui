@@ -117,6 +117,9 @@ input,textarea,select { width:100%; border:1px solid var(--line); border-radius:
 .quick-shell-actions { min-width:260px; }
 .quick-shell-setup .quick-shell-actions { min-width:230px; }
 .quick-shell-add-form { align-items:end; margin-top:14px; }
+.quick-shell-dialog { width:min(680px, calc(100% - 32px)); }
+.quick-shell-dialog .settings-tabs { margin-bottom:14px; }
+.quick-shell-dialog .panel-head { margin-bottom:14px; }
 .quick-shell-tree { display:grid; gap:8px; }
 .quick-shell-tree-item { display:flex; align-items:center; gap:10px; flex-wrap:wrap; border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-left:calc(var(--depth) * 22px); }
 .quick-shell-tree-item code { color:var(--muted); overflow-wrap:anywhere; }

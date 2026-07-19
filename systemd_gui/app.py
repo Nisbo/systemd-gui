@@ -256,9 +256,9 @@ def create_app() -> Flask:
             install_quick_shell_helper(_quick_shell_bin(app), _app_root(app), _data_dir(app))
         except OSError as exc:
             flash(f"Quick Shell helper could not be installed: {exc}", "error")
-            return redirect(url_for("quick_shell"))
+            return redirect(url_for("quick_shell", tab="setup"))
         flash(f"Quick Shell helper installed at {_quick_shell_bin(app)}.", "success")
-        return redirect(url_for("quick_shell"))
+        return redirect(url_for("quick_shell", tab="setup"))
 
     @app.post("/quick-shell/integration/<shell_id>/install")
     def install_quick_shell_integration(shell_id: str):
@@ -267,9 +267,9 @@ def create_app() -> Flask:
             target = install_shell_integration(shell_id, _quick_shell_bin(app))
         except (OSError, ValueError) as exc:
             flash(f"Shell integration could not be installed: {exc}", "error")
-            return redirect(url_for("quick_shell"))
+            return redirect(url_for("quick_shell", tab="setup"))
         flash(f"Shell integration installed in {target}. Open a new shell or source the file.", "success")
-        return redirect(url_for("quick_shell"))
+        return redirect(url_for("quick_shell", tab="setup"))
 
     @app.post("/quick-shell/integration/<shell_id>/remove")
     def remove_quick_shell_integration(shell_id: str):
@@ -277,9 +277,9 @@ def create_app() -> Flask:
             target = remove_shell_integration(shell_id)
         except (OSError, ValueError) as exc:
             flash(f"Shell integration could not be removed: {exc}", "error")
-            return redirect(url_for("quick_shell"))
+            return redirect(url_for("quick_shell", tab="setup"))
         flash(f"Shell integration removed from {target}. Open a new shell for the change to take effect.", "success")
-        return redirect(url_for("quick_shell"))
+        return redirect(url_for("quick_shell", tab="setup"))
 
     @app.post("/quick-shell/item")
     def create_quick_shell_item():
@@ -290,9 +290,9 @@ def create_app() -> Flask:
             write_quick_shell(_quick_shell_path(app), data)
         except ValueError as exc:
             flash(str(exc), "error")
-            return redirect(url_for("quick_shell", path=parent_path))
+            return redirect(url_for("quick_shell", tab="menu", path=parent_path))
         flash("Quick Shell entry created.", "success")
-        return redirect(url_for("quick_shell", path=parent_path))
+        return redirect(url_for("quick_shell", tab="menu", path=parent_path))
 
     @app.get("/quick-shell/item/<item_path>/edit")
     def edit_quick_shell_item(item_path: str):
@@ -319,9 +319,9 @@ def create_app() -> Flask:
             write_quick_shell(_quick_shell_path(app), data)
         except ValueError as exc:
             flash(str(exc), "error")
-            return redirect(url_for("quick_shell", path=parent_path))
+            return redirect(url_for("quick_shell", tab="menu", path=parent_path))
         flash("Quick Shell entry saved.", "success")
-        return redirect(url_for("quick_shell", path=parent_path))
+        return redirect(url_for("quick_shell", tab="menu", path=parent_path))
 
     @app.post("/quick-shell/item/<item_path>/delete")
     def delete_quick_shell_item(item_path: str):
@@ -332,9 +332,9 @@ def create_app() -> Flask:
             write_quick_shell(_quick_shell_path(app), data)
         except ValueError as exc:
             flash(str(exc), "error")
-            return redirect(url_for("quick_shell", path=parent_path))
+            return redirect(url_for("quick_shell", tab="menu", path=parent_path))
         flash("Quick Shell entry deleted.", "success")
-        return redirect(url_for("quick_shell", path=parent_path))
+        return redirect(url_for("quick_shell", tab="menu", path=parent_path))
 
     @app.post("/quick-shell/item/<item_path>/move")
     def move_quick_shell_item(item_path: str):
@@ -343,13 +343,13 @@ def create_app() -> Flask:
         direction = request.form.get("direction", "")
         if direction not in {"up", "down"}:
             flash("Unknown move direction.", "error")
-            return redirect(url_for("quick_shell", path=parent_path))
+            return redirect(url_for("quick_shell", tab="menu", path=parent_path))
         try:
             move_item(data, item_path, direction)
             write_quick_shell(_quick_shell_path(app), data)
         except ValueError as exc:
             flash(str(exc), "error")
-        return redirect(url_for("quick_shell", path=parent_path))
+        return redirect(url_for("quick_shell", tab="menu", path=parent_path))
 
     @app.post("/settings/check-update")
     def check_update():
