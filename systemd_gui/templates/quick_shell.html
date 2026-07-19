@@ -192,7 +192,7 @@
           <label>
             Commands
             <textarea name="commands" rows="7" placeholder="cd /opt/app&#10;git pull --ff-only&#10;systemctl restart app" required></textarea>
-            <span class="field-help">One command per line. Empty lines and lines starting with <code>#</code> are skipped. The sequence runs in a separate shell, so <code>cd</code> and variables work inside the sequence but your normal shell returns unchanged afterward. Individual lines are not added to normal shell history; the <code>qs</code> call remains visible.</span>
+            <span class="field-help">One command per line. Empty lines are skipped. Comment lines starting with <code>#</code> can be printed before the next command. The sequence runs in a separate shell, so <code>cd</code> and variables work inside the sequence but your normal shell returns unchanged afterward. Individual lines are not added to normal shell history; the <code>qs</code> call remains visible.</span>
           </label>
           <label class="toggle-label">
             <input type="checkbox" name="enabled" value="1" checked>
@@ -205,6 +205,10 @@
           <label class="toggle-label">
             <input type="checkbox" name="confirm_each" value="1">
             <span>Confirm each command / line</span>
+          </label>
+          <label class="toggle-label">
+            <input type="checkbox" name="print_comments" value="1" checked>
+            <span>Print comments before commands</span>
           </label>
           <label class="toggle-label">
             <input type="checkbox" name="stop_on_error" value="1" checked>
@@ -286,7 +290,7 @@
               <label>
                 Commands
                 <textarea name="commands" rows="7" required>{{ item.commands }}</textarea>
-                <span class="field-help">Runs in a separate shell. Individual lines are not written to normal shell history; the <code>qs</code> call remains visible.</span>
+                <span class="field-help">Runs in a separate shell. Comment lines starting with <code>#</code> can be printed before the next command. Individual lines are not written to normal shell history; the <code>qs</code> call remains visible.</span>
               </label>
               <label class="toggle-label">
                 <input type="checkbox" name="confirm" value="1" {% if item.confirm is not defined or item.confirm %}checked{% endif %}>
@@ -295,6 +299,10 @@
               <label class="toggle-label">
                 <input type="checkbox" name="confirm_each" value="1" {% if item.confirm_each %}checked{% endif %}>
                 <span>Confirm each command / line</span>
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" name="print_comments" value="1" {% if item.print_comments is not defined or item.print_comments %}checked{% endif %}>
+                <span>Print comments before commands</span>
               </label>
               <label class="toggle-label">
                 <input type="checkbox" name="stop_on_error" value="1" {% if item.stop_on_error is not defined or item.stop_on_error %}checked{% endif %}>

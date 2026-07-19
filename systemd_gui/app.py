@@ -913,6 +913,7 @@ def _quick_shell_item_from_form() -> dict[str, object]:
         item["commands"] = commands
         item["confirm"] = request.form.get("confirm") == "1"
         item["confirm_each"] = request.form.get("confirm_each") == "1"
+        item["print_comments"] = request.form.get("print_comments") == "1"
         item["stop_on_error"] = request.form.get("stop_on_error") == "1"
         item["show_menu_after"] = request.form.get("show_menu_after") == "1"
     else:

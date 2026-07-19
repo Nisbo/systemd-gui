@@ -238,11 +238,31 @@ def _command_for_item(item) -> str:
 
 
 def _sequence_lines(item) -> list[str]:
-    lines: list[str] = []
+    return [step["command"] for step in _sequence_steps(item)]
+
+
+def _sequence_steps(item) -> list[dict[str, object]]:
+    steps: list[dict[str, object]] = []
+    pending_comments: list[str] = []
     for line in str(item.get("commands") or "").splitlines():
         value = line.strip()
-        if value and not value.startswith("#"):
-            lines.append(value)
+        if not value:
+            continue
+        if value.startswith("#"):
+            comment = value[1:].strip()
+            if comment:
+                pending_comments.append(comment)
+            continue
+        steps.append({"command": value, "comments": pending_comments})
+        pending_comments = []
+    return steps
+
+
+def _sequence_comment_lines(step: dict[str, object]) -> list[str]:
+    lines: list[str] = []
+    comments = step.get("comments")
+    if isinstance(comments, list):
+        lines = [str(comment).strip() for comment in comments if str(comment).strip()]
     return lines
 
 
@@ -617,12 +637,14 @@ def _run_command(item, shell_action_file: Path | None = None) -> int:
 
 
 def _run_sequence(item) -> int:
-    lines = _sequence_lines(item)
+    steps = _sequence_steps(item)
+    lines = [str(step["command"]) for step in steps]
     name = _item_name(item)
-    if not lines:
+    if not steps:
         print(_error("This sequence has no command lines."))
         return 1
     confirm_each = bool(item.get("confirm_each", False))
+    print_comments = bool(item.get("print_comments", True))
     if item.get("confirm", True) and not confirm_each:
         answer = input(f'Run sequence "{name}" with {len(lines)} command line(s)? [Y/n] ').strip().lower()
         if answer in {"n", "no"}:
@@ -649,13 +671,20 @@ def _run_sequence(item) -> int:
         script_file.write("printf '\\n'\n")
         script_file.write(f"printf '%s\\n' {shlex.quote(f'Running sequence: {name}')}\n")
         script_file.write(f"printf '%s\\n' {shlex.quote('Runs in a separate shell; your current shell returns unchanged afterward.')}\n")
-        for index, command in enumerate(lines, start=1):
-            label = f"[{index}/{len(lines)}] {command}"
+        for index, step in enumerate(steps, start=1):
+            command = str(step["command"])
+            if print_comments:
+                comments = _sequence_comment_lines(step)
+                if comments:
+                    script_file.write("printf '\\n'\n")
+                    for comment in comments:
+                        script_file.write(f"printf '%s\\n' {shlex.quote(f'# {comment}')}\n")
+            label = f"[{index}/{len(steps)}] {command}"
             script_file.write("printf '\\n'\n")
             script_file.write(f"printf '%s\\n' {shlex.quote(label)}\n")
             script_file.write("__qs_skip=0\n")
             if confirm_each:
-                script_file.write("printf 'Run this line? [Y/n/s/e/q] '\n")
+                script_file.write("printf 'Run this command? [Enter/Y=yes, N=skip, Q=abort] '\n")
                 script_file.write("IFS= read -r __qs_answer\n")
                 script_file.write('case "$__qs_answer" in\n')
                 script_file.write("  n|N|no|NO|s|S|skip|SKIP) printf '%s\\n' 'Skipped.'; printf '%s\\tskipped\\n' " + shlex.quote(str(index)) + ' >> "$__qs_status_file"; __qs_skip=1 ;;\n')
@@ -699,10 +728,16 @@ def _run_sequence(item) -> int:
             "exit_code": result.returncode,
             "shell": shell or "/bin/sh",
             "confirm_each": confirm_each,
+            "print_comments": print_comments,
             "stop_on_error": bool(item.get("stop_on_error", True)),
             "lines": [
-                {"number": index, "command": command, "status": statuses.get(index, "not-run")}
-                for index, command in enumerate(lines, start=1)
+                {
+                    "number": index,
+                    "command": str(step["command"]),
+                    "comments": _sequence_comment_lines(step),
+                    "status": statuses.get(index, "not-run"),
+                }
+                for index, step in enumerate(steps, start=1)
             ],
         }
     )

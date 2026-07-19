@@ -380,6 +380,7 @@ def normalize_item(item: dict[str, Any]) -> dict[str, Any]:
         normalized["commands"] = str(item.get("commands") or "").strip()
         normalized["confirm"] = bool(item.get("confirm", True))
         normalized["confirm_each"] = bool(item.get("confirm_each", False))
+        normalized["print_comments"] = bool(item.get("print_comments", True))
         normalized["stop_on_error"] = bool(item.get("stop_on_error", True))
         normalized["show_menu_after"] = bool(item.get("show_menu_after", False))
     else:
