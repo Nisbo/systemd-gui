@@ -520,8 +520,8 @@ def _run_command(item, shell_action_file: Path | None = None) -> int:
         print(_error("This entry has no command."))
         return 1
     if item.get("confirm", True):
-        answer = input(f'Run "{command}"? [y/N] ').strip().lower()
-        if answer not in {"y", "yes"}:
+        answer = input(f'Run "{command}"? [Y/n] ').strip().lower()
+        if answer in {"n", "no"}:
             print(_muted("Skipped."))
             return 0
     cd_target = _parse_cd_target(command)

@@ -293,22 +293,24 @@
       </dl>
 
       <div class="inline-section quick-shell-setup">
-        <div class="quick-shell-helper">
+        <div class="quick-shell-history-card">
           <div>
             <h3>History menu</h3>
-            <p>Controls the <code>S Shell history</code> menu inside <code>qs</code>.</p>
+            <p>Controls the <code>S Shell history</code> menu inside <code>qs</code>. Shell integration keeps the list current while you stay logged in.</p>
           </div>
-          <form class="form-grid quick-shell-settings-form" method="post" action="{{ url_for('update_quick_shell_settings') }}">
+          <form class="quick-shell-settings-form" method="post" action="{{ url_for('update_quick_shell_settings') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <label>
-              Entries per page
-              <input name="history_limit" type="number" min="10" max="500" step="10" value="{{ quick_shell_settings.history_limit or 80 }}">
-              <span class="field-help">When more entries exist, <code>n</code> and <code>p</code> navigate pages. Numbers continue across pages.</span>
-            </label>
-            <label class="toggle-label">
-              <input type="checkbox" name="history_show_timestamps" value="1" {% if quick_shell_settings.history_show_timestamps is not defined or quick_shell_settings.history_show_timestamps %}checked{% endif %}>
-              <span>Show timestamps when available</span>
-            </label>
+            <div class="quick-shell-history-controls">
+              <label>
+                Entries per page
+                <input name="history_limit" type="number" min="10" max="500" step="10" value="{{ quick_shell_settings.history_limit or 80 }}">
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" name="history_show_timestamps" value="1" {% if quick_shell_settings.history_show_timestamps is not defined or quick_shell_settings.history_show_timestamps %}checked{% endif %}>
+                <span>Show timestamps</span>
+              </label>
+            </div>
+            <span class="field-help">Use <code>n</code>/<code>p</code> to change pages. Numbers continue across pages.</span>
             <div class="form-actions">
               <button class="primary-button" type="submit">Save history settings</button>
             </div>
