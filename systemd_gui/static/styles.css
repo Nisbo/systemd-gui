@@ -122,7 +122,8 @@ th.actions-heading { text-align:right; }
 .quick-shell-settings-form { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:10px 14px; align-items:end; }
 .quick-shell-history-controls { display:grid; grid-template-columns:minmax(130px, 180px) minmax(180px, 1fr); gap:14px; align-items:end; }
 .quick-shell-settings-form .field-help { grid-column:1 / -1; }
-.quick-shell-settings-form .form-actions { align-self:end; justify-content:flex-end; }
+.quick-shell-settings-form .form-actions { align-self:end; justify-content:flex-end; padding-bottom:0; }
+.quick-shell-settings-form .primary-button { min-height:44px; white-space:nowrap; }
 .quick-shell-actions { min-width:260px; }
 .quick-shell-setup .quick-shell-actions { min-width:230px; }
 .quick-shell-add-form { align-items:end; margin-top:14px; }

@@ -297,6 +297,7 @@
           <div>
             <h3>History menu</h3>
             <p>Controls the <code>S Shell history</code> menu inside <code>qs</code>. Shell integration keeps the list current while you stay logged in.</p>
+            <p class="field-help">Use <code>n</code>/<code>p</code> to change pages. Numbers continue across pages.</p>
           </div>
           <form class="quick-shell-settings-form" method="post" action="{{ url_for('update_quick_shell_settings') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -310,7 +311,6 @@
                 <span>Show timestamps</span>
               </label>
             </div>
-            <span class="field-help">Use <code>n</code>/<code>p</code> to change pages. Numbers continue across pages.</span>
             <div class="form-actions">
               <button class="primary-button" type="submit">Save history settings</button>
             </div>

@@ -415,9 +415,13 @@ def _history_item(source: Path, command: str) -> dict:
 def _show_history_menu(settings: dict | None = None, shell_action_file: Path | None = None) -> int | None:
     raw_entries = _read_shell_history()
     show_unfiltered = False
+    filter_query = ""
     page = 0
     while True:
         entries = _raw_history(raw_entries) if show_unfiltered else _compact_history(raw_entries)
+        if filter_query:
+            needle = filter_query.lower()
+            entries = [entry for entry in entries if needle in entry[1].lower()]
         page_size = _history_display_limit(settings)
         show_timestamps = _history_show_timestamps(settings)
         total_pages = max(1, (len(entries) + page_size - 1) // page_size)
@@ -428,7 +432,11 @@ def _show_history_menu(settings: dict | None = None, shell_action_file: Path | N
         title = "Quick Shell / Shell history"
         print(_heading(title, "blue"))
         print(_style("=" * len(title), "blue"))
-        if not entries:
+        if filter_query:
+            print(_muted(f'Filter: "{filter_query}"'))
+        if not entries and filter_query:
+            print(_muted("No history entries match this filter."))
+        elif not entries:
             print(_muted("No readable shell history file was found for this user."))
             print(_muted("Some shells write history only after logout or after running history -a."))
         elif show_unfiltered:
@@ -450,13 +458,15 @@ def _show_history_menu(settings: dict | None = None, shell_action_file: Path | N
         if page + 1 < total_pages:
             print(f"{_style('n', 'yellow')} Next page")
         if raw_entries:
+            print(f"{_style('f', 'yellow')} Search or clear filter")
             toggle_label = "Hide repeated commands" if show_unfiltered else "Show unfiltered history"
             print(f"{_style('u', 'yellow')} {toggle_label}")
         print(f"{_style('b', 'yellow')} Back")
         print(f"{_style('q', 'yellow')} Quit")
-        print(_muted("Tip: p2 means print history item 2. c2 means copy history item 2 when a clipboard tool is available."))
+        print(_muted("Tip: f nginx searches history. f without text clears the filter. p2 prints item 2; c2 copies it."))
 
-        choice = input("Choose (number/pN/cN/n/p/u/b/q): ").strip().lower()
+        raw_choice = input("Choose (number/pN/cN/f/n/p/u/b/q): ").strip()
+        choice = raw_choice.lower()
         if choice == "q":
             return 0
         if choice == "b":
@@ -469,6 +479,14 @@ def _show_history_menu(settings: dict | None = None, shell_action_file: Path | N
             continue
         if choice == "u" and raw_entries:
             show_unfiltered = not show_unfiltered
+            page = 0
+            continue
+        if choice == "f":
+            filter_query = ""
+            page = 0
+            continue
+        if choice.startswith("f "):
+            filter_query = raw_choice[2:].strip()
             page = 0
             continue
         prefixed_choice = _parse_prefixed_choice(choice)
@@ -485,7 +503,7 @@ def _show_history_menu(settings: dict | None = None, shell_action_file: Path | N
                 return result_code
             continue
         if not choice.isdigit():
-            print(_error("Please enter a number, pN, cN, n, p, u, b or q."))
+            print(_error("Please enter a number, pN, cN, f search, n, p, u, b or q."))
             continue
         selected_index = int(choice) - 1
         if selected_index < 0 or selected_index >= len(entries):
