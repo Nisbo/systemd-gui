@@ -52,7 +52,7 @@
                 <th>Command</th>
                 <th>State</th>
                 <th>After run</th>
-                <th>Actions</th>
+                <th class="actions-heading">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -62,9 +62,6 @@
                   <td><span class="tag {{ 'override' if item.type == 'category' else 'neutral' }}">{{ item.type }}</span></td>
                   <td>
                     <strong>{{ entry_label(item) }}</strong>
-                    {% if not item.name and item.type == "command" %}
-                      <span class="field-help">Using command as display name.</span>
-                    {% endif %}
                   </td>
                   <td>
                     {% if item.type == "command" %}
@@ -92,6 +89,18 @@
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <input type="hidden" name="direction" value="up">
                         <button class="ghost-button small-icon-button" type="submit" title="Move up" aria-label="Move up">↑</button>
+                      </form>
+                      <form method="post" action="{{ url_for('move_quick_shell_item', item_path=item_path) }}" data-auto-submit>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="direction" value="position">
+                        <label class="position-select-label">
+                          <span class="sr-only">Position</span>
+                          <select name="position" class="position-select" title="Move to position" aria-label="Move to position">
+                            {% for position_item in entries %}
+                              <option value="{{ loop.index }}" {% if loop.index0 == item_path.split('.')[-1]|int %}selected{% endif %}>#{{ loop.index }}</option>
+                            {% endfor %}
+                          </select>
+                        </label>
                       </form>
                       <form method="post" action="{{ url_for('move_quick_shell_item', item_path=item_path) }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

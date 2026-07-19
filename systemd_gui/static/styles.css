@@ -16,6 +16,7 @@
 [hidden] { display:none !important; }
 body { margin:0; min-height:100vh; background:linear-gradient(180deg, rgba(23,107,91,.10), transparent 280px), var(--bg); color:var(--ink); font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 a { color:inherit; text-decoration:none; }
+.sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
 .app-shell { width:min(1220px, calc(100% - 32px)); margin:0 auto; padding:28px 0 48px; }
 .topbar { display:flex; align-items:center; justify-content:space-between; gap:18px; margin-bottom:24px; }
 .eyebrow { margin:0 0 4px; color:var(--accent); font-size:.78rem; font-weight:900; text-transform:uppercase; }
@@ -55,6 +56,7 @@ label { display:grid; gap:7px; color:var(--muted); font-size:.9rem; font-weight:
 input,textarea,select { width:100%; border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--ink); font:inherit; padding:10px 12px; } input,select { height:44px; } textarea { font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; line-height:1.45; }
 .search-row { margin-bottom:16px; } .search-row input { flex:1; } .search-row select { flex:0 0 150px; }
 .table-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:8px; } table { width:100%; min-width:1080px; border-collapse:collapse; } th,td { padding:13px 14px; border-bottom:1px solid var(--line); text-align:left; vertical-align:middle; } th { color:var(--muted); font-size:.78rem; text-transform:uppercase; } tr:last-child td { border-bottom:0; }
+th.actions-heading { text-align:right; }
 .compact-table table { min-width:620px; }
 .table-link { color:var(--accent-strong); font-weight:850; text-decoration:underline; text-underline-offset:3px; }
 .name-cell,.panel-actions,.inline-form,.value-with-action { flex-wrap:wrap; }
@@ -118,6 +120,8 @@ input,textarea,select { width:100%; border:1px solid var(--line); border-radius:
 .quick-shell-actions { min-width:260px; }
 .quick-shell-setup .quick-shell-actions { min-width:230px; }
 .quick-shell-add-form { align-items:end; margin-top:14px; }
+.position-select-label { display:block; }
+.position-select { width:62px; height:30px; padding:3px 6px; font-size:.84rem; font-weight:850; }
 .quick-shell-dialog { width:min(680px, calc(100% - 32px)); }
 .quick-shell-dialog .settings-tabs { margin-bottom:14px; }
 .quick-shell-dialog .panel-head { margin-bottom:14px; }

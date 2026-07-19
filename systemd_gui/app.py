@@ -21,6 +21,7 @@ from .quick_shell import (
     install_shell_integration,
     item_for_path,
     move_item,
+    move_item_to_position,
     quick_shell_helper_status,
     read_quick_shell,
     remove_shell_integration,
@@ -341,13 +342,17 @@ def create_app() -> Flask:
         data = read_quick_shell(_quick_shell_path(app))
         parent_path = _quick_shell_parent_path(item_path)
         direction = request.form.get("direction", "")
-        if direction not in {"up", "down"}:
+        position_raw = request.form.get("position", "").strip()
+        if direction not in {"up", "down", "position"}:
             flash("Unknown move direction.", "error")
             return redirect(url_for("quick_shell", tab="menu", path=parent_path))
         try:
-            move_item(data, item_path, direction)
+            if direction == "position":
+                move_item_to_position(data, item_path, int(position_raw))
+            else:
+                move_item(data, item_path, direction)
             write_quick_shell(_quick_shell_path(app), data)
-        except ValueError as exc:
+        except (TypeError, ValueError) as exc:
             flash(str(exc), "error")
         return redirect(url_for("quick_shell", tab="menu", path=parent_path))
 

@@ -426,3 +426,14 @@ def move_item(data: dict[str, Any], item_path: str, direction: str) -> None:
     if next_index < 0 or next_index >= len(items):
         return
     items[index], items[next_index] = items[next_index], items[index]
+
+
+def move_item_to_position(data: dict[str, Any], item_path: str, position: int) -> None:
+    items, index = parent_children_for_path(data, item_path)
+    if index < 0 or index >= len(items):
+        raise ValueError("Quick shell entry was not found.")
+    next_index = max(0, min(position - 1, len(items) - 1))
+    if next_index == index:
+        return
+    item = items.pop(index)
+    items.insert(next_index, item)
