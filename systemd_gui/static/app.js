@@ -217,6 +217,21 @@
     });
   });
 
+  document.querySelectorAll("select[data-quick-shell-type]").forEach((select) => {
+    const form = select.closest("form");
+    const syncQuickShellFields = () => {
+      const isCommand = select.value === "command";
+      form?.querySelectorAll(".quick-shell-command-field,.quick-shell-confirm-field").forEach((field) => {
+        field.hidden = !isCommand;
+      });
+      form?.querySelectorAll(".quick-shell-command-field input").forEach((input) => {
+        input.required = isCommand;
+      });
+    };
+    select.addEventListener("change", syncQuickShellFields);
+    syncQuickShellFields();
+  });
+
   const logPanel = document.querySelector("[data-log-panel]");
   if (logPanel) {
     const logControls = document.querySelector("[data-log-controls]");

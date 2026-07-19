@@ -27,6 +27,7 @@ Gunicorn.
 - Change the web login password.
 - Update from release ZIP, uploaded ZIP or git branch.
 - Create, restore and delete app update backups.
+- Manage a local Quick Shell command menu for the `qs` helper.
 
 ## Safety
 
@@ -97,8 +98,28 @@ data/app-updates/backups
 ```
 
 App backups include the application files plus selected runtime data such as
-favorites, service notes, unit backups and environment-file backups. The app
-backup directory itself is not copied recursively.
+favorites, service notes, Quick Shell entries, unit backups and environment-file
+backups. The app backup directory itself is not copied recursively.
+
+## Quick Shell
+
+The installer creates a local shell helper:
+
+```bash
+qs
+```
+
+Quick Shell entries are managed in the web UI under **Quick Shell** and stored
+in:
+
+```text
+data/quick-shell.json
+```
+
+Entries can be nested into categories and subcategories. Disabled entries stay
+stored in the web UI but are hidden from the `qs` menu. Commands are not run
+from the browser; the web UI only manages the list, and execution happens in
+the local server shell.
 
 ## Local Development
 

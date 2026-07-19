@@ -11,6 +11,18 @@ from pathlib import Path
 
 from flask import Flask, Response, flash, redirect, render_template, request, session, url_for
 
+from .quick_shell import (
+    add_item,
+    children_for_path,
+    delete_item,
+    entry_label,
+    flatten_entries,
+    item_for_path,
+    move_item,
+    read_quick_shell,
+    update_item,
+    write_quick_shell,
+)
 from .systemd import (
     analyze_drop_in_content,
     create_unit_backup,
@@ -203,6 +215,80 @@ def create_app() -> Flask:
             update_result=session.pop("update_result", None),
             app_update_pending_restart=session.get("app_update_pending_restart", False),
         )
+
+    @app.get("/quick-shell")
+    def quick_shell():
+        data = read_quick_shell(_quick_shell_path(app))
+        parent_path = request.args.get("path", "").strip()
+        try:
+            parent = item_for_path(data, parent_path) if parent_path else None
+            entries = children_for_path(data, parent_path)
+        except ValueError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("quick_shell"))
+        return render_template(
+            "quick_shell.html",
+            entries=entries,
+            parent=parent,
+            parent_path=parent_path,
+            breadcrumbs=_quick_shell_breadcrumbs(data, parent_path),
+            flat_entries=flatten_entries(data.get("items") or []),
+            entry_label=entry_label,
+        )
+
+    @app.post("/quick-shell/item")
+    def create_quick_shell_item():
+        data = read_quick_shell(_quick_shell_path(app))
+        parent_path = request.form.get("parent_path", "").strip()
+        try:
+            add_item(data, parent_path, _quick_shell_item_from_form())
+            write_quick_shell(_quick_shell_path(app), data)
+        except ValueError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("quick_shell", path=parent_path))
+        flash("Quick Shell entry created.", "success")
+        return redirect(url_for("quick_shell", path=parent_path))
+
+    @app.post("/quick-shell/item/<item_path>/update")
+    def update_quick_shell_item(item_path: str):
+        data = read_quick_shell(_quick_shell_path(app))
+        parent_path = _quick_shell_parent_path(item_path)
+        try:
+            update_item(data, item_path, _quick_shell_item_from_form())
+            write_quick_shell(_quick_shell_path(app), data)
+        except ValueError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("quick_shell", path=parent_path))
+        flash("Quick Shell entry saved.", "success")
+        return redirect(url_for("quick_shell", path=parent_path))
+
+    @app.post("/quick-shell/item/<item_path>/delete")
+    def delete_quick_shell_item(item_path: str):
+        data = read_quick_shell(_quick_shell_path(app))
+        parent_path = _quick_shell_parent_path(item_path)
+        try:
+            delete_item(data, item_path)
+            write_quick_shell(_quick_shell_path(app), data)
+        except ValueError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("quick_shell", path=parent_path))
+        flash("Quick Shell entry deleted.", "success")
+        return redirect(url_for("quick_shell", path=parent_path))
+
+    @app.post("/quick-shell/item/<item_path>/move")
+    def move_quick_shell_item(item_path: str):
+        data = read_quick_shell(_quick_shell_path(app))
+        parent_path = _quick_shell_parent_path(item_path)
+        direction = request.form.get("direction", "")
+        if direction not in {"up", "down"}:
+            flash("Unknown move direction.", "error")
+            return redirect(url_for("quick_shell", path=parent_path))
+        try:
+            move_item(data, item_path, direction)
+            write_quick_shell(_quick_shell_path(app), data)
+        except ValueError as exc:
+            flash(str(exc), "error")
+        return redirect(url_for("quick_shell", path=parent_path))
 
     @app.post("/settings/check-update")
     def check_update():
@@ -686,6 +772,49 @@ def _favorites_path(app: Flask) -> Path:
 
 def _notes_path(app: Flask) -> Path:
     return Path(app.config["DATA_DIR"]) / "service-notes.json"
+
+
+def _quick_shell_path(app: Flask) -> Path:
+    return Path(app.config["DATA_DIR"]) / "quick-shell.json"
+
+
+def _quick_shell_item_from_form() -> dict[str, object]:
+    item_type = request.form.get("type", "command").strip()
+    item: dict[str, object] = {
+        "type": item_type,
+        "name": request.form.get("name", "").strip(),
+        "enabled": request.form.get("enabled") == "1",
+    }
+    if item_type == "category":
+        item["items"] = []
+    else:
+        command = request.form.get("command", "").strip()
+        if not command:
+            raise ValueError("Commands need a command line.")
+        item["command"] = command
+        item["confirm"] = request.form.get("confirm") == "1"
+    return item
+
+
+def _quick_shell_parent_path(item_path: str) -> str:
+    parts = item_path.split(".")
+    if len(parts) <= 1:
+        return ""
+    return ".".join(parts[:-1])
+
+
+def _quick_shell_breadcrumbs(data: dict[str, object], item_path: str) -> list[dict[str, str]]:
+    breadcrumbs = [{"label": "Root", "path": ""}]
+    parts: list[str] = []
+    for part in item_path.split(".") if item_path else []:
+        parts.append(part)
+        path = ".".join(parts)
+        try:
+            item = item_for_path(data, path)
+        except ValueError:
+            break
+        breadcrumbs.append({"label": entry_label(item), "path": path})
+    return breadcrumbs
 
 
 def read_service_notes(path: Path) -> dict[str, str]:

@@ -6,6 +6,7 @@ ENV_FILE="/etc/systemd-gui.env"
 SERVICE_FILE="/etc/systemd/system/systemd-gui.service"
 NGINX_SITE="/etc/nginx/sites-available/systemd-gui.conf"
 NGINX_LINK="/etc/nginx/sites-enabled/systemd-gui.conf"
+QS_BIN="/usr/local/bin/qs"
 
 if [[ "${EUID}" -ne 0 ]]; then
   echo "Please run this installer as root."
@@ -32,6 +33,8 @@ SYSTEMD_GUI_PUBLIC_PORT=${SYSTEMD_GUI_PUBLIC_PORT}
 SYSTEMD_GUI_ALLOW_PROTECTED=0
 EOF
 chmod 600 "${ENV_FILE}"
+
+mkdir -p "${APP_DIR}/data"
 
 cat > "${SERVICE_FILE}" <<EOF
 [Unit]
@@ -66,6 +69,15 @@ server {
 EOF
 
 ln -sf "${NGINX_SITE}" "${NGINX_LINK}"
+
+cat > "${QS_BIN}" <<EOF
+#!/usr/bin/env sh
+export SYSTEMD_GUI_ROOT="${APP_DIR}"
+export SYSTEMD_GUI_DATA_DIR="${APP_DIR}/data"
+exec /usr/bin/python3 "${APP_DIR}/scripts/quick_shell.py" "\$@"
+EOF
+chmod 755 "${QS_BIN}"
+
 systemctl daemon-reload
 systemctl enable systemd-gui
 systemctl restart systemd-gui
@@ -77,3 +89,4 @@ echo "Systemd Gui installed."
 echo "Open: http://YOUR-SERVER-IP:${SYSTEMD_GUI_PUBLIC_PORT}"
 echo "Password: ${SYSTEMD_GUI_PASSWORD}"
 echo "Environment file: ${ENV_FILE}"
+echo "Quick Shell: qs"

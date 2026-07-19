@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Quick Shell</h2>
+        <p>Manage command shortcuts shown by the local <code>qs</code> shell command.</p>
+      </div>
+    </div>
+
+    <div class="diagnostic warning">
+      <strong>Shell execution stays local</strong>
+      <span>Systemd Gui stores this list only. Commands are run from the server shell with <code>qs</code>, not from the browser.</span>
+    </div>
+
+    <dl class="detail-grid three">
+      <div><dt>Command</dt><dd><code>qs</code></dd></div>
+      <div><dt>Storage</dt><dd><code>data/quick-shell.json</code></dd></div>
+      <div><dt>Disabled entries</dt><dd>Hidden in the shell menu</dd></div>
+    </dl>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>{{ entry_label(parent) if parent else "Root menu" }}</h2>
+        <p>Categories open another menu. Commands are shown as selectable shell actions.</p>
+      </div>
+    </div>
+
+    <nav class="breadcrumb-row" aria-label="Quick Shell path">
+      {% for crumb in breadcrumbs %}
+        <a class="settings-tab {% if crumb.path == parent_path %}active{% endif %}" href="{{ url_for('quick_shell', path=crumb.path) }}">{{ crumb.label }}</a>
+      {% endfor %}
+    </nav>
+
+    {% if entries %}
+      <div class="table-wrap quick-shell-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Name</th>
+              <th>Command</th>
+              <th>State</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in entries %}
+              {% set item_path = parent_path ~ "." ~ loop.index0 if parent_path else loop.index0|string %}
+              <tr>
+                <td>
+                  <span class="tag {{ 'override' if item.type == 'category' else 'neutral' }}">{{ item.type }}</span>
+                </td>
+                <td>
+                  <strong>{{ entry_label(item) }}</strong>
+                  {% if not item.name and item.type == "command" %}
+                    <span class="field-help">Using command as display name.</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.type == "command" %}
+                    <code>{{ item.command }}</code>
+                  {% else %}
+                    <span class="empty-note">{{ item["items"]|length }} entries</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="status-pill {{ '' if item.enabled else 'inactive' }}">{{ "Enabled" if item.enabled else "Disabled" }}</span>
+                </td>
+                <td>
+                  <div class="table-actions quick-shell-actions">
+                    {% if item.type == "category" %}
+                      <a class="ghost-button compact-button" href="{{ url_for('quick_shell', path=item_path) }}">Open</a>
+                    {% endif %}
+                    <form method="post" action="{{ url_for('move_quick_shell_item', item_path=item_path) }}">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                      <input type="hidden" name="direction" value="up">
+                      <button class="ghost-button small-icon-button" type="submit" title="Move up" aria-label="Move up">↑</button>
+                    </form>
+                    <form method="post" action="{{ url_for('move_quick_shell_item', item_path=item_path) }}">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                      <input type="hidden" name="direction" value="down">
+                      <button class="ghost-button small-icon-button" type="submit" title="Move down" aria-label="Move down">↓</button>
+                    </form>
+                    <form method="post" action="{{ url_for('delete_quick_shell_item', item_path=item_path) }}" data-confirm="Delete this Quick Shell entry? Child entries inside a category will be deleted too.">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                      <button class="danger-button compact-button" type="submit">Delete</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+              <tr class="quick-shell-edit-row">
+                <td colspan="5">
+                  <form class="quick-shell-edit-form" method="post" action="{{ url_for('update_quick_shell_item', item_path=item_path) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <label>
+                      Type
+                      <select name="type" data-quick-shell-type>
+                        <option value="category" {% if item.type == "category" %}selected{% endif %}>Category</option>
+                        <option value="command" {% if item.type == "command" %}selected{% endif %}>Command</option>
+                      </select>
+                    </label>
+                    <label>
+                      Name
+                      <input name="name" value="{{ item.name }}" placeholder="{{ item.command if item.type == 'command' else 'Category name' }}">
+                    </label>
+                    <label class="quick-shell-command-field">
+                      Command
+                      <input name="command" value="{{ item.command if item.type == 'command' else '' }}" placeholder="systemctl restart frp-gui">
+                    </label>
+                    <label class="toggle-label">
+                      <input type="checkbox" name="enabled" value="1" {% if item.enabled %}checked{% endif %}>
+                      <span>Enabled</span>
+                    </label>
+                    <label class="toggle-label quick-shell-confirm-field">
+                      <input type="checkbox" name="confirm" value="1" {% if item.confirm is not defined or item.confirm %}checked{% endif %}>
+                      <span>Ask before running</span>
+                    </label>
+                    <button class="primary-button" type="submit">Save</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty-note">This menu is empty.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Add entry</h2>
+        <p>Add a category or command to the current menu.</p>
+      </div>
+    </div>
+    <form class="form-grid quick-shell-add-form" method="post" action="{{ url_for('create_quick_shell_item') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="parent_path" value="{{ parent_path }}">
+      <label>
+        Type
+        <select name="type" data-quick-shell-type>
+          <option value="category">Category</option>
+          <option value="command">Command</option>
+        </select>
+      </label>
+      <label>
+        Name
+        <input name="name" placeholder="Optional for commands">
+      </label>
+      <label class="quick-shell-command-field">
+        Command
+        <input name="command" placeholder="systemctl restart frp-gui">
+        <span class="field-help">If the name is empty, the shell menu uses the command as the label.</span>
+      </label>
+      <label class="toggle-label">
+        <input type="checkbox" name="enabled" value="1" checked>
+        <span>Enabled</span>
+      </label>
+      <label class="toggle-label quick-shell-confirm-field">
+        <input type="checkbox" name="confirm" value="1" checked>
+        <span>Ask before running</span>
+      </label>
+      <div class="form-actions">
+        <button class="primary-button" type="submit">Add entry</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Full tree</h2>
+        <p>Quick overview of every configured entry, including disabled ones.</p>
+      </div>
+    </div>
+    {% if flat_entries %}
+      <div class="quick-shell-tree">
+        {% for entry in flat_entries %}
+          <div class="quick-shell-tree-item" style="--depth: {{ entry.depth }}">
+            <span class="tag {{ 'override' if entry.item.type == 'category' else 'neutral' }}">{{ entry.item.type }}</span>
+            <strong>{{ entry_label(entry.item) }}</strong>
+            {% if not entry.item.enabled %}
+              <span class="status-pill inactive">Disabled</span>
+            {% endif %}
+            {% if entry.item.type == "command" %}
+              <code>{{ entry.item.command }}</code>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-note">No Quick Shell entries yet.</p>
+    {% endif %}
+  </section>
+{% endblock %}
