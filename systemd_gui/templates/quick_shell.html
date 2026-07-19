@@ -9,26 +9,20 @@
     <div class="panel-head">
       <div>
         <h2>Quick Shell</h2>
-        <p>Manage command shortcuts shown by the local <code>qs</code> shell command.</p>
+        <p>Build a small numbered command menu for your server shell.</p>
       </div>
     </div>
 
-    <div class="diagnostic warning">
-      <strong>Shell execution stays local</strong>
-      <span>Systemd Gui stores this list only. Commands are run from the server shell with <code>qs</code>, not from the browser.</span>
-    </div>
-
-    <dl class="detail-grid three">
-      <div><dt>Command</dt><dd><code>qs</code></dd></div>
+    <dl class="detail-grid two">
+      <div><dt>Shell command</dt><dd><code>qs</code></dd></div>
       <div><dt>Storage</dt><dd><code>{{ quick_shell_path }}</code></dd></div>
-      <div><dt>Disabled shortcuts</dt><dd>Kept in the GUI but hidden from <code>qs</code></dd></div>
     </dl>
 
     <div class="inline-section quick-shell-setup">
       <div class="quick-shell-helper">
         <div>
           <h3>Shell helper</h3>
-          <p>{{ helper_status.message }} The helper is the global <code>qs</code> command used for normal shortcuts.</p>
+          <p>{{ helper_status.message }} This installs the global <code>qs</code> command for normal shortcuts like status checks, restarts and log commands.</p>
         </div>
         <dl class="detail-grid two quick-shell-helper-grid">
           <div><dt>Path</dt><dd><code>{{ helper_status.path }}</code></dd></div>
@@ -40,14 +34,9 @@
         </form>
       </div>
 
-      <div class="diagnostic">
-        <strong>When shell integration matters</strong>
-        <span>Normal commands work with the helper alone. Install integration for shell-changing commands such as <code>cd /opt</code>, <code>cd ~/project</code>, and later commands like <code>export ...</code> or <code>alias ...</code>.</span>
-      </div>
-
       <div class="update-section-title">
         <strong>Shell Integrations</strong>
-        <span>Install only the shells you use. New commands from the GUI are picked up automatically.</span>
+        <span>Install this for shells where shortcuts should change the current shell, for example <code>cd /opt</code> or <code>cd ~/project</code>. New GUI entries are picked up automatically.</span>
       </div>
 
       <div class="table-wrap compact-table">
