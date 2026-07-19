@@ -318,6 +318,14 @@ def _history_command_from_line(line: str, source: Path) -> str:
     return value
 
 
+def _history_shell(source: Path) -> str | None:
+    if source.name == ".bash_history":
+        return shutil.which("bash") or "/bin/bash"
+    if source.name == ".zsh_history":
+        return shutil.which("zsh") or "/bin/zsh"
+    return None
+
+
 def _read_shell_history(limit: int = 80) -> list[tuple[Path, str]]:
     entries: deque[tuple[Path, str]] = deque(maxlen=limit)
     for source in _history_candidates():
@@ -332,11 +340,12 @@ def _read_shell_history(limit: int = 80) -> list[tuple[Path, str]]:
     return list(reversed(entries))
 
 
-def _history_item(command: str) -> dict:
+def _history_item(source: Path, command: str) -> dict:
     return {
         "type": "command",
         "name": command,
         "command": command,
+        "shell": _history_shell(source),
         "enabled": True,
         "confirm": True,
         "show_menu_after": False,
@@ -374,7 +383,7 @@ def _show_history_menu(shell_action_file: Path | None = None) -> int | None:
             if selected_index < 0 or selected_index >= len(entries):
                 print(_error("That number is not in the history list."))
                 continue
-            item = _history_item(entries[selected_index][1])
+            item = _history_item(*entries[selected_index])
             result_code = _print_command(item) if action == "print" else _copy_command(item)
             if not item.get("show_menu_after", False):
                 return result_code
@@ -386,7 +395,26 @@ def _show_history_menu(shell_action_file: Path | None = None) -> int | None:
         if selected_index < 0 or selected_index >= len(entries):
             print(_error("That number is not in the history list."))
             continue
-        return _run_command(_history_item(entries[selected_index][1]), shell_action_file)
+        return _run_command(_history_item(*entries[selected_index]), shell_action_file)
+
+
+def _command_shell(item) -> str | None:
+    configured = str(item.get("shell") or "").strip()
+    candidates = [configured, os.environ.get("SHELL") or ""]
+    for candidate in candidates:
+        if not candidate:
+            continue
+        path = Path(candidate)
+        if path.is_file() and os.access(path, os.X_OK):
+            return str(path)
+        resolved = shutil.which(candidate)
+        if resolved:
+            return resolved
+    for fallback in ["/bin/bash", "/usr/bin/bash", "/bin/zsh", "/usr/bin/zsh"]:
+        path = Path(fallback)
+        if path.is_file() and os.access(path, os.X_OK):
+            return str(path)
+    return None
 
 
 def _run_command(item, shell_action_file: Path | None = None) -> int:
@@ -407,7 +435,7 @@ def _run_command(item, shell_action_file: Path | None = None) -> int:
         _write_shell_action(shell_action_file, f"cd {shlex.quote(str(cd_target))}")
         return 0
     print()
-    result = subprocess.run(command, shell=True)
+    result = subprocess.run(command, shell=True, executable=_command_shell(item))
     if result.returncode != 0:
         print()
         print(_error(f"Command finished with exit code {result.returncode}."))
