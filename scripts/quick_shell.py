@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import importlib.util
 import shlex
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -41,11 +42,21 @@ def _menu_title(stack):
 
 
 def _prompt_choice(max_number: int, can_go_back: bool) -> str:
-    hints = ["number"]
+    hints = ["number", "pN", "cN"]
     if can_go_back:
         hints.append("b")
     hints.append("q")
     return input(f"Choose ({'/'.join(hints)}): ").strip().lower()
+
+
+def _parse_prefixed_choice(choice: str) -> tuple[str, int] | None:
+    prefixes = {"p": "print", "print": "print", "c": "copy", "copy": "copy"}
+    for prefix, action in sorted(prefixes.items(), key=lambda item: len(item[0]), reverse=True):
+        if choice.startswith(prefix):
+            value = choice[len(prefix):].strip()
+            if value.isdigit():
+                return action, int(value)
+    return None
 
 
 def _parse_direct_path(args: list[str]) -> list[int]:
@@ -123,8 +134,59 @@ def _write_shell_action(path: Path, action: str) -> None:
     path.write_text(action + "\n", encoding="utf-8")
 
 
+def _command_for_item(item) -> str:
+    return str(item.get("command") or "").strip()
+
+
+def _print_command(item) -> int:
+    if item.get("type") == "category":
+        print("Categories do not have a command to print. Select a command inside the category.")
+        return 1
+    command = _command_for_item(item)
+    if not command:
+        print("This entry has no command.")
+        return 1
+    print(command)
+    return 0
+
+
+def _copy_to_clipboard(value: str) -> bool:
+    clipboard_tools = [
+        ("pbcopy", []),
+        ("wl-copy", []),
+        ("xclip", ["-selection", "clipboard"]),
+        ("xsel", ["--clipboard", "--input"]),
+    ]
+    for command, args in clipboard_tools:
+        path = shutil.which(command)
+        if not path:
+            continue
+        try:
+            subprocess.run([path, *args], input=value, text=True, check=True)
+        except (OSError, subprocess.CalledProcessError):
+            continue
+        return True
+    return False
+
+
+def _copy_command(item) -> int:
+    if item.get("type") == "category":
+        print("Categories do not have a command to copy. Select a command inside the category.")
+        return 1
+    command = _command_for_item(item)
+    if not command:
+        print("This entry has no command.")
+        return 1
+    if _copy_to_clipboard(command):
+        print("Command copied to clipboard.")
+        return 0
+    print("Clipboard tool not available. Use print instead.")
+    print(command)
+    return 2
+
+
 def _run_command(item, shell_action_file: Path | None = None) -> int:
-    command = str(item.get("command") or "").strip()
+    command = _command_for_item(item)
     if not command:
         print("This entry has no command.")
         return 1
@@ -150,20 +212,27 @@ def _run_command(item, shell_action_file: Path | None = None) -> int:
 
 def main() -> int:
     shell_action_file = None
+    output_mode = "run"
     args = sys.argv[1:]
     if args[:1] == ["--shell-action-file"]:
         if len(args) < 2:
-            print("Usage: qs [--shell-action-file PATH] [NUMBER ...]", file=sys.stderr)
+            print("Usage: qs [--shell-action-file PATH] [--print|--p|--copy|--c] [NUMBER ...]", file=sys.stderr)
             return 2
         shell_action_file = Path(args[1])
         args = args[2:]
     if args[:1] == ["--debug"]:
         return _print_debug(args[1:], shell_action_file)
+    if args[:1] in (["--print"], ["--p"], ["--copy"], ["--c"]):
+        output_mode = "print" if args[0] in {"--print", "--p"} else "copy"
+        args = args[1:]
 
     try:
         direct_path = _parse_direct_path(args)
     except ValueError as exc:
         print(exc, file=sys.stderr)
+        return 2
+    if output_mode != "run" and not direct_path:
+        print("Print/copy needs a menu path, for example: qs --print 1-2", file=sys.stderr)
         return 2
 
     entry_label, read_quick_shell = _load_helpers()
@@ -178,6 +247,10 @@ def main() -> int:
         except ValueError as exc:
             print(exc, file=sys.stderr)
             return 1
+        if output_mode == "print":
+            return _print_command(item)
+        if output_mode == "copy":
+            return _copy_command(item)
         if item.get("type") == "category":
             stack.append(entry_label(item))
             items = list(item.get("items") or [])
@@ -202,6 +275,7 @@ def main() -> int:
         if len(menu_stack) > 1:
             print("b Back")
         print("q Quit")
+        print("Tip: p2/print2 prints a command, c2/copy2 copies it when a clipboard tool is available.")
 
         choice = _prompt_choice(len(current_items), len(menu_stack) > 1)
         if choice == "q":
@@ -210,8 +284,18 @@ def main() -> int:
             menu_stack.pop()
             stack.pop()
             continue
+        prefixed_choice = _parse_prefixed_choice(choice)
+        if prefixed_choice:
+            action, number = prefixed_choice
+            selected_index = number - 1
+            if selected_index < 0 or selected_index >= len(current_items):
+                print("That number is not in the menu.")
+                continue
+            item = current_items[selected_index]
+            _print_command(item) if action == "print" else _copy_command(item)
+            continue
         if not choice.isdigit():
-            print("Please enter a number, b or q.")
+            print("Please enter a number, pN, cN, b or q.")
             continue
         selected_index = int(choice) - 1
         if selected_index < 0 or selected_index >= len(current_items):
