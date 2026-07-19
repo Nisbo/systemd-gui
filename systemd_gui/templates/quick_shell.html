@@ -192,7 +192,7 @@
       <div class="panel-head">
         <div>
           <h2>Full tree</h2>
-          <p>Quick overview of every configured entry, including disabled ones.</p>
+          <p>Quick overview of every configured entry, including disabled ones. Direct paths work with dashes or spaces, for example <code>qs 1-2-3</code> or <code>qs 1 2 3</code>.</p>
         </div>
       </div>
       {% if flat_entries %}
@@ -201,16 +201,16 @@
             <div class="quick-shell-tree-item" style="--depth: {{ entry.depth }}">
               <span class="tag {{ 'override' if entry.item.type == 'category' else 'neutral' }}">{{ entry.item.type }}</span>
               <strong>{{ entry_label(entry.item) }}</strong>
-              {% if entry.shell_path %}
-                <span class="quick-shell-direct"><span>Direct</span> <code>qs {{ entry.shell_path }}</code></span>
-              {% else %}
-                <span class="empty-note">No direct access</span>
-              {% endif %}
               {% if not entry.item.enabled %}
                 <span class="status-pill inactive">Disabled</span>
               {% endif %}
               {% if entry.item.type == "command" %}
                 <code>{{ entry.item.command }}</code>
+              {% endif %}
+              {% if entry.shell_path %}
+                <span class="quick-shell-direct"><span>Direct</span> <code>qs {{ entry.shell_path }}</code></span>
+              {% else %}
+                <span class="quick-shell-direct muted"><span>No direct access</span></span>
               {% endif %}
             </div>
           {% endfor %}
