@@ -329,25 +329,64 @@ def _read_shell_history(limit: int = 80) -> list[tuple[Path, str]]:
             command = _history_command_from_line(line, source)
             if command:
                 entries.append((source, command))
-    return list(entries)
+    return list(reversed(entries))
 
 
-def _print_shell_history() -> int:
+def _history_item(command: str) -> dict:
+    return {
+        "type": "command",
+        "name": command,
+        "command": command,
+        "enabled": True,
+        "confirm": True,
+        "show_menu_after": False,
+    }
+
+
+def _show_history_menu(shell_action_file: Path | None = None) -> int | None:
     entries = _read_shell_history()
-    print()
-    print(_heading("Shell history", "blue"))
-    print(_style("=============", "blue"))
-    if not entries:
-        print(_muted("No readable shell history file was found for this user."))
-        print(_muted("Some shells write history only after logout or after running history -a."))
+    while True:
         print()
-        return 0
-    print(_muted("Showing the newest readable entries for the current server user."))
-    for index, (source, command) in enumerate(entries, start=1):
-        number = _style(str(index).rjust(2), "bold")
-        print(f"{number} {_muted(source.name)} {command}")
-    print()
-    return 0
+        title = "Quick Shell / Shell history"
+        print(_heading(title, "blue"))
+        print(_style("=" * len(title), "blue"))
+        if not entries:
+            print(_muted("No readable shell history file was found for this user."))
+            print(_muted("Some shells write history only after logout or after running history -a."))
+        else:
+            print(_muted("Newest readable entries for the current server user."))
+        for index, (source, command) in enumerate(entries, start=1):
+            number = _style(str(index), "bold")
+            print(f"{number} {_muted(source.name)} {command}")
+        print(f"{_style('b', 'yellow')} Back")
+        print(f"{_style('q', 'yellow')} Quit")
+        print(_muted("Tip: p2 means print history item 2. c2 means copy history item 2 when a clipboard tool is available."))
+
+        choice = input("Choose (number/pN/cN/b/q): ").strip().lower()
+        if choice == "q":
+            return 0
+        if choice == "b":
+            return None
+        prefixed_choice = _parse_prefixed_choice(choice)
+        if prefixed_choice:
+            action, number = prefixed_choice
+            selected_index = number - 1
+            if selected_index < 0 or selected_index >= len(entries):
+                print(_error("That number is not in the history list."))
+                continue
+            item = _history_item(entries[selected_index][1])
+            result_code = _print_command(item) if action == "print" else _copy_command(item)
+            if not item.get("show_menu_after", False):
+                return result_code
+            continue
+        if not choice.isdigit():
+            print(_error("Please enter a number, pN, cN, b or q."))
+            continue
+        selected_index = int(choice) - 1
+        if selected_index < 0 or selected_index >= len(entries):
+            print(_error("That number is not in the history list."))
+            continue
+        return _run_command(_history_item(entries[selected_index][1]), shell_action_file)
 
 
 def _run_command(item, shell_action_file: Path | None = None) -> int:
@@ -478,7 +517,9 @@ def main() -> int:
         if choice == "q":
             return 0
         if choice == "s":
-            _print_shell_history()
+            result_code = _show_history_menu(shell_action_file)
+            if result_code is not None:
+                return result_code
             continue
         if choice == "b" and len(menu_stack) > 1:
             menu_stack.pop()
