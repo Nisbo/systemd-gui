@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Edit Quick Shell entry</h2>
+        <p>Change the selected {{ item.type }} entry.</p>
+      </div>
+      <a class="ghost-button" href="{{ url_for('quick_shell', path=parent_path) }}">Back to Quick Shell</a>
+    </div>
+
+    <dl class="detail-grid two">
+      <div><dt>Type</dt><dd>{{ item.type }}</dd></div>
+      <div><dt>Display name</dt><dd>{{ entry_label(item) }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>{{ "Command" if item.type == "command" else "Category" }}</h2>
+        <p>{% if item.type == "command" %}Commands appear as selectable actions in <code>qs</code>.{% else %}Categories open another menu in <code>qs</code>.{% endif %}</p>
+      </div>
+    </div>
+
+    <form class="form-grid single" method="post" action="{{ url_for('update_quick_shell_item', item_path=item_path) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <input type="hidden" name="type" value="{{ item.type }}">
+      <label>
+        Name
+        <input name="name" value="{{ item.name }}" placeholder="{{ item.command if item.type == 'command' else 'Category name' }}">
+        {% if item.type == "command" %}
+          <span class="field-help">Leave empty to use the command as display name.</span>
+        {% endif %}
+      </label>
+      {% if item.type == "command" %}
+        <label>
+          Command
+          <input name="command" value="{{ item.command }}" required>
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" name="confirm" value="1" {% if item.confirm is not defined or item.confirm %}checked{% endif %}>
+          <span>Ask before running</span>
+        </label>
+      {% endif %}
+      <label class="toggle-label">
+        <input type="checkbox" name="enabled" value="1" {% if item.enabled %}checked{% endif %}>
+        <span>Enabled</span>
+      </label>
+      <div class="form-actions">
+        <button class="primary-button" type="submit">Save entry</button>
+        <a class="ghost-button" href="{{ url_for('quick_shell', path=parent_path) }}">Cancel</a>
+      </div>
+    </form>
+  </section>
+{% endblock %}

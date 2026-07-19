@@ -236,14 +236,16 @@ def create_app() -> Flask:
             parent_path=parent_path,
             breadcrumbs=_quick_shell_breadcrumbs(data, parent_path),
             flat_entries=flatten_entries(data.get("items") or []),
-            helper_status=quick_shell_helper_status(_quick_shell_bin(app)),
+            category_options=_quick_shell_category_options(data),
+            helper_status=quick_shell_helper_status(_quick_shell_bin(app), _app_root(app), _data_dir(app)),
+            quick_shell_path=_quick_shell_path(app),
             entry_label=entry_label,
         )
 
     @app.post("/quick-shell/install-helper")
     def install_quick_shell():
         try:
-            install_quick_shell_helper(_quick_shell_bin(app), _app_root(app), Path(app.config["DATA_DIR"]))
+            install_quick_shell_helper(_quick_shell_bin(app), _app_root(app), _data_dir(app))
         except OSError as exc:
             flash(f"Quick Shell helper could not be installed: {exc}", "error")
             return redirect(url_for("quick_shell"))
@@ -262,6 +264,22 @@ def create_app() -> Flask:
             return redirect(url_for("quick_shell", path=parent_path))
         flash("Quick Shell entry created.", "success")
         return redirect(url_for("quick_shell", path=parent_path))
+
+    @app.get("/quick-shell/item/<item_path>/edit")
+    def edit_quick_shell_item(item_path: str):
+        data = read_quick_shell(_quick_shell_path(app))
+        try:
+            item = item_for_path(data, item_path)
+        except ValueError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("quick_shell"))
+        return render_template(
+            "quick_shell_edit.html",
+            item=item,
+            item_path=item_path,
+            parent_path=_quick_shell_parent_path(item_path),
+            entry_label=entry_label,
+        )
 
     @app.post("/quick-shell/item/<item_path>/update")
     def update_quick_shell_item(item_path: str):
@@ -788,8 +806,15 @@ def _notes_path(app: Flask) -> Path:
     return Path(app.config["DATA_DIR"]) / "service-notes.json"
 
 
+def _data_dir(app: Flask) -> Path:
+    data_dir = Path(app.config["DATA_DIR"])
+    if data_dir.is_absolute():
+        return data_dir
+    return _app_root(app) / data_dir
+
+
 def _quick_shell_path(app: Flask) -> Path:
-    return Path(app.config["DATA_DIR"]) / "quick-shell.json"
+    return _data_dir(app) / "quick-shell.json"
 
 
 def _quick_shell_bin(app: Flask) -> Path:
@@ -812,6 +837,15 @@ def _quick_shell_item_from_form() -> dict[str, object]:
         item["command"] = command
         item["confirm"] = request.form.get("confirm") == "1"
     return item
+
+
+def _quick_shell_category_options(data: dict[str, object]) -> list[dict[str, object]]:
+    options: list[dict[str, object]] = [{"path": "", "label": "Root menu", "depth": 0}]
+    for entry in flatten_entries(list(data.get("items") or [])):
+        if entry.item.get("type") != "category":
+            continue
+        options.append({"path": entry.path, "label": entry_label(entry.item), "depth": entry.depth + 1})
+    return options
 
 
 def _quick_shell_parent_path(item_path: str) -> str:

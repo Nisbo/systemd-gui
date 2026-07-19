@@ -22,6 +22,7 @@ class QuickShellHelperStatus:
     path: Path
     installed: bool
     executable: bool
+    ready: bool
     message: str
 
 
@@ -59,16 +60,32 @@ def write_quick_shell(path: Path, data: dict[str, Any]) -> None:
     path.write_text(json.dumps(normalize_tree(data), indent=2, sort_keys=False) + "\n", encoding="utf-8")
 
 
-def quick_shell_helper_status(path: Path) -> QuickShellHelperStatus:
+def quick_shell_helper_status(path: Path, app_root: Path | None = None, data_dir: Path | None = None) -> QuickShellHelperStatus:
     installed = path.exists()
     executable = installed and os.access(path, os.X_OK)
+    content = ""
+    if installed:
+        try:
+            content = path.read_text(encoding="utf-8")
+        except OSError:
+            content = ""
+    expected_root = f'export SYSTEMD_GUI_ROOT="{app_root}"' if app_root else ""
+    expected_data = f'export SYSTEMD_GUI_DATA_DIR="{data_dir}"' if data_dir else ""
+    matches_paths = bool(
+        installed
+        and (not expected_root or expected_root in content)
+        and (not expected_data or expected_data in content)
+    )
+    ready = bool(executable and matches_paths)
     if not installed:
         message = "Helper is not installed yet."
     elif not executable:
         message = "Helper exists but is not executable."
+    elif not matches_paths:
+        message = "Helper is installed but should be updated for the current app path."
     else:
         message = "Helper is installed."
-    return QuickShellHelperStatus(path=path, installed=installed, executable=executable, message=message)
+    return QuickShellHelperStatus(path=path, installed=installed, executable=executable, ready=ready, message=message)
 
 
 def install_quick_shell_helper(path: Path, app_root: Path, data_dir: Path) -> None:
