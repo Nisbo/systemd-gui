@@ -18,8 +18,8 @@
   <section class="panel">
     <div class="panel-head">
       <div>
-        <h2>{{ "Command" if item.type == "command" else "Category" }}</h2>
-        <p>{% if item.type == "command" %}Commands appear as selectable actions in <code>qs</code>.{% else %}Categories open another menu in <code>qs</code>.{% endif %}</p>
+        <h2>{% if item.type == "command" %}Command{% elif item.type == "sequence" %}Sequence{% else %}Category{% endif %}</h2>
+        <p>{% if item.type == "command" %}Commands appear as selectable actions in <code>qs</code>.{% elif item.type == "sequence" %}Sequences run multiple lines in a separate shell. Your normal shell returns unchanged afterward.{% else %}Categories open another menu in <code>qs</code>.{% endif %}</p>
       </div>
     </div>
 
@@ -28,9 +28,9 @@
       <input type="hidden" name="type" value="{{ item.type }}">
       <label>
         Name
-        <input name="name" value="{{ item.name }}" placeholder="{{ item.command if item.type == 'command' else 'Category name' }}">
-        {% if item.type == "command" %}
-          <span class="field-help">Leave empty to use the command as display name.</span>
+        <input name="name" value="{{ item.name }}" placeholder="{% if item.type == 'command' %}{{ item.command }}{% elif item.type == 'sequence' %}Sequence name{% else %}Category name{% endif %}">
+        {% if item.type in ["command", "sequence"] %}
+          <span class="field-help">Leave empty to use the first command as display name.</span>
         {% endif %}
       </label>
       {% if item.type == "command" %}
@@ -45,6 +45,28 @@
         <label class="toggle-label">
           <input type="checkbox" name="show_menu_after" value="1" {% if item.show_menu_after %}checked{% endif %}>
           <span>Show menu after command</span>
+        </label>
+      {% elif item.type == "sequence" %}
+        <label>
+          Commands
+          <textarea name="commands" rows="8" required>{{ item.commands }}</textarea>
+          <span class="field-help">One command per line. Empty lines and lines starting with <code>#</code> are skipped. Individual lines are not written to normal shell history; the <code>qs</code> call remains visible.</span>
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" name="confirm" value="1" {% if item.confirm is not defined or item.confirm %}checked{% endif %}>
+          <span>Ask before running sequence</span>
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" name="confirm_each" value="1" {% if item.confirm_each %}checked{% endif %}>
+          <span>Confirm each command / line</span>
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" name="stop_on_error" value="1" {% if item.stop_on_error is not defined or item.stop_on_error %}checked{% endif %}>
+          <span>Stop on first error</span>
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" name="show_menu_after" value="1" {% if item.show_menu_after %}checked{% endif %}>
+          <span>Show menu after sequence</span>
         </label>
       {% endif %}
       <label class="toggle-label">

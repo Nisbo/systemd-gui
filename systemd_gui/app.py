@@ -906,6 +906,15 @@ def _quick_shell_item_from_form() -> dict[str, object]:
     }
     if item_type == "category":
         item["items"] = []
+    elif item_type == "sequence":
+        commands = request.form.get("commands", "").strip()
+        if not any(line.strip() and not line.strip().startswith("#") for line in commands.splitlines()):
+            raise ValueError("Sequences need at least one command line.")
+        item["commands"] = commands
+        item["confirm"] = request.form.get("confirm") == "1"
+        item["confirm_each"] = request.form.get("confirm_each") == "1"
+        item["stop_on_error"] = request.form.get("stop_on_error") == "1"
+        item["show_menu_after"] = request.form.get("show_menu_after") == "1"
     else:
         command = request.form.get("command", "").strip()
         if not command:

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 
-ITEM_TYPES = {"category", "command"}
+ITEM_TYPES = {"category", "command", "sequence"}
 
 
 @dataclass
@@ -376,6 +376,12 @@ def normalize_item(item: dict[str, Any]) -> dict[str, Any]:
     if item_type == "category":
         children = item.get("items")
         normalized["items"] = [normalize_item(child) for child in children if isinstance(child, dict)] if isinstance(children, list) else []
+    elif item_type == "sequence":
+        normalized["commands"] = str(item.get("commands") or "").strip()
+        normalized["confirm"] = bool(item.get("confirm", True))
+        normalized["confirm_each"] = bool(item.get("confirm_each", False))
+        normalized["stop_on_error"] = bool(item.get("stop_on_error", True))
+        normalized["show_menu_after"] = bool(item.get("show_menu_after", False))
     else:
         normalized["command"] = str(item.get("command") or "").strip()
         normalized["confirm"] = bool(item.get("confirm", True))
@@ -387,6 +393,12 @@ def entry_label(item: dict[str, Any]) -> str:
     name = str(item.get("name") or "").strip()
     if name:
         return name
+    commands = str(item.get("commands") or "").strip()
+    if commands:
+        for line in commands.splitlines():
+            line = line.strip()
+            if line and not line.startswith("#"):
+                return line
     command = str(item.get("command") or "").strip()
     return command or "Unnamed entry"
 

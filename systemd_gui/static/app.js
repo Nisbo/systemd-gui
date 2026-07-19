@@ -173,12 +173,12 @@
     document.querySelectorAll("[data-quick-shell-add-modal],[data-quick-shell-edit-modal]").forEach((modalNode) => { modalNode.hidden = true; });
   };
   const setQuickShellAddType = (type) => {
-    const cleanType = type === "category" ? "category" : "command";
+    const cleanType = ["command", "category", "sequence"].includes(type) ? type : "command";
     quickShellAddTabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.quickShellAddTab === cleanType));
     quickShellAddPanels.forEach((panel) => {
       const active = panel.dataset.quickShellAddPanel === cleanType;
       panel.hidden = !active;
-      panel.querySelectorAll("input,select,button").forEach((control) => { control.disabled = !active; });
+      panel.querySelectorAll("input,select,textarea,button").forEach((control) => { control.disabled = !active; });
     });
   };
   setQuickShellAddType("command");

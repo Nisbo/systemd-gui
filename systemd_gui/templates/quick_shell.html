@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
   {% set add_tab = request.args.get("add", "command") %}
-  {% if add_tab not in ["command", "category"] %}
+  {% if add_tab not in ["command", "category", "sequence"] %}
     {% set add_tab = "command" %}
   {% endif %}
   {% set quick_tabs = [
@@ -31,7 +31,7 @@
       <div class="panel-head">
         <div>
           <h2>{{ entry_label(parent) if parent else "Root menu" }}</h2>
-          <p>Categories open another menu. Commands are shown as selectable shell actions.</p>
+          <p>Categories open another menu. Commands and sequences are shown as selectable shell actions.</p>
         </div>
         <button class="primary-button" type="button" data-quick-shell-add-open data-parent-path="{{ parent_path }}" data-entry-type="{{ add_tab }}">Add entry</button>
       </div>
@@ -66,13 +66,15 @@
                   <td>
                     {% if item.type == "command" %}
                       <code>{{ item.command }}</code>
+                    {% elif item.type == "sequence" %}
+                      <span class="empty-note">{{ item.commands.splitlines()|select|list|length }} lines in separate shell</span>
                     {% else %}
                       <span class="empty-note">{{ item["items"]|length }} entries</span>
                     {% endif %}
                   </td>
                   <td><span class="status-pill {{ '' if item.enabled else 'inactive' }}">{{ "Enabled" if item.enabled else "Disabled" }}</span></td>
                   <td>
-                    {% if item.type == "command" %}
+                    {% if item.type in ["command", "sequence"] %}
                       {{ "Show menu" if item.show_menu_after else "Exit" }}
                     {% else %}
                       <span class="empty-note">-</span>
@@ -124,13 +126,14 @@
         <div class="panel-head">
           <div>
             <h2 id="quick-shell-add-title">Add entry</h2>
-            <p>Add a command or category to the selected menu.</p>
+            <p>Add a command, sequence or category to the selected menu.</p>
           </div>
           <button class="ghost-button small-icon-button" type="button" data-quick-shell-modal-close aria-label="Close">×</button>
         </div>
 
         <nav class="settings-tabs" aria-label="Entry type">
           <button class="settings-tab" type="button" data-quick-shell-add-tab="command">Command</button>
+          <button class="settings-tab" type="button" data-quick-shell-add-tab="sequence">Sequence</button>
           <button class="settings-tab" type="button" data-quick-shell-add-tab="category">Category</button>
         </nav>
 
@@ -167,6 +170,52 @@
           </label>
           <div class="form-actions">
             <button class="primary-button" type="submit">Add command</button>
+            <button class="ghost-button" type="button" data-quick-shell-modal-close>Cancel</button>
+          </div>
+        </form>
+
+        <form class="form-grid single quick-shell-add-form" method="post" action="{{ url_for('create_quick_shell_item') }}" data-quick-shell-add-panel="sequence" hidden>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="type" value="sequence">
+          <label>
+            Parent category
+            <select name="parent_path" data-quick-shell-parent-select>
+              {% for option in category_options %}
+                <option value="{{ option.path }}" {% if option.path == parent_path %}selected{% endif %}>{{ "-- " * option.depth }}{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Name
+            <input name="name" placeholder="Update app">
+          </label>
+          <label>
+            Commands
+            <textarea name="commands" rows="7" placeholder="cd /opt/app&#10;git pull --ff-only&#10;systemctl restart app" required></textarea>
+            <span class="field-help">One command per line. Empty lines and lines starting with <code>#</code> are skipped. The sequence runs in a separate shell, so <code>cd</code> and variables work inside the sequence but your normal shell returns unchanged afterward. Individual lines are not added to normal shell history; the <code>qs</code> call remains visible.</span>
+          </label>
+          <label class="toggle-label">
+            <input type="checkbox" name="enabled" value="1" checked>
+            <span>Enabled</span>
+          </label>
+          <label class="toggle-label">
+            <input type="checkbox" name="confirm" value="1" checked>
+            <span>Ask before running sequence</span>
+          </label>
+          <label class="toggle-label">
+            <input type="checkbox" name="confirm_each" value="1">
+            <span>Confirm each command / line</span>
+          </label>
+          <label class="toggle-label">
+            <input type="checkbox" name="stop_on_error" value="1" checked>
+            <span>Stop on first error</span>
+          </label>
+          <label class="toggle-label">
+            <input type="checkbox" name="show_menu_after" value="1">
+            <span>Show menu after sequence</span>
+          </label>
+          <div class="form-actions">
+            <button class="primary-button" type="submit">Add sequence</button>
             <button class="ghost-button" type="button" data-quick-shell-modal-close>Cancel</button>
           </div>
         </form>
@@ -215,9 +264,9 @@
             <input type="hidden" name="type" value="{{ item.type }}">
             <label>
               Name
-              <input name="name" value="{{ item.name }}" placeholder="{{ item.command if item.type == 'command' else 'Category name' }}">
-              {% if item.type == "command" %}
-                <span class="field-help">Leave empty to use the command as display name.</span>
+              <input name="name" value="{{ item.name }}" placeholder="{% if item.type == 'command' %}{{ item.command }}{% elif item.type == 'sequence' %}Sequence name{% else %}Category name{% endif %}">
+              {% if item.type in ["command", "sequence"] %}
+                <span class="field-help">Leave empty to use the first command as display name.</span>
               {% endif %}
             </label>
             {% if item.type == "command" %}
@@ -232,6 +281,28 @@
               <label class="toggle-label">
                 <input type="checkbox" name="show_menu_after" value="1" {% if item.show_menu_after %}checked{% endif %}>
                 <span>Show menu after command</span>
+              </label>
+            {% elif item.type == "sequence" %}
+              <label>
+                Commands
+                <textarea name="commands" rows="7" required>{{ item.commands }}</textarea>
+                <span class="field-help">Runs in a separate shell. Individual lines are not written to normal shell history; the <code>qs</code> call remains visible.</span>
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" name="confirm" value="1" {% if item.confirm is not defined or item.confirm %}checked{% endif %}>
+                <span>Ask before running sequence</span>
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" name="confirm_each" value="1" {% if item.confirm_each %}checked{% endif %}>
+                <span>Confirm each command / line</span>
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" name="stop_on_error" value="1" {% if item.stop_on_error is not defined or item.stop_on_error %}checked{% endif %}>
+                <span>Stop on first error</span>
+              </label>
+              <label class="toggle-label">
+                <input type="checkbox" name="show_menu_after" value="1" {% if item.show_menu_after %}checked{% endif %}>
+                <span>Show menu after sequence</span>
               </label>
             {% endif %}
             <label class="toggle-label">
@@ -265,6 +336,8 @@
               {% endif %}
               {% if entry.item.type == "command" %}
                 <code>{{ entry.item.command }}</code>
+              {% elif entry.item.type == "sequence" %}
+                <code>{{ entry.item.commands.splitlines()|select|list|length }} sequence lines</code>
               {% endif %}
               {% if entry.shell_path %}
                 <span class="quick-shell-direct"><span>Direct</span> <code>qs {{ entry.shell_path }}</code></span>

@@ -8,6 +8,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -62,6 +63,10 @@ def _data_dir() -> Path:
 
 def _state_path() -> Path:
     return _data_dir() / "quick-shell-state.json"
+
+
+def _runs_path() -> Path:
+    return _data_dir() / "quick-shell-runs.json"
 
 
 def _load_helpers():
@@ -227,7 +232,28 @@ def _write_shell_action(path: Path, action: str) -> None:
 
 
 def _command_for_item(item) -> str:
+    if item.get("type") == "sequence":
+        return str(item.get("commands") or "").strip()
     return str(item.get("command") or "").strip()
+
+
+def _sequence_lines(item) -> list[str]:
+    lines: list[str] = []
+    for line in str(item.get("commands") or "").splitlines():
+        value = line.strip()
+        if value and not value.startswith("#"):
+            lines.append(value)
+    return lines
+
+
+def _item_name(item) -> str:
+    name = str(item.get("name") or "").strip()
+    if name:
+        return name
+    if item.get("type") == "sequence":
+        lines = _sequence_lines(item)
+        return lines[0] if lines else "Unnamed sequence"
+    return _command_for_item(item) or "Unnamed entry"
 
 
 def _print_command(item, styled: bool = True) -> int:
@@ -412,6 +438,37 @@ def _history_item(source: Path, command: str) -> dict:
     }
 
 
+def _read_sequence_statuses(path: Path) -> dict[int, str]:
+    statuses: dict[int, str] = {}
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return statuses
+    for line in lines:
+        parts = line.split("\t", 1)
+        if len(parts) != 2 or not parts[0].isdigit():
+            continue
+        statuses[int(parts[0])] = parts[1]
+    return statuses
+
+
+def _append_run_record(record: dict) -> None:
+    path = _runs_path()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        data = []
+    if not isinstance(data, list):
+        data = []
+    data.append(record)
+    data = data[-200:]
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    except OSError:
+        pass
+
+
 def _show_history_menu(settings: dict | None = None, shell_action_file: Path | None = None) -> int | None:
     raw_entries = _read_shell_history()
     show_unfiltered = False
@@ -533,6 +590,8 @@ def _command_shell(item) -> str | None:
 
 
 def _run_command(item, shell_action_file: Path | None = None) -> int:
+    if item.get("type") == "sequence":
+        return _run_sequence(item)
     command = _command_for_item(item)
     if not command:
         print(_error("This entry has no command."))
@@ -554,6 +613,102 @@ def _run_command(item, shell_action_file: Path | None = None) -> int:
     if result.returncode != 0:
         print()
         print(_error(f"Command finished with exit code {result.returncode}."))
+    return result.returncode
+
+
+def _run_sequence(item) -> int:
+    lines = _sequence_lines(item)
+    name = _item_name(item)
+    if not lines:
+        print(_error("This sequence has no command lines."))
+        return 1
+    confirm_each = bool(item.get("confirm_each", False))
+    if item.get("confirm", True) and not confirm_each:
+        answer = input(f'Run sequence "{name}" with {len(lines)} command line(s)? [Y/n] ').strip().lower()
+        if answer in {"n", "no"}:
+            print(_muted("Skipped."))
+            return 0
+
+    shell = _command_shell(item)
+    status_file = tempfile.NamedTemporaryFile(prefix="systemd-gui-qs-status-", delete=False)
+    status_path = Path(status_file.name)
+    status_file.close()
+    script_file = tempfile.NamedTemporaryFile("w", prefix="systemd-gui-qs-sequence-", suffix=".sh", delete=False, encoding="utf-8")
+    script_path = Path(script_file.name)
+    started_at = datetime.now().isoformat(timespec="seconds")
+    try:
+        script_file.write("#!/usr/bin/env sh\n")
+        script_file.write(f'__qs_status_file={shlex.quote(str(status_path))}\n')
+        if item.get("confirm", True) and confirm_each:
+            confirm_prompt = f'Run sequence "{name}" with {len(lines)} command line(s)? [Y/n] '
+            script_file.write(f"printf '%s' {shlex.quote(confirm_prompt)}\n")
+            script_file.write("IFS= read -r __qs_answer\n")
+            script_file.write('case "$__qs_answer" in\n')
+            script_file.write("  n|N|no|NO) printf '%s\\n' 'Skipped.'; exit 0 ;;\n")
+            script_file.write("esac\n")
+        script_file.write("printf '\\n'\n")
+        script_file.write(f"printf '%s\\n' {shlex.quote(f'Running sequence: {name}')}\n")
+        script_file.write(f"printf '%s\\n' {shlex.quote('Runs in a separate shell; your current shell returns unchanged afterward.')}\n")
+        for index, command in enumerate(lines, start=1):
+            label = f"[{index}/{len(lines)}] {command}"
+            script_file.write("printf '\\n'\n")
+            script_file.write(f"printf '%s\\n' {shlex.quote(label)}\n")
+            script_file.write("__qs_skip=0\n")
+            if confirm_each:
+                script_file.write("printf 'Run this line? [Y/n/s/e/q] '\n")
+                script_file.write("IFS= read -r __qs_answer\n")
+                script_file.write('case "$__qs_answer" in\n')
+                script_file.write("  n|N|no|NO|s|S|skip|SKIP) printf '%s\\n' 'Skipped.'; printf '%s\\tskipped\\n' " + shlex.quote(str(index)) + ' >> "$__qs_status_file"; __qs_skip=1 ;;\n')
+                script_file.write("  e|E|q|Q|exit|quit) printf '%s\\n' 'Sequence aborted.'; printf '%s\\taborted\\n' " + shlex.quote(str(index)) + ' >> "$__qs_status_file"; exit 130 ;;\n')
+                script_file.write("esac\n")
+            script_file.write('if [ "$__qs_skip" -eq 0 ]; then\n')
+            script_file.write(f"{command}\n")
+            script_file.write("__qs_status=$?\n")
+            script_file.write("printf '%s\\t%s\\n' " + shlex.quote(str(index)) + ' "$__qs_status" >> "$__qs_status_file"\n')
+            script_file.write('if [ "$__qs_status" -ne 0 ]; then\n')
+            script_file.write(f"  printf '%s\\n' {shlex.quote('Line failed with exit code')}\" $__qs_status.\"\n")
+            if item.get("stop_on_error", True):
+                script_file.write("  exit \"$__qs_status\"\n")
+            script_file.write("fi\n")
+            script_file.write("fi\n")
+        script_file.close()
+        script_path.chmod(0o700)
+        result = subprocess.run([shell or "/bin/sh", str(script_path)])
+        statuses = _read_sequence_statuses(status_path)
+    finally:
+        try:
+            script_file.close()
+        except OSError:
+            pass
+        try:
+            script_path.unlink()
+        except OSError:
+            pass
+        try:
+            status_path.unlink()
+        except OSError:
+            pass
+
+    ended_at = datetime.now().isoformat(timespec="seconds")
+    _append_run_record(
+        {
+            "type": "sequence",
+            "name": name,
+            "started_at": started_at,
+            "ended_at": ended_at,
+            "exit_code": result.returncode,
+            "shell": shell or "/bin/sh",
+            "confirm_each": confirm_each,
+            "stop_on_error": bool(item.get("stop_on_error", True)),
+            "lines": [
+                {"number": index, "command": command, "status": statuses.get(index, "not-run")}
+                for index, command in enumerate(lines, start=1)
+            ],
+        }
+    )
+    if result.returncode != 0:
+        print()
+        print(_error(f"Sequence finished with exit code {result.returncode}."))
     return result.returncode
 
 
