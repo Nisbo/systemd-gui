@@ -40,6 +40,14 @@ class ShellIntegrationStatus:
     message: str
 
 
+@dataclass
+class BashHistoryTimestampStatus:
+    target: Path
+    installed: bool
+    message: str
+    refresh_command: str
+
+
 SHELL_INTEGRATIONS = {
     "bash": {
         "label": "bash / sh",
@@ -58,10 +66,20 @@ SHELL_INTEGRATIONS = {
 }
 INTEGRATION_BEGIN_TEMPLATE = "# >>> systemd-gui quick shell:{shell_id} >>>"
 INTEGRATION_END_TEMPLATE = "# <<< systemd-gui quick shell:{shell_id} <<<"
+BASH_HISTORY_TIMESTAMP_TARGET = Path("/etc/profile.d/systemd-gui-history-time.sh")
+BASH_HISTORY_TIMESTAMP_CONTENT = "\n".join(
+    [
+        "# Managed by systemd-gui.",
+        '# Enables timestamps for future bash history entries used by "qs" Shell history.',
+        'export HISTTIMEFORMAT="%F %T "',
+        "",
+    ]
+)
 
 
 def default_quick_shell() -> dict[str, Any]:
     return {
+        "settings": default_quick_shell_settings(),
         "items": [
             {
                 "type": "category",
@@ -79,6 +97,13 @@ def default_quick_shell() -> dict[str, Any]:
                 ],
             }
         ]
+    }
+
+
+def default_quick_shell_settings() -> dict[str, Any]:
+    return {
+        "history_limit": 80,
+        "history_show_timestamps": True,
     }
 
 
@@ -163,6 +188,37 @@ def shell_integration_statuses(helper_path: Path) -> list[ShellIntegrationStatus
             )
         )
     return statuses
+
+
+def bash_history_timestamp_status() -> BashHistoryTimestampStatus:
+    installed = _read_text(BASH_HISTORY_TIMESTAMP_TARGET) == BASH_HISTORY_TIMESTAMP_CONTENT
+    if installed:
+        message = "Bash history timestamps are enabled for new shells."
+    elif BASH_HISTORY_TIMESTAMP_TARGET.exists():
+        message = "Timestamp file exists but should be updated."
+    else:
+        message = "Bash history timestamps are not enabled by Systemd Gui."
+    return BashHistoryTimestampStatus(
+        target=BASH_HISTORY_TIMESTAMP_TARGET,
+        installed=installed,
+        message=message,
+        refresh_command=f"source {BASH_HISTORY_TIMESTAMP_TARGET}",
+    )
+
+
+def install_bash_history_timestamps() -> Path:
+    BASH_HISTORY_TIMESTAMP_TARGET.parent.mkdir(parents=True, exist_ok=True)
+    BASH_HISTORY_TIMESTAMP_TARGET.write_text(BASH_HISTORY_TIMESTAMP_CONTENT, encoding="utf-8")
+    return BASH_HISTORY_TIMESTAMP_TARGET
+
+
+def remove_bash_history_timestamps() -> Path:
+    if _read_text(BASH_HISTORY_TIMESTAMP_TARGET) == BASH_HISTORY_TIMESTAMP_CONTENT:
+        try:
+            BASH_HISTORY_TIMESTAMP_TARGET.unlink()
+        except FileNotFoundError:
+            pass
+    return BASH_HISTORY_TIMESTAMP_TARGET
 
 
 def install_shell_integration(shell_id: str, helper_path: Path) -> Path:
@@ -282,7 +338,25 @@ def normalize_tree(data: Any) -> dict[str, Any]:
     items = data.get("items")
     if not isinstance(items, list):
         items = []
-    return {"items": [normalize_item(item) for item in items if isinstance(item, dict)]}
+    return {
+        "settings": normalize_settings(data.get("settings") if isinstance(data, dict) else {}),
+        "items": [normalize_item(item) for item in items if isinstance(item, dict)],
+    }
+
+
+def normalize_settings(settings: Any) -> dict[str, Any]:
+    defaults = default_quick_shell_settings()
+    if not isinstance(settings, dict):
+        settings = {}
+    try:
+        history_limit = int(settings.get("history_limit", defaults["history_limit"]))
+    except (TypeError, ValueError):
+        history_limit = int(defaults["history_limit"])
+    history_limit = max(10, min(history_limit, 500))
+    return {
+        "history_limit": history_limit,
+        "history_show_timestamps": bool(settings.get("history_show_timestamps", defaults["history_show_timestamps"])),
+    }
 
 
 def normalize_item(item: dict[str, Any]) -> dict[str, Any]:

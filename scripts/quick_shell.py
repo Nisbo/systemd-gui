@@ -8,7 +8,6 @@ import shlex
 import shutil
 import subprocess
 import sys
-from collections import deque
 from datetime import datetime
 from pathlib import Path
 
@@ -327,11 +326,23 @@ def _history_shell(source: Path) -> str | None:
     return None
 
 
-def _history_display_limit() -> int:
+def _history_display_limit(settings: dict | None = None) -> int:
+    if settings:
+        try:
+            configured = int(settings.get("history_limit", 80))
+        except (TypeError, ValueError):
+            configured = 80
+        return max(10, min(configured, 500))
     value = os.environ.get("SYSTEMD_GUI_QS_HISTORY_LIMIT", "").strip()
     if value.isdigit() and int(value) > 0:
         return int(value)
     return 80
+
+
+def _history_show_timestamps(settings: dict | None = None) -> bool:
+    if settings and "history_show_timestamps" in settings:
+        return bool(settings.get("history_show_timestamps"))
+    return True
 
 
 def _parse_timestamp(value: str) -> int | None:
@@ -340,9 +351,8 @@ def _parse_timestamp(value: str) -> int | None:
     return None
 
 
-def _read_shell_history(limit: int | None = None) -> list[tuple[Path, str, int | None]]:
-    display_limit = limit or _history_display_limit()
-    entries: deque[tuple[Path, str, int | None]] = deque(maxlen=max(display_limit * 3, display_limit))
+def _read_shell_history() -> list[tuple[Path, str, int | None]]:
+    entries: list[tuple[Path, str, int | None]] = []
     for source in _history_candidates():
         try:
             lines = source.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -366,7 +376,7 @@ def _read_shell_history(limit: int | None = None) -> list[tuple[Path, str, int |
     return list(reversed(entries))
 
 
-def _compact_history(entries: list[tuple[Path, str, int | None]], limit: int | None = None) -> list[tuple[Path, str, int | None, int]]:
+def _compact_history(entries: list[tuple[Path, str, int | None]]) -> list[tuple[Path, str, int | None, int]]:
     compacted: list[tuple[Path, str, int | None, int]] = []
     for source, command, timestamp in entries:
         if compacted and compacted[-1][1] == command:
@@ -374,11 +384,11 @@ def _compact_history(entries: list[tuple[Path, str, int | None]], limit: int | N
             compacted[-1] = (previous_source, previous_command, previous_timestamp, previous_count + 1)
             continue
         compacted.append((source, command, timestamp, 1))
-    return compacted[: limit or _history_display_limit()]
+    return compacted
 
 
-def _raw_history(entries: list[tuple[Path, str, int | None]], limit: int | None = None) -> list[tuple[Path, str, int | None, int]]:
-    return [(source, command, timestamp, 1) for source, command, timestamp in entries[: limit or _history_display_limit()]]
+def _raw_history(entries: list[tuple[Path, str, int | None]]) -> list[tuple[Path, str, int | None, int]]:
+    return [(source, command, timestamp, 1) for source, command, timestamp in entries]
 
 
 def _format_history_time(timestamp: int | None) -> str:
@@ -402,11 +412,18 @@ def _history_item(source: Path, command: str) -> dict:
     }
 
 
-def _show_history_menu(shell_action_file: Path | None = None) -> int | None:
+def _show_history_menu(settings: dict | None = None, shell_action_file: Path | None = None) -> int | None:
     raw_entries = _read_shell_history()
     show_unfiltered = False
+    page = 0
     while True:
         entries = _raw_history(raw_entries) if show_unfiltered else _compact_history(raw_entries)
+        page_size = _history_display_limit(settings)
+        show_timestamps = _history_show_timestamps(settings)
+        total_pages = max(1, (len(entries) + page_size - 1) // page_size)
+        page = max(0, min(page, total_pages - 1))
+        page_start = page * page_size
+        page_entries = entries[page_start:page_start + page_size]
         print()
         title = "Quick Shell / Shell history"
         print(_heading(title, "blue"))
@@ -415,14 +432,23 @@ def _show_history_menu(shell_action_file: Path | None = None) -> int | None:
             print(_muted("No readable shell history file was found for this user."))
             print(_muted("Some shells write history only after logout or after running history -a."))
         elif show_unfiltered:
-            print(_muted("Newest readable entries for the current server user, including repeated commands. Time is shown when the shell saved it."))
+            timestamp_note = " Time is shown when the shell saved it." if show_timestamps else ""
+            print(_muted(f"Newest readable entries for the current server user, including repeated commands.{timestamp_note}"))
         else:
-            print(_muted("Newest readable entries for the current server user. Consecutive duplicates are collapsed. Time is shown when the shell saved it."))
-        for index, (source, command, timestamp, count) in enumerate(entries, start=1):
-            number = _style(str(index), "bold")
+            timestamp_note = " Time is shown when the shell saved it." if show_timestamps else ""
+            print(_muted(f"Newest readable entries for the current server user. Consecutive duplicates are collapsed.{timestamp_note}"))
+        if entries:
+            print(_muted(f"Page {page + 1}/{total_pages}. Showing {page_start + 1}-{page_start + len(page_entries)} of {len(entries)}."))
+        for offset, (source, command, timestamp, count) in enumerate(page_entries):
+            number_value = page_start + offset + 1
+            number = _style(str(number_value), "bold")
             repeat = f" {_style(f'x{count}', 'yellow')}" if count > 1 else ""
-            history_time = _muted(_format_history_time(timestamp))
-            print(f"{number} {_muted(source.name)} {history_time} {command}{repeat}")
+            history_time = f"{_muted(_format_history_time(timestamp))} " if show_timestamps else ""
+            print(f"{number} {_muted(source.name)} {history_time}{command}{repeat}")
+        if page > 0:
+            print(f"{_style('p', 'yellow')} Previous page")
+        if page + 1 < total_pages:
+            print(f"{_style('n', 'yellow')} Next page")
         if raw_entries:
             toggle_label = "Hide repeated commands" if show_unfiltered else "Show unfiltered history"
             print(f"{_style('u', 'yellow')} {toggle_label}")
@@ -430,13 +456,20 @@ def _show_history_menu(shell_action_file: Path | None = None) -> int | None:
         print(f"{_style('q', 'yellow')} Quit")
         print(_muted("Tip: p2 means print history item 2. c2 means copy history item 2 when a clipboard tool is available."))
 
-        choice = input("Choose (number/pN/cN/u/b/q): ").strip().lower()
+        choice = input("Choose (number/pN/cN/n/p/u/b/q): ").strip().lower()
         if choice == "q":
             return 0
         if choice == "b":
             return None
+        if choice == "n" and page + 1 < total_pages:
+            page += 1
+            continue
+        if choice == "p" and page > 0:
+            page -= 1
+            continue
         if choice == "u" and raw_entries:
             show_unfiltered = not show_unfiltered
+            page = 0
             continue
         prefixed_choice = _parse_prefixed_choice(choice)
         if prefixed_choice:
@@ -452,7 +485,7 @@ def _show_history_menu(shell_action_file: Path | None = None) -> int | None:
                 return result_code
             continue
         if not choice.isdigit():
-            print(_error("Please enter a number, pN, cN, u, b or q."))
+            print(_error("Please enter a number, pN, cN, n, p, u, b or q."))
             continue
         selected_index = int(choice) - 1
         if selected_index < 0 or selected_index >= len(entries):
@@ -609,7 +642,7 @@ def main() -> int:
         if choice == "q":
             return 0
         if choice == "s":
-            result_code = _show_history_menu(shell_action_file)
+            result_code = _show_history_menu(data.get("settings") or {}, shell_action_file)
             if result_code is not None:
                 return result_code
             continue

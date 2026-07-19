@@ -13,10 +13,12 @@ from flask import Flask, Response, flash, redirect, render_template, request, se
 
 from .quick_shell import (
     add_item,
+    bash_history_timestamp_status,
     children_for_path,
     delete_item,
     entry_label,
     flatten_entries,
+    install_bash_history_timestamps,
     install_quick_shell_helper,
     install_shell_integration,
     item_for_path,
@@ -24,6 +26,7 @@ from .quick_shell import (
     move_item_to_position,
     quick_shell_helper_status,
     read_quick_shell,
+    remove_bash_history_timestamps,
     remove_shell_integration,
     shell_integration_statuses,
     update_item,
@@ -247,9 +250,26 @@ def create_app() -> Flask:
             category_options=_quick_shell_category_options(data),
             helper_status=quick_shell_helper_status(_quick_shell_bin(app), _app_root(app), _data_dir(app)),
             shell_integrations=shell_integration_statuses(_quick_shell_bin(app)),
+            bash_history_status=bash_history_timestamp_status(),
+            quick_shell_settings=data.get("settings") or {},
             quick_shell_path=_quick_shell_path(app),
             entry_label=entry_label,
         )
+
+    @app.post("/quick-shell/settings")
+    def update_quick_shell_settings():
+        data = read_quick_shell(_quick_shell_path(app))
+        try:
+            history_limit = int(request.form.get("history_limit", "80"))
+        except ValueError:
+            history_limit = 80
+        data["settings"] = {
+            "history_limit": history_limit,
+            "history_show_timestamps": request.form.get("history_show_timestamps") == "1",
+        }
+        write_quick_shell(_quick_shell_path(app), data)
+        flash("Quick Shell settings saved.", "success")
+        return redirect(url_for("quick_shell", tab="setup"))
 
     @app.post("/quick-shell/install-helper")
     def install_quick_shell():
@@ -280,6 +300,26 @@ def create_app() -> Flask:
             flash(f"Shell integration could not be removed: {exc}", "error")
             return redirect(url_for("quick_shell", tab="setup"))
         flash(f"Shell integration removed from {target}. Open a new shell for the change to take effect.", "success")
+        return redirect(url_for("quick_shell", tab="setup"))
+
+    @app.post("/quick-shell/bash-history-timestamps/install")
+    def install_quick_shell_bash_history_timestamps():
+        try:
+            target = install_bash_history_timestamps()
+        except OSError as exc:
+            flash(f"Bash history timestamps could not be enabled: {exc}", "error")
+            return redirect(url_for("quick_shell", tab="setup"))
+        flash(f"Bash history timestamps enabled in {target}. Open a new bash shell or source the file.", "success")
+        return redirect(url_for("quick_shell", tab="setup"))
+
+    @app.post("/quick-shell/bash-history-timestamps/remove")
+    def remove_quick_shell_bash_history_timestamps():
+        try:
+            target = remove_bash_history_timestamps()
+        except OSError as exc:
+            flash(f"Bash history timestamps could not be removed: {exc}", "error")
+            return redirect(url_for("quick_shell", tab="setup"))
+        flash(f"Bash history timestamp file removed from {target}. Open a new bash shell for the change to take effect.", "success")
         return redirect(url_for("quick_shell", tab="setup"))
 
     @app.post("/quick-shell/item")
