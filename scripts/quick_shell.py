@@ -11,6 +11,46 @@ import sys
 from pathlib import Path
 
 
+COLORS = {
+    "reset": "\033[0m",
+    "bold": "\033[1m",
+    "dim": "\033[2m",
+    "green": "\033[32m",
+    "cyan": "\033[36m",
+    "blue": "\033[34m",
+    "yellow": "\033[33m",
+    "red": "\033[31m",
+}
+
+
+def _use_color() -> bool:
+    color_setting = os.environ.get("SYSTEMD_GUI_QS_COLOR", "").lower()
+    if color_setting in {"1", "true", "yes", "on"}:
+        return True
+    if color_setting in {"0", "false", "no", "off"} or os.environ.get("NO_COLOR"):
+        return False
+    return sys.stdout.isatty()
+
+
+def _style(value: str, *names: str) -> str:
+    if not _use_color():
+        return value
+    prefix = "".join(COLORS[name] for name in names if name in COLORS)
+    return f"{prefix}{value}{COLORS['reset']}" if prefix else value
+
+
+def _heading(value: str, color: str = "green") -> str:
+    return _style(value, "bold", color)
+
+
+def _muted(value: str) -> str:
+    return _style(value, "dim")
+
+
+def _error(value: str) -> str:
+    return _style(value, "red")
+
+
 def _app_root() -> Path:
     return Path(os.environ.get("SYSTEMD_GUI_ROOT") or Path(__file__).resolve().parents[1])
 
@@ -79,7 +119,7 @@ def _parse_direct_path(args: list[str]) -> list[int]:
 
 
 def _print_debug(args: list[str], shell_action_file: Path | None) -> int:
-    print("Quick Shell debug")
+    print(_heading("Quick Shell debug", "blue"))
     print(f"script: {Path(__file__).resolve()}")
     print(f"app root: {_app_root()}")
     print(f"data dir: {_data_dir()}")
@@ -90,7 +130,7 @@ def _print_debug(args: list[str], shell_action_file: Path | None) -> int:
     try:
         direct_path = _parse_direct_path(args)
     except ValueError as exc:
-        print(f"direct path: invalid ({exc})")
+        print(f"direct path: {_error(f'invalid ({exc})')}")
     else:
         print(f"direct path: {direct_path or '-'}")
     return 0
@@ -163,19 +203,22 @@ def _command_for_item(item) -> str:
     return str(item.get("command") or "").strip()
 
 
-def _print_command(item) -> int:
+def _print_command(item, styled: bool = True) -> int:
     if item.get("type") == "category":
-        print("Categories do not have a command to print. Select a command inside the category.")
+        print(_error("Categories do not have a command to print. Select a command inside the category."))
         return 1
     command = _command_for_item(item)
     if not command:
-        print("This entry has no command.")
+        print(_error("This entry has no command."))
         return 1
-    print()
-    print("Print")
-    print("=====")
-    print(command)
-    print()
+    if styled:
+        print()
+        print(_heading("Print", "blue"))
+        print(_style("=====", "blue"))
+        print(command)
+        print()
+    else:
+        print(command)
     return 0
 
 
@@ -200,23 +243,23 @@ def _copy_to_clipboard(value: str) -> bool:
 
 def _copy_command(item) -> int:
     if item.get("type") == "category":
-        print("Categories do not have a command to copy. Select a command inside the category.")
+        print(_error("Categories do not have a command to copy. Select a command inside the category."))
         return 1
     command = _command_for_item(item)
     if not command:
-        print("This entry has no command.")
+        print(_error("This entry has no command."))
         return 1
     if _copy_to_clipboard(command):
         print()
-        print("Copy")
-        print("====")
-        print("Command copied to clipboard.")
+        print(_heading("Copy", "green"))
+        print(_style("====", "green"))
+        print(_style("Command copied to clipboard.", "green"))
         print()
         return 0
     print()
-    print("Copy")
-    print("====")
-    print("Clipboard tool not available. Use print instead.")
+    print(_heading("Copy", "yellow"))
+    print(_style("====", "yellow"))
+    print(_style("Clipboard tool not available. Use print instead.", "yellow"))
     print(command)
     print()
     return 2
@@ -225,17 +268,17 @@ def _copy_command(item) -> int:
 def _run_command(item, shell_action_file: Path | None = None) -> int:
     command = _command_for_item(item)
     if not command:
-        print("This entry has no command.")
+        print(_error("This entry has no command."))
         return 1
     if item.get("confirm", True):
         answer = input(f'Run "{command}"? [y/N] ').strip().lower()
         if answer not in {"y", "yes"}:
-            print("Skipped.")
+            print(_muted("Skipped."))
             return 0
     cd_target = _parse_cd_target(command)
     if cd_target is not None:
         if shell_action_file is None:
-            print("This cd command needs Shell Integration. Install it from the Quick Shell page and open a new shell.")
+            print(_error("This cd command needs Shell Integration. Install it from the Quick Shell page and open a new shell."))
             return 2
         _write_shell_action(shell_action_file, f"cd {shlex.quote(str(cd_target))}")
         return 0
@@ -243,7 +286,7 @@ def _run_command(item, shell_action_file: Path | None = None) -> int:
     result = subprocess.run(command, shell=True)
     if result.returncode != 0:
         print()
-        print(f"Command finished with exit code {result.returncode}.")
+        print(_error(f"Command finished with exit code {result.returncode}."))
     return result.returncode
 
 
@@ -270,10 +313,10 @@ def main() -> int:
     try:
         direct_path = _parse_direct_path(args)
     except ValueError as exc:
-        print(exc, file=sys.stderr)
+        print(_error(str(exc)), file=sys.stderr)
         return 2
     if output_mode != "run" and not direct_path:
-        print("Print/copy needs a menu path, for example: qs --print 1-2", file=sys.stderr)
+        print(_error("Print/copy needs a menu path, for example: qs --print 1-2"), file=sys.stderr)
         return 2
 
     entry_label, read_quick_shell = _load_helpers()
@@ -287,10 +330,10 @@ def main() -> int:
         try:
             item, stack = _select_direct_path(items, direct_path, entry_label)
         except ValueError as exc:
-            print(exc, file=sys.stderr)
+            print(_error(str(exc)), file=sys.stderr)
             return 1
         if output_mode == "print":
-            return _print_command(item)
+            return _print_command(item, styled=False)
         if output_mode == "copy":
             return _copy_command(item)
         if item.get("type") == "category":
@@ -322,18 +365,22 @@ def main() -> int:
         _write_resume_path(path_stack[-1])
         current_items = _enabled_items(menu_stack[-1])
         print()
-        print(_menu_title(stack))
-        print("=" * len(_menu_title(stack)))
+        title = _menu_title(stack)
+        print(_heading(title, "green"))
+        print(_style("=" * len(title), "green"))
         if not current_items:
-            print("No active entries in this menu.")
+            print(_muted("No active entries in this menu."))
         for index, item in enumerate(current_items, start=1):
             label = entry_label(item)
-            suffix = "/" if item.get("type") == "category" else ""
-            print(f"{index} {label}{suffix}")
+            number = _style(str(index), "bold")
+            if item.get("type") == "category":
+                print(f"{number} {_style(label + '/', 'cyan')}")
+            else:
+                print(f"{number} {label}")
         if len(menu_stack) > 1:
-            print("b Back")
-        print("q Quit")
-        print("Tip: p2 means print item 2. c2 means copy item 2 when a clipboard tool is available.")
+            print(f"{_style('b', 'yellow')} Back")
+        print(f"{_style('q', 'yellow')} Quit")
+        print(_muted("Tip: p2 means print item 2. c2 means copy item 2 when a clipboard tool is available."))
 
         choice = _prompt_choice(len(current_items), len(menu_stack) > 1)
         if choice == "q":
@@ -348,7 +395,7 @@ def main() -> int:
             action, number = prefixed_choice
             selected_index = number - 1
             if selected_index < 0 or selected_index >= len(current_items):
-                print("That number is not in the menu.")
+                print(_error("That number is not in the menu."))
                 continue
             item = current_items[selected_index]
             result_code = _print_command(item) if action == "print" else _copy_command(item)
@@ -356,11 +403,11 @@ def main() -> int:
                 return result_code
             continue
         if not choice.isdigit():
-            print("Please enter a number, pN, cN, b or q.")
+            print(_error("Please enter a number, pN, cN, b or q."))
             continue
         selected_index = int(choice) - 1
         if selected_index < 0 or selected_index >= len(current_items):
-            print("That number is not in the menu.")
+            print(_error("That number is not in the menu."))
             continue
         item = current_items[selected_index]
         label = entry_label(item)
