@@ -201,6 +201,11 @@
             <div class="quick-shell-tree-item" style="--depth: {{ entry.depth }}">
               <span class="tag {{ 'override' if entry.item.type == 'category' else 'neutral' }}">{{ entry.item.type }}</span>
               <strong>{{ entry_label(entry.item) }}</strong>
+              {% if entry.shell_path %}
+                <span class="quick-shell-direct"><span>Direct</span> <code>qs {{ entry.shell_path }}</code></span>
+              {% else %}
+                <span class="empty-note">No direct access</span>
+              {% endif %}
               {% if not entry.item.enabled %}
                 <span class="status-pill inactive">Disabled</span>
               {% endif %}

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import importlib.util
 import shlex
 import subprocess
 import sys
@@ -18,11 +19,15 @@ def _data_dir() -> Path:
 
 def _load_helpers():
     root = _app_root()
-    if str(root) not in sys.path:
-        sys.path.insert(0, str(root))
-    from systemd_gui.quick_shell import entry_label, read_quick_shell
-
-    return entry_label, read_quick_shell
+    module_path = root / "systemd_gui" / "quick_shell.py"
+    module_name = "systemd_gui_quick_shell_helpers"
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Cannot load Quick Shell helpers from {module_path}.")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module.entry_label, module.read_quick_shell
 
 
 def _enabled_items(items):
@@ -41,6 +46,45 @@ def _prompt_choice(max_number: int, can_go_back: bool) -> str:
         hints.append("b")
     hints.append("q")
     return input(f"Choose ({'/'.join(hints)}): ").strip().lower()
+
+
+def _parse_direct_path(args: list[str]) -> list[int]:
+    numbers: list[int] = []
+    for arg in args:
+        parts = arg.split("-")
+        if any(not part.isdigit() for part in parts):
+            raise ValueError(f'Invalid selection "{arg}". Use numbers like "qs 1 5" or "qs 1-5".')
+        for part in parts:
+            number = int(part)
+            if number < 1:
+                raise ValueError("Menu numbers start at 1.")
+            numbers.append(number)
+    return numbers
+
+
+def _menu_name(stack: list[str]) -> str:
+    return " / ".join(stack) if stack else "root menu"
+
+
+def _select_direct_path(items: list[dict], numbers: list[int], entry_label):
+    current_items = items
+    stack: list[str] = []
+    for depth, number in enumerate(numbers, start=1):
+        enabled = _enabled_items(current_items)
+        if not enabled:
+            raise ValueError(f"The {_menu_name(stack)} has no active entries.")
+        if number > len(enabled):
+            raise ValueError(f"Menu number {number} is not available in {_menu_name(stack)}. Available range: 1-{len(enabled)}.")
+        item = enabled[number - 1]
+        label = entry_label(item)
+        if depth < len(numbers):
+            if item.get("type") != "category":
+                raise ValueError(f'"{label}" is a command, not a category. It cannot contain another number.')
+            stack.append(label)
+            current_items = list(item.get("items") or [])
+            continue
+        return item, stack
+    raise ValueError("No menu number was selected.")
 
 
 def _parse_cd_target(command: str) -> Path | None:
@@ -89,17 +133,40 @@ def _run_command(item, shell_action_file: Path | None = None) -> int:
 
 def main() -> int:
     shell_action_file = None
-    if len(sys.argv) == 3 and sys.argv[1] == "--shell-action-file":
-        shell_action_file = Path(sys.argv[2])
-    elif len(sys.argv) > 1:
-        print("Usage: qs", file=sys.stderr)
+    args = sys.argv[1:]
+    if args[:1] == ["--shell-action-file"]:
+        if len(args) < 2:
+            print("Usage: qs [--shell-action-file PATH] [NUMBER ...]", file=sys.stderr)
+            return 2
+        shell_action_file = Path(args[1])
+        args = args[2:]
+
+    try:
+        direct_path = _parse_direct_path(args)
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
         return 2
 
     entry_label, read_quick_shell = _load_helpers()
     data_path = _data_dir() / "quick-shell.json"
     data = read_quick_shell(data_path)
     items = data.get("items") or []
-    stack: list[str] = []
+    initial_stack: list[str] = []
+
+    if direct_path:
+        try:
+            item, stack = _select_direct_path(items, direct_path, entry_label)
+        except ValueError as exc:
+            print(exc, file=sys.stderr)
+            return 1
+        if item.get("type") == "category":
+            stack.append(entry_label(item))
+            items = list(item.get("items") or [])
+            initial_stack = stack
+        else:
+            return _run_command(item, shell_action_file)
+
+    stack = initial_stack
     menu_stack: list[list[dict]] = [items]
 
     while True:

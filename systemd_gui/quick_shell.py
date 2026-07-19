@@ -15,6 +15,7 @@ class QuickShellEntry:
     item: dict[str, Any]
     path: str
     depth: int
+    shell_path: str
 
 
 @dataclass
@@ -228,7 +229,7 @@ def _integration_block(shell_id: str, helper_path: Path) -> str:
             begin,
             "qs() {",
             '  __systemd_gui_qs_action_file="$(mktemp "${TMPDIR:-/tmp}/systemd-gui-qs.XXXXXX")" || return 1',
-            f"  {quoted_helper} --shell-action-file \"$__systemd_gui_qs_action_file\"",
+            f"  {quoted_helper} --shell-action-file \"$__systemd_gui_qs_action_file\" \"$@\"",
             "  __systemd_gui_qs_status=$?",
             '  if [ -s "$__systemd_gui_qs_action_file" ]; then',
             '    . "$__systemd_gui_qs_action_file"',
@@ -245,8 +246,7 @@ def _integration_block(shell_id: str, helper_path: Path) -> str:
 
 def _integration_block_installed(path: Path, shell_id: str, helper_path: Path) -> bool:
     content = _read_text(path)
-    begin = INTEGRATION_BEGIN_TEMPLATE.format(shell_id=shell_id)
-    return begin in content and str(helper_path) in content
+    return _integration_block(shell_id, helper_path) in content
 
 
 def _remove_integration_block(content: str, shell_id: str) -> str:
@@ -314,13 +314,33 @@ def entry_label(item: dict[str, Any]) -> str:
     return command or "Unnamed entry"
 
 
-def flatten_entries(items: list[dict[str, Any]], prefix: str = "", depth: int = 0) -> list[QuickShellEntry]:
+def flatten_entries(
+    items: list[dict[str, Any]],
+    prefix: str = "",
+    depth: int = 0,
+    shell_prefix: str = "",
+    ancestors_enabled: bool = True,
+) -> list[QuickShellEntry]:
     entries: list[QuickShellEntry] = []
+    enabled_number = 0
     for index, item in enumerate(items):
         path = f"{prefix}.{index}" if prefix else str(index)
-        entries.append(QuickShellEntry(item=item, path=path, depth=depth))
+        item_enabled = bool(item.get("enabled", True))
+        shell_path = ""
+        if ancestors_enabled and item_enabled:
+            enabled_number += 1
+            shell_path = f"{shell_prefix}-{enabled_number}" if shell_prefix else str(enabled_number)
+        entries.append(QuickShellEntry(item=item, path=path, depth=depth, shell_path=shell_path))
         if item.get("type") == "category":
-            entries.extend(flatten_entries(list(item.get("items") or []), path, depth + 1))
+            entries.extend(
+                flatten_entries(
+                    list(item.get("items") or []),
+                    path,
+                    depth + 1,
+                    shell_path,
+                    ancestors_enabled and item_enabled,
+                )
+            )
     return entries
 
 
