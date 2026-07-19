@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -42,6 +43,37 @@ def _prompt_choice(max_number: int, can_go_back: bool) -> str:
     return input(f"Choose ({'/'.join(hints)}): ").strip().lower()
 
 
+def _login_shell() -> str:
+    return os.environ.get("SHELL") or "/bin/sh"
+
+
+def _parse_cd_target(command: str) -> Path | None:
+    try:
+        parts = shlex.split(command)
+    except ValueError:
+        return None
+    if not parts or parts[0] != "cd" or len(parts) > 2:
+        return None
+    if len(parts) == 1:
+        return Path.home()
+    if parts[1] == "-":
+        oldpwd = os.environ.get("OLDPWD")
+        return Path(oldpwd) if oldpwd else None
+    return Path(parts[1]).expanduser()
+
+
+def _open_shell_in_directory(target: Path) -> int:
+    try:
+        os.chdir(target)
+    except OSError as exc:
+        print(f"Cannot change directory to {target}: {exc}")
+        return 1
+    shell = _login_shell()
+    print(f"Opening shell in {Path.cwd()}. Type exit to return.")
+    os.execvp(shell, [shell])
+    return 1
+
+
 def _run_command(item) -> int:
     command = str(item.get("command") or "").strip()
     if not command:
@@ -52,6 +84,9 @@ def _run_command(item) -> int:
         if answer not in {"y", "yes"}:
             print("Skipped.")
             return 0
+    cd_target = _parse_cd_target(command)
+    if cd_target is not None:
+        return _open_shell_in_directory(cd_target)
     print()
     result = subprocess.run(command, shell=True)
     if result.returncode != 0:

@@ -123,6 +123,10 @@ the local server shell. By default, `qs` exits after a command runs. Enable
 **Show menu after command** on individual commands when you want the menu to
 open again afterward.
 
+Simple directory commands such as `cd`, `cd /opt` and `cd ~/project` are treated
+specially: `qs` opens your shell in that directory. More complex shell commands
+run normally in a subprocess.
+
 Fresh installations create `/usr/local/bin/qs` automatically. If you added Quick
 Shell through a Git update, open **Quick Shell** in the web UI and use **Install
 or update helper** once.
