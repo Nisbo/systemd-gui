@@ -326,7 +326,7 @@ def _history_shell(source: Path) -> str | None:
     return None
 
 
-def _read_shell_history(limit: int = 80) -> list[tuple[Path, str]]:
+def _read_shell_history(limit: int = 200) -> list[tuple[Path, str]]:
     entries: deque[tuple[Path, str]] = deque(maxlen=limit)
     for source in _history_candidates():
         try:
@@ -338,6 +338,21 @@ def _read_shell_history(limit: int = 80) -> list[tuple[Path, str]]:
             if command:
                 entries.append((source, command))
     return list(reversed(entries))
+
+
+def _compact_history(entries: list[tuple[Path, str]], limit: int = 80) -> list[tuple[Path, str, int]]:
+    compacted: list[tuple[Path, str, int]] = []
+    for source, command in entries:
+        if compacted and compacted[-1][1] == command:
+            previous_source, previous_command, previous_count = compacted[-1]
+            compacted[-1] = (previous_source, previous_command, previous_count + 1)
+            continue
+        compacted.append((source, command, 1))
+    return compacted[:limit]
+
+
+def _raw_history(entries: list[tuple[Path, str]], limit: int = 80) -> list[tuple[Path, str, int]]:
+    return [(source, command, 1) for source, command in entries[:limit]]
 
 
 def _history_item(source: Path, command: str) -> dict:
@@ -353,8 +368,10 @@ def _history_item(source: Path, command: str) -> dict:
 
 
 def _show_history_menu(shell_action_file: Path | None = None) -> int | None:
-    entries = _read_shell_history()
+    raw_entries = _read_shell_history()
+    show_unfiltered = False
     while True:
+        entries = _raw_history(raw_entries) if show_unfiltered else _compact_history(raw_entries)
         print()
         title = "Quick Shell / Shell history"
         print(_heading(title, "blue"))
@@ -362,20 +379,29 @@ def _show_history_menu(shell_action_file: Path | None = None) -> int | None:
         if not entries:
             print(_muted("No readable shell history file was found for this user."))
             print(_muted("Some shells write history only after logout or after running history -a."))
+        elif show_unfiltered:
+            print(_muted("Newest readable entries for the current server user, including repeated commands."))
         else:
-            print(_muted("Newest readable entries for the current server user."))
-        for index, (source, command) in enumerate(entries, start=1):
+            print(_muted("Newest readable entries for the current server user. Consecutive duplicates are collapsed."))
+        for index, (source, command, count) in enumerate(entries, start=1):
             number = _style(str(index), "bold")
-            print(f"{number} {_muted(source.name)} {command}")
+            repeat = f" {_style(f'x{count}', 'yellow')}" if count > 1 else ""
+            print(f"{number} {_muted(source.name)} {command}{repeat}")
+        if raw_entries:
+            toggle_label = "Hide repeated commands" if show_unfiltered else "Show unfiltered history"
+            print(f"{_style('u', 'yellow')} {toggle_label}")
         print(f"{_style('b', 'yellow')} Back")
         print(f"{_style('q', 'yellow')} Quit")
         print(_muted("Tip: p2 means print history item 2. c2 means copy history item 2 when a clipboard tool is available."))
 
-        choice = input("Choose (number/pN/cN/b/q): ").strip().lower()
+        choice = input("Choose (number/pN/cN/u/b/q): ").strip().lower()
         if choice == "q":
             return 0
         if choice == "b":
             return None
+        if choice == "u" and raw_entries:
+            show_unfiltered = not show_unfiltered
+            continue
         prefixed_choice = _parse_prefixed_choice(choice)
         if prefixed_choice:
             action, number = prefixed_choice
@@ -383,19 +409,21 @@ def _show_history_menu(shell_action_file: Path | None = None) -> int | None:
             if selected_index < 0 or selected_index >= len(entries):
                 print(_error("That number is not in the history list."))
                 continue
-            item = _history_item(*entries[selected_index])
+            source, command, _count = entries[selected_index]
+            item = _history_item(source, command)
             result_code = _print_command(item) if action == "print" else _copy_command(item)
             if not item.get("show_menu_after", False):
                 return result_code
             continue
         if not choice.isdigit():
-            print(_error("Please enter a number, pN, cN, b or q."))
+            print(_error("Please enter a number, pN, cN, u, b or q."))
             continue
         selected_index = int(choice) - 1
         if selected_index < 0 or selected_index >= len(entries):
             print(_error("That number is not in the history list."))
             continue
-        return _run_command(_history_item(*entries[selected_index]), shell_action_file)
+        source, command, _count = entries[selected_index]
+        return _run_command(_history_item(source, command), shell_action_file)
 
 
 def _command_shell(item) -> str | None:
