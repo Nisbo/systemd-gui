@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 from collections import deque
+from datetime import datetime
 from pathlib import Path
 
 
@@ -326,33 +327,67 @@ def _history_shell(source: Path) -> str | None:
     return None
 
 
-def _read_shell_history(limit: int = 200) -> list[tuple[Path, str]]:
-    entries: deque[tuple[Path, str]] = deque(maxlen=limit)
+def _history_display_limit() -> int:
+    value = os.environ.get("SYSTEMD_GUI_QS_HISTORY_LIMIT", "").strip()
+    if value.isdigit() and int(value) > 0:
+        return int(value)
+    return 80
+
+
+def _parse_timestamp(value: str) -> int | None:
+    if value.isdigit():
+        return int(value)
+    return None
+
+
+def _read_shell_history(limit: int | None = None) -> list[tuple[Path, str, int | None]]:
+    display_limit = limit or _history_display_limit()
+    entries: deque[tuple[Path, str, int | None]] = deque(maxlen=max(display_limit * 3, display_limit))
     for source in _history_candidates():
         try:
             lines = source.read_text(encoding="utf-8", errors="replace").splitlines()
         except OSError:
             continue
+        pending_timestamp: int | None = None
         for line in lines:
+            if source.name == ".bash_history" and line.startswith("#") and line[1:].isdigit():
+                pending_timestamp = _parse_timestamp(line[1:])
+                continue
+            timestamp = pending_timestamp
+            if source.name == ".zsh_history" and line.startswith(": ") and ";" in line:
+                header, _command = line.split(";", 1)
+                parts = header.split(":")
+                if len(parts) >= 2:
+                    timestamp = _parse_timestamp(parts[1].strip())
             command = _history_command_from_line(line, source)
             if command:
-                entries.append((source, command))
+                entries.append((source, command, timestamp))
+            pending_timestamp = None
     return list(reversed(entries))
 
 
-def _compact_history(entries: list[tuple[Path, str]], limit: int = 80) -> list[tuple[Path, str, int]]:
-    compacted: list[tuple[Path, str, int]] = []
-    for source, command in entries:
+def _compact_history(entries: list[tuple[Path, str, int | None]], limit: int | None = None) -> list[tuple[Path, str, int | None, int]]:
+    compacted: list[tuple[Path, str, int | None, int]] = []
+    for source, command, timestamp in entries:
         if compacted and compacted[-1][1] == command:
-            previous_source, previous_command, previous_count = compacted[-1]
-            compacted[-1] = (previous_source, previous_command, previous_count + 1)
+            previous_source, previous_command, previous_timestamp, previous_count = compacted[-1]
+            compacted[-1] = (previous_source, previous_command, previous_timestamp, previous_count + 1)
             continue
-        compacted.append((source, command, 1))
-    return compacted[:limit]
+        compacted.append((source, command, timestamp, 1))
+    return compacted[: limit or _history_display_limit()]
 
 
-def _raw_history(entries: list[tuple[Path, str]], limit: int = 80) -> list[tuple[Path, str, int]]:
-    return [(source, command, 1) for source, command in entries[:limit]]
+def _raw_history(entries: list[tuple[Path, str, int | None]], limit: int | None = None) -> list[tuple[Path, str, int | None, int]]:
+    return [(source, command, timestamp, 1) for source, command, timestamp in entries[: limit or _history_display_limit()]]
+
+
+def _format_history_time(timestamp: int | None) -> str:
+    if timestamp is None:
+        return "-"
+    try:
+        return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+    except (OSError, OverflowError, ValueError):
+        return "-"
 
 
 def _history_item(source: Path, command: str) -> dict:
@@ -380,13 +415,14 @@ def _show_history_menu(shell_action_file: Path | None = None) -> int | None:
             print(_muted("No readable shell history file was found for this user."))
             print(_muted("Some shells write history only after logout or after running history -a."))
         elif show_unfiltered:
-            print(_muted("Newest readable entries for the current server user, including repeated commands."))
+            print(_muted("Newest readable entries for the current server user, including repeated commands. Time is shown when the shell saved it."))
         else:
-            print(_muted("Newest readable entries for the current server user. Consecutive duplicates are collapsed."))
-        for index, (source, command, count) in enumerate(entries, start=1):
+            print(_muted("Newest readable entries for the current server user. Consecutive duplicates are collapsed. Time is shown when the shell saved it."))
+        for index, (source, command, timestamp, count) in enumerate(entries, start=1):
             number = _style(str(index), "bold")
             repeat = f" {_style(f'x{count}', 'yellow')}" if count > 1 else ""
-            print(f"{number} {_muted(source.name)} {command}{repeat}")
+            history_time = _muted(_format_history_time(timestamp))
+            print(f"{number} {_muted(source.name)} {history_time} {command}{repeat}")
         if raw_entries:
             toggle_label = "Hide repeated commands" if show_unfiltered else "Show unfiltered history"
             print(f"{_style('u', 'yellow')} {toggle_label}")
@@ -409,7 +445,7 @@ def _show_history_menu(shell_action_file: Path | None = None) -> int | None:
             if selected_index < 0 or selected_index >= len(entries):
                 print(_error("That number is not in the history list."))
                 continue
-            source, command, _count = entries[selected_index]
+            source, command, _timestamp, _count = entries[selected_index]
             item = _history_item(source, command)
             result_code = _print_command(item) if action == "print" else _copy_command(item)
             if not item.get("show_menu_after", False):
@@ -422,7 +458,7 @@ def _show_history_menu(shell_action_file: Path | None = None) -> int | None:
         if selected_index < 0 or selected_index >= len(entries):
             print(_error("That number is not in the history list."))
             continue
-        source, command, _count = entries[selected_index]
+        source, command, _timestamp, _count = entries[selected_index]
         return _run_command(_history_item(source, command), shell_action_file)
 
 
