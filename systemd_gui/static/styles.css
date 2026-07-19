@@ -109,10 +109,12 @@ input,textarea,select { width:100%; border:1px solid var(--line); border-radius:
 .app-backup-table { margin-top:0; }
 .inline-actions { margin-top:0; }
 .quick-shell-table table { min-width:1080px; }
+.quick-shell-setup { gap:16px; }
 .quick-shell-helper { display:grid; grid-template-columns:minmax(0, 1fr) minmax(260px, .8fr) auto; gap:14px; align-items:end; }
 .quick-shell-helper p { margin-top:5px; }
 .quick-shell-helper-grid { margin:0; }
 .quick-shell-actions { min-width:260px; }
+.quick-shell-setup .quick-shell-actions { min-width:230px; }
 .quick-shell-add-form { align-items:end; margin-top:14px; }
 .quick-shell-tree { display:grid; gap:8px; }
 .quick-shell-tree-item { display:flex; align-items:center; gap:10px; flex-wrap:wrap; border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-left:calc(var(--depth) * 22px); }

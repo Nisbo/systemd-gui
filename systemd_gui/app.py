@@ -18,10 +18,13 @@ from .quick_shell import (
     entry_label,
     flatten_entries,
     install_quick_shell_helper,
+    install_shell_integration,
     item_for_path,
     move_item,
     quick_shell_helper_status,
     read_quick_shell,
+    remove_shell_integration,
+    shell_integration_statuses,
     update_item,
     write_quick_shell,
 )
@@ -238,6 +241,7 @@ def create_app() -> Flask:
             flat_entries=flatten_entries(data.get("items") or []),
             category_options=_quick_shell_category_options(data),
             helper_status=quick_shell_helper_status(_quick_shell_bin(app), _app_root(app), _data_dir(app)),
+            shell_integrations=shell_integration_statuses(_quick_shell_bin(app)),
             quick_shell_path=_quick_shell_path(app),
             entry_label=entry_label,
         )
@@ -250,6 +254,27 @@ def create_app() -> Flask:
             flash(f"Quick Shell helper could not be installed: {exc}", "error")
             return redirect(url_for("quick_shell"))
         flash(f"Quick Shell helper installed at {_quick_shell_bin(app)}.", "success")
+        return redirect(url_for("quick_shell"))
+
+    @app.post("/quick-shell/integration/<shell_id>/install")
+    def install_quick_shell_integration(shell_id: str):
+        try:
+            install_quick_shell_helper(_quick_shell_bin(app), _app_root(app), _data_dir(app))
+            target = install_shell_integration(shell_id, _quick_shell_bin(app))
+        except (OSError, ValueError) as exc:
+            flash(f"Shell integration could not be installed: {exc}", "error")
+            return redirect(url_for("quick_shell"))
+        flash(f"Shell integration installed in {target}. Open a new shell or source the file.", "success")
+        return redirect(url_for("quick_shell"))
+
+    @app.post("/quick-shell/integration/<shell_id>/remove")
+    def remove_quick_shell_integration(shell_id: str):
+        try:
+            target = remove_shell_integration(shell_id)
+        except (OSError, ValueError) as exc:
+            flash(f"Shell integration could not be removed: {exc}", "error")
+            return redirect(url_for("quick_shell"))
+        flash(f"Shell integration removed from {target}. Open a new shell for the change to take effect.", "success")
         return redirect(url_for("quick_shell"))
 
     @app.post("/quick-shell/item")

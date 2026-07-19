@@ -43,10 +43,6 @@ def _prompt_choice(max_number: int, can_go_back: bool) -> str:
     return input(f"Choose ({'/'.join(hints)}): ").strip().lower()
 
 
-def _login_shell() -> str:
-    return os.environ.get("SHELL") or "/bin/sh"
-
-
 def _parse_cd_target(command: str) -> Path | None:
     try:
         parts = shlex.split(command)
@@ -62,19 +58,11 @@ def _parse_cd_target(command: str) -> Path | None:
     return Path(parts[1]).expanduser()
 
 
-def _open_shell_in_directory(target: Path) -> int:
-    try:
-        os.chdir(target)
-    except OSError as exc:
-        print(f"Cannot change directory to {target}: {exc}")
-        return 1
-    shell = _login_shell()
-    print(f"Opening shell in {Path.cwd()}. Type exit to return.")
-    os.execvp(shell, [shell])
-    return 1
+def _write_shell_action(path: Path, action: str) -> None:
+    path.write_text(action + "\n", encoding="utf-8")
 
 
-def _run_command(item) -> int:
+def _run_command(item, shell_action_file: Path | None = None) -> int:
     command = str(item.get("command") or "").strip()
     if not command:
         print("This entry has no command.")
@@ -86,7 +74,11 @@ def _run_command(item) -> int:
             return 0
     cd_target = _parse_cd_target(command)
     if cd_target is not None:
-        return _open_shell_in_directory(cd_target)
+        if shell_action_file is None:
+            print("This cd command needs Shell Integration. Install it from the Quick Shell page and open a new shell.")
+            return 2
+        _write_shell_action(shell_action_file, f"cd {shlex.quote(str(cd_target))}")
+        return 0
     print()
     result = subprocess.run(command, shell=True)
     if result.returncode != 0:
@@ -96,6 +88,13 @@ def _run_command(item) -> int:
 
 
 def main() -> int:
+    shell_action_file = None
+    if len(sys.argv) == 3 and sys.argv[1] == "--shell-action-file":
+        shell_action_file = Path(sys.argv[2])
+    elif len(sys.argv) > 1:
+        print("Usage: qs", file=sys.stderr)
+        return 2
+
     entry_label, read_quick_shell = _load_helpers()
     data_path = _data_dir() / "quick-shell.json"
     data = read_quick_shell(data_path)
@@ -138,7 +137,7 @@ def main() -> int:
             stack.append(label)
             menu_stack.append(list(item.get("items") or []))
             continue
-        result_code = _run_command(item)
+        result_code = _run_command(item, shell_action_file)
         if not item.get("show_menu_after", False):
             return result_code
 

@@ -26,6 +26,36 @@ class QuickShellHelperStatus:
     message: str
 
 
+@dataclass
+class ShellIntegrationStatus:
+    shell_id: str
+    label: str
+    target: Path
+    detected: bool
+    installed: bool
+    supported: bool
+    description: str
+    message: str
+
+
+SHELL_INTEGRATIONS = {
+    "bash": {
+        "label": "bash / sh",
+        "names": {"bash", "sh", "dash"},
+        "target": Path("/etc/profile.d/systemd-gui-qs.sh"),
+        "description": "Loaded by many POSIX-style login shells, including bash on Debian.",
+    },
+    "zsh": {
+        "label": "zsh",
+        "names": {"zsh"},
+        "target": Path("/etc/zsh/zshrc"),
+        "description": "Loaded by interactive zsh sessions on Debian systems with zsh installed.",
+    },
+}
+INTEGRATION_BEGIN_TEMPLATE = "# >>> systemd-gui quick shell:{shell_id} >>>"
+INTEGRATION_END_TEMPLATE = "# <<< systemd-gui quick shell:{shell_id} <<<"
+
+
 def default_quick_shell() -> dict[str, Any]:
     return {
         "items": [
@@ -102,6 +132,146 @@ def install_quick_shell_helper(path: Path, app_root: Path, data_dir: Path) -> No
     )
     path.write_text(content, encoding="utf-8")
     path.chmod(0o755)
+
+
+def shell_integration_statuses(helper_path: Path) -> list[ShellIntegrationStatus]:
+    shell_names = _detected_shell_names()
+    statuses: list[ShellIntegrationStatus] = []
+    for shell_id, config in SHELL_INTEGRATIONS.items():
+        target = Path(config["target"])
+        detected = bool(shell_names.intersection(config["names"]))
+        installed = _integration_block_installed(target, shell_id, helper_path)
+        if installed:
+            message = "Integration is installed."
+        elif detected:
+            message = "Shell detected. Integration can be installed."
+        else:
+            message = "Shell was not detected on this system."
+        statuses.append(
+            ShellIntegrationStatus(
+                shell_id=shell_id,
+                label=str(config["label"]),
+                target=target,
+                detected=detected,
+                installed=installed,
+                supported=True,
+                description=str(config["description"]),
+                message=message,
+            )
+        )
+    return statuses
+
+
+def install_shell_integration(shell_id: str, helper_path: Path) -> Path:
+    config = _integration_config(shell_id)
+    target = Path(config["target"])
+    block = _integration_block(shell_id, helper_path)
+    existing = _remove_integration_block(_read_text(target), shell_id).rstrip()
+    next_content = f"{existing}\n\n{block}\n" if existing else f"{block}\n"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(next_content, encoding="utf-8")
+    return target
+
+
+def remove_shell_integration(shell_id: str) -> Path:
+    config = _integration_config(shell_id)
+    target = Path(config["target"])
+    next_content = _remove_integration_block(_read_text(target), shell_id)
+    if not next_content.strip() and target.name == "systemd-gui-qs.sh":
+        try:
+            target.unlink()
+        except FileNotFoundError:
+            pass
+    elif target.exists():
+        target.write_text(next_content, encoding="utf-8")
+    return target
+
+
+def _integration_config(shell_id: str) -> dict[str, object]:
+    if shell_id not in SHELL_INTEGRATIONS:
+        raise ValueError("Unsupported shell integration.")
+    return SHELL_INTEGRATIONS[shell_id]
+
+
+def _detected_shell_names() -> set[str]:
+    names: set[str] = set()
+    for path in [Path("/etc/shells")]:
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        for line in lines:
+            value = line.strip()
+            if value and not value.startswith("#"):
+                names.add(Path(value).name)
+    try:
+        passwd_lines = Path("/etc/passwd").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        passwd_lines = []
+    for line in passwd_lines:
+        parts = line.split(":")
+        if len(parts) >= 7 and parts[-1]:
+            names.add(Path(parts[-1]).name)
+    return names
+
+
+def _integration_block(shell_id: str, helper_path: Path) -> str:
+    begin = INTEGRATION_BEGIN_TEMPLATE.format(shell_id=shell_id)
+    end = INTEGRATION_END_TEMPLATE.format(shell_id=shell_id)
+    quoted_helper = _shell_quote(str(helper_path))
+    return "\n".join(
+        [
+            begin,
+            "qs() {",
+            '  __systemd_gui_qs_action_file="$(mktemp "${TMPDIR:-/tmp}/systemd-gui-qs.XXXXXX")" || return 1',
+            f"  {quoted_helper} --shell-action-file \"$__systemd_gui_qs_action_file\"",
+            "  __systemd_gui_qs_status=$?",
+            '  if [ -s "$__systemd_gui_qs_action_file" ]; then',
+            '    . "$__systemd_gui_qs_action_file"',
+            "    __systemd_gui_qs_status=$?",
+            "  fi",
+            '  rm -f "$__systemd_gui_qs_action_file"',
+            "  unset __systemd_gui_qs_action_file",
+            "  return $__systemd_gui_qs_status",
+            "}",
+            end,
+        ]
+    )
+
+
+def _integration_block_installed(path: Path, shell_id: str, helper_path: Path) -> bool:
+    content = _read_text(path)
+    begin = INTEGRATION_BEGIN_TEMPLATE.format(shell_id=shell_id)
+    return begin in content and str(helper_path) in content
+
+
+def _remove_integration_block(content: str, shell_id: str) -> str:
+    begin = INTEGRATION_BEGIN_TEMPLATE.format(shell_id=shell_id)
+    end = INTEGRATION_END_TEMPLATE.format(shell_id=shell_id)
+    lines = content.splitlines()
+    output: list[str] = []
+    skipping = False
+    for line in lines:
+        if line.strip() == begin:
+            skipping = True
+            continue
+        if skipping and line.strip() == end:
+            skipping = False
+            continue
+        if not skipping:
+            output.append(line)
+    return "\n".join(output).rstrip() + ("\n" if output else "")
+
+
+def _read_text(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
+
+def _shell_quote(value: str) -> str:
+    return "'" + value.replace("'", "'\"'\"'") + "'"
 
 
 def normalize_tree(data: Any) -> dict[str, Any]:

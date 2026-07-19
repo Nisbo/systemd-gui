@@ -24,11 +24,11 @@
       <div><dt>Disabled entries</dt><dd>Hidden in the shell menu</dd></div>
     </dl>
 
-    <div class="inline-section">
+    <div class="inline-section quick-shell-setup">
       <div class="quick-shell-helper">
         <div>
           <h3>Shell helper</h3>
-          <p>{{ helper_status.message }} Git updates do not create system commands automatically, so install or update the helper here after pulling new app files.</p>
+          <p>{{ helper_status.message }} The helper is the global <code>qs</code> command used for normal shortcuts.</p>
         </div>
         <dl class="detail-grid two quick-shell-helper-grid">
           <div><dt>Path</dt><dd><code>{{ helper_status.path }}</code></dd></div>
@@ -36,9 +36,64 @@
         </dl>
         <form method="post" action="{{ url_for('install_quick_shell') }}" data-confirm="Install or update the qs helper at {{ helper_status.path }}?">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button class="primary-button" type="submit">Install or update helper</button>
+          <button class="primary-button" type="submit">Install/update helper</button>
         </form>
       </div>
+
+      <div class="diagnostic">
+        <strong>When shell integration matters</strong>
+        <span>Normal commands work with the helper alone. Install integration for shell-changing commands such as <code>cd /opt</code>, <code>cd ~/project</code>, and later commands like <code>export ...</code> or <code>alias ...</code>.</span>
+      </div>
+
+      <div class="update-section-title">
+        <strong>Shell Integrations</strong>
+        <span>Install only the shells you use. New commands from the GUI are picked up automatically.</span>
+      </div>
+
+      <div class="table-wrap compact-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Shell</th>
+              <th>Detected</th>
+              <th>Integration</th>
+              <th>Loaded from</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for integration in shell_integrations %}
+              <tr>
+                <td>
+                  <strong>{{ integration.label }}</strong>
+                  <span class="field-help">{{ integration.description }}</span>
+                </td>
+                <td>
+                  <span class="status-pill {{ '' if integration.detected else 'inactive' }}">{{ "Yes" if integration.detected else "No" }}</span>
+                </td>
+                <td>
+                  <span class="status-pill {{ '' if integration.installed else 'inactive' }}">{{ "Installed" if integration.installed else "Missing" }}</span>
+                </td>
+                <td><code>{{ integration.target }}</code></td>
+                <td>
+                  <div class="table-actions quick-shell-actions">
+                    <form method="post" action="{{ url_for('install_quick_shell_integration', shell_id=integration.shell_id) }}" data-confirm="Install or update Quick Shell integration for {{ integration.label }}? Existing systemd-gui blocks will be replaced.">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                      <button class="primary-button compact-button" type="submit">Install/update</button>
+                    </form>
+                    <form method="post" action="{{ url_for('remove_quick_shell_integration', shell_id=integration.shell_id) }}" data-confirm="Remove Quick Shell integration for {{ integration.label }}? The normal qs helper will remain installed.">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                      <button class="danger-button compact-button" type="submit" {% if not integration.installed %}disabled{% endif %}>Remove</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <p class="field-help">After installing or removing an integration, open a new shell. Existing shells can also load the change with <code>source /etc/profile.d/systemd-gui-qs.sh</code> for bash/sh or <code>source /etc/zsh/zshrc</code> for zsh.</p>
     </div>
   </section>
 
