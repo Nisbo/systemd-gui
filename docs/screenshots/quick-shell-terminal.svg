@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">Quick Shell terminal menu</title>
+  <desc id="desc">A terminal screenshot-style preview of the qs Quick Shell menu.</desc>
+  <rect width="1280" height="720" fill="#e8efeb"/>
+  <rect x="56" y="54" width="1168" height="612" rx="10" fill="#111816"/>
+  <rect x="56" y="54" width="1168" height="42" rx="10" fill="#27302d"/>
+  <circle cx="84" cy="75" r="7" fill="#ef6a5f"/>
+  <circle cx="108" cy="75" r="7" fill="#f4bf4f"/>
+  <circle cx="132" cy="75" r="7" fill="#61c554"/>
+  <text x="640" y="80" text-anchor="middle" font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="16" fill="#d7dfdb">server shell</text>
+  <g font-family="Menlo, Consolas, monospace" font-size="22" fill="#e7eee9">
+    <text x="86" y="136">root@server:~# qs</text>
+    <text x="86" y="180" fill="#76d0b8">Quick Shell</text>
+    <text x="86" y="210" fill="#76d0b8">===========</text>
+    <text x="86" y="256"><tspan fill="#8bd7ff">S</tspan> Shell history</text>
+    <text x="86" y="292"><tspan fill="#ffd166">1</tspan> System commands/</text>
+    <text x="86" y="328"><tspan fill="#ffd166">2</tspan> APT package manager/</text>
+    <text x="86" y="364"><tspan fill="#ffd166">3</tspan> Restart nginx</text>
+    <text x="86" y="400"><tspan fill="#ffd166">4</tspan> Open app folder</text>
+    <text x="86" y="436"><tspan fill="#ff9f80">q</tspan> Quit</text>
+    <text x="86" y="486" fill="#aebbb5">Tip: p3 means print item 3. c3 means copy item 3 when a clipboard tool is available.</text>
+    <text x="86" y="526">Choose (number/pN/cN/S/q): <tspan fill="#ffd166">1</tspan></text>
+    <text x="86" y="584" fill="#76d0b8">Quick Shell / System commands</text>
+    <text x="86" y="614" fill="#76d0b8">=============================</text>
+    <text x="86" y="650"><tspan fill="#ffd166">1</tspan> systemctl status nginx</text>
+  </g>
+</svg>

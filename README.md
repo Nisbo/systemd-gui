@@ -18,6 +18,10 @@ Gunicorn.
 | --- | --- |
 | ![Quick Shell command menu](docs/screenshots/quick-shell.jpg) | ![Systemd Gui settings](docs/screenshots/settings.jpg) |
 
+| Quick Shell terminal |
+| --- |
+| ![Quick Shell terminal menu](docs/screenshots/quick-shell-terminal.svg) |
+
 ## Features
 
 ### Systemd Services
