@@ -9,25 +9,87 @@ Gunicorn.
 
 ## Features
 
-- List `.service` units with status and autostart state.
+### Systemd Services
+
+- List `.service` units with status, detailed state and autostart state.
 - Filter and search services.
 - Mark favorite services.
 - Start, stop, restart and reload services.
 - Enable and disable autostart when systemd supports it.
-- View unit files and drop-ins.
-- Create and edit drop-in overrides without changing package-owned unit files.
+- Run `systemctl daemon-reload` after unit or override changes.
+- Block protected services such as `ssh`, `networking` and `systemd-*` by default.
+
+### Unit Files And Overrides
+
+- View original unit files and detected drop-ins.
+- Create and edit safe drop-in overrides without changing package-owned unit files.
+- Preview merged unit content so override changes are easier to understand.
+- Edit editable unit files below `/etc/systemd/system`.
+- Create, restore, delete and download unit backups.
+
+### Logs And Service Notes
+
 - View service logs from `journalctl`.
 - Open logs in a separate live-view window.
 - Search loaded log lines.
-- Edit editable unit files below `/etc/systemd/system`.
-- Create, restore, delete and download unit backups.
+- Choose how many log lines are loaded.
 - Store per-service notes.
 - Show curated beginner-friendly service information.
-- Run `systemctl daemon-reload`.
+
+### Quick Shell
+
+- Manage a local command menu for the `qs` helper.
+- Create commands, categories and command sequences from the web UI.
+- Use nested categories and direct paths such as `qs 1-2-3`.
+- Import, export and back up Quick Shell command sets.
+- Use placeholders such as `apt search {package}` and answer them in the shell.
+- Add optional shell integration for commands such as `cd /opt`.
+
+### Settings, Security And Updates
+
 - Change the web login password.
+- Check official GitHub releases.
 - Update from release ZIP, uploaded ZIP or git branch.
 - Create, restore and delete app update backups.
-- Manage a local Quick Shell command menu for the `qs` helper.
+
+## Quick Shell
+
+Quick Shell adds a local shell command:
+
+```bash
+qs
+```
+
+The web UI manages the menu, but commands are executed from the local server
+shell where `qs` is started. Commands are not run directly from the browser.
+
+Quick Shell entries are stored in:
+
+```text
+data/quick-shell.json
+```
+
+Entries can be nested into categories and subcategories. Disabled entries stay
+stored in the web UI but are hidden from the `qs` menu. By default, `qs` exits
+after a command runs. Enable **Show menu after command** on individual commands
+when you want the menu to open again afterward.
+
+Commands can use placeholders:
+
+```bash
+apt search {package}
+```
+
+When the command is selected in `qs`, the shell asks for the missing value.
+
+Simple directory commands such as `cd`, `cd /opt` and `cd ~/project` need Shell
+Integration when they should change the current shell. The Quick Shell page can
+install or remove integration for detected shell families such as bash/sh and
+zsh. Normal commands do not need integration and work through the global helper.
+
+Fresh installations create `/usr/local/bin/qs` automatically. If you added Quick
+Shell through a Git update, open **Quick Shell** in the web UI and use **Install
+or update helper** once.
 
 ## Safety
 
@@ -100,46 +162,6 @@ data/app-updates/backups
 App backups include the application files plus selected runtime data such as
 favorites, service notes, Quick Shell entries, unit backups and environment-file
 backups. The app backup directory itself is not copied recursively.
-
-## Quick Shell
-
-The installer creates a local shell helper:
-
-```bash
-qs
-```
-
-Quick Shell entries are managed in the web UI under **Quick Shell** and stored
-in:
-
-```text
-data/quick-shell.json
-```
-
-Entries can be nested into categories and subcategories. Disabled entries stay
-stored in the web UI but are hidden from the `qs` menu. Commands are not run
-from the browser; the web UI only manages the list, and execution happens in
-the local server shell. By default, `qs` exits after a command runs. Enable
-**Show menu after command** on individual commands when you want the menu to
-open again afterward.
-
-Simple directory commands such as `cd`, `cd /opt` and `cd ~/project` need Shell
-Integration when they should change the current shell. The Quick Shell page can
-install or remove integration for detected shell families such as bash/sh and
-zsh. Normal commands do not need integration and work through the global helper.
-
-Fresh installations create `/usr/local/bin/qs` automatically. If you added Quick
-Shell through a Git update, open **Quick Shell** in the web UI and use **Install
-or update helper** once.
-
-## Local Development
-
-```bash
-python3 run.py
-```
-
-On non-Linux systems or systems without `systemctl`, the app will load but
-service actions and live service data will be unavailable.
 
 ## License
 
