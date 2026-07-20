@@ -299,10 +299,77 @@
     const previewTitle = form.querySelector("[data-import-preview-title]");
     const previewSummary = form.querySelector("[data-import-preview-summary]");
     const previewList = form.querySelector("[data-import-preview-list]");
+    const currentDataNode = form.querySelector("[data-current-quick-shell]");
+    const currentQuickShell = (() => {
+      try {
+        return JSON.parse(currentDataNode?.textContent || "{\"items\":[]}");
+      } catch (_error) {
+        return { items: [] };
+      }
+    })();
     let importPreviewPayload = null;
 
     const entryName = (entry) => String(entry?.name || entry?.command || "Unnamed entry");
     const entryType = (entry) => ["category", "sequence", "command"].includes(entry?.type) ? entry.type : "command";
+    const cloneJson = (value) => JSON.parse(JSON.stringify(value));
+    const pathParts = (path) => String(path || "").split(".").filter((part) => part !== "").map((part) => Number.parseInt(part, 10)).filter((part) => Number.isInteger(part));
+    const pathFor = (parentPath, index) => parentPath === "" ? String(index) : `${parentPath}.${index}`;
+    const pathsEqual = (left, right) => String(left || "") === String(right || "");
+    const pathIsAncestor = (ancestor, path) => ancestor === "" || path === ancestor || path.startsWith(`${ancestor}.`);
+    const pathIsDescendant = (path, ancestor) => ancestor !== "" && path.startsWith(`${ancestor}.`);
+    const decorateExisting = (items, parentPath = "") => items.map((entry, index) => {
+      const nextEntry = cloneJson(entry);
+      const nextPath = pathFor(parentPath, index);
+      nextEntry.__previewPath = nextPath;
+      nextEntry.__previewState = "existing";
+      if (entryType(nextEntry) === "category") nextEntry.items = decorateExisting(Array.isArray(nextEntry.items) ? nextEntry.items : [], nextPath);
+      return nextEntry;
+    });
+    const decorateImported = (items) => items.map((entry) => {
+      const nextEntry = cloneJson(entry);
+      nextEntry.__previewState = "imported";
+      if (entryType(nextEntry) === "category") nextEntry.items = decorateImported(Array.isArray(nextEntry.items) ? nextEntry.items : []);
+      return nextEntry;
+    });
+    const childrenForPreviewPath = (rootItems, path) => {
+      let items = rootItems;
+      for (const part of pathParts(path)) {
+        const entry = items[part];
+        if (!entry || entryType(entry) !== "category") return null;
+        items = Array.isArray(entry.items) ? entry.items : [];
+      }
+      return items;
+    };
+    const parentChildrenForPreviewPath = (rootItems, path) => {
+      const parts = pathParts(path);
+      const index = parts.pop();
+      const parentPath = parts.join(".");
+      const parentItems = childrenForPreviewPath(rootItems, parentPath);
+      return { parentItems, index, parentPath };
+    };
+    const itemKey = (entry) => JSON.stringify(entry, (key, value) => key.startsWith("__preview") ? undefined : value);
+    const itemLabelKey = (entry) => String(entry?.name || entryName(entry)).trim();
+    const uniqueImportName = (name, targetItems) => {
+      const base = name || "Imported entry";
+      const names = new Set(targetItems.map((entry) => itemLabelKey(entry)));
+      let candidate = `${base} (imported)`;
+      let counter = 2;
+      while (names.has(candidate)) {
+        candidate = `${base} (imported ${counter})`;
+        counter += 1;
+      }
+      return candidate;
+    };
+    const prepareImportItem = (item, targetItems, duplicateMode) => {
+      const nextItem = cloneJson(item);
+      if (duplicateMode === "keep_all") return nextItem;
+      if (targetItems.some((existing) => itemKey(existing) === itemKey(nextItem))) return null;
+      if (duplicateMode === "rename_conflicts" && targetItems.some((existing) => itemLabelKey(existing) === itemLabelKey(nextItem))) {
+        nextItem.name = uniqueImportName(itemLabelKey(nextItem), targetItems);
+        nextItem.__previewRenamed = true;
+      }
+      return nextItem;
+    };
     const collectImportStats = (items) => {
       const stats = { total: 0, categories: 0, commands: 0, sequences: 0 };
       const walk = (entryList) => {
@@ -329,17 +396,71 @@
     };
     const targetLabel = () => (targetSelect?.selectedOptions?.[0]?.textContent || "Root menu").replace(/^[-\s]+/, "").trim() || "Root menu";
     const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
-    const buildPreviewTree = (items) => {
+    const applyPreviewImport = (items, mode, targetPath, duplicateMode) => {
+      const tree = decorateExisting(Array.isArray(currentQuickShell.items) ? currentQuickShell.items : []);
+      const importedItems = decorateImported(items);
+      const markRemoved = (entry) => {
+        const nextEntry = cloneJson(entry);
+        nextEntry.__previewState = "removed";
+        if (entryType(nextEntry) === "category") nextEntry.items = (Array.isArray(nextEntry.items) ? nextEntry.items : []).map(markRemoved);
+        return nextEntry;
+      };
+      const removedItems = (entries) => entries.map(markRemoved);
+      if (mode === "replace_all") {
+        const removedRoot = {
+          type: "category",
+          name: "Current full Quick Shell menu",
+          items: [],
+          __previewState: "removed",
+          __previewNote: `${plural(tree.length, "top-level entry")} will be replaced`,
+        };
+        return [removedRoot, ...importedItems];
+      }
+      if (mode === "replace_selected_category") {
+        const { parentItems, index } = parentChildrenForPreviewPath(tree, targetPath);
+        if (!parentItems || index === undefined || !parentItems[index]) return tree;
+        const oldTarget = markRemoved(parentItems[index]);
+        oldTarget.__previewNote = "selected category will be replaced";
+        const nextCategory = importedItems[0] ? cloneJson(importedItems[0]) : null;
+        if (nextCategory) nextCategory.__previewNote = "new category from import file";
+        parentItems.splice(index, 1, oldTarget, ...(nextCategory ? [nextCategory] : []));
+        return tree;
+      }
+      const targetItems = childrenForPreviewPath(tree, targetPath);
+      if (!targetItems) return tree;
+      if (mode === "replace_target") {
+        const removed = removedItems(targetItems);
+        targetItems.splice(0, targetItems.length, ...removed, ...importedItems);
+        return tree;
+      }
+      importedItems.forEach((item) => {
+        const preparedItem = prepareImportItem(item, targetItems, duplicateMode);
+        if (!preparedItem) {
+          const skipped = cloneJson(item);
+          skipped.__previewState = "skipped";
+          skipped.__previewNote = "exact duplicate will be skipped";
+          targetItems.push(skipped);
+          return;
+        }
+        targetItems.push(preparedItem);
+      });
+      return tree;
+    };
+    const buildPreviewTree = (items, mode, targetPath, duplicateMode) => {
       if (!previewList) return;
       previewList.replaceChildren();
+      const previewItems = applyPreviewImport(items, mode, targetPath, duplicateMode);
       let rendered = 0;
-      const maxItems = 24;
+      const maxItems = 80;
       const addNode = (entry, depth) => {
         if (rendered >= maxItems) return;
         rendered += 1;
         const row = document.createElement("div");
         const type = entryType(entry);
-        row.className = `import-preview-item ${type}`;
+        const state = entry.__previewState || "existing";
+        const path = entry.__previewPath || "";
+        const isTarget = pathsEqual(path, targetPath);
+        row.className = `import-preview-item ${type} ${state}${isTarget ? " target" : ""}`;
         row.style.setProperty("--depth", String(Math.min(depth, 4)));
         const tag = document.createElement("span");
         tag.className = "tag";
@@ -347,6 +468,14 @@
         const label = document.createElement("strong");
         label.textContent = entryName(entry);
         row.append(tag, label);
+        const status = document.createElement("span");
+        status.className = "import-preview-state";
+        if (isTarget && state === "existing") status.textContent = "target";
+        else if (state === "imported") status.textContent = entry.__previewRenamed ? "imported + renamed" : "imported";
+        else if (state === "removed") status.textContent = "will be removed";
+        else if (state === "skipped") status.textContent = "will be skipped";
+        else status.textContent = "unchanged";
+        row.appendChild(status);
         if (type === "command" && entry.command) {
           const code = document.createElement("code");
           code.textContent = entry.command;
@@ -358,25 +487,43 @@
           note.textContent = plural(lineCount, "line");
           row.appendChild(note);
         }
+        if (entry.__previewNote) {
+          const note = document.createElement("span");
+          note.className = "empty-note";
+          note.textContent = entry.__previewNote;
+          row.appendChild(note);
+        }
         previewList.appendChild(row);
-        if (type === "category") (Array.isArray(entry.items) ? entry.items : []).forEach((child) => addNode(child, depth + 1));
+        if (type === "category") {
+          const childItems = Array.isArray(entry.items) ? entry.items : [];
+          const shouldExpand = state !== "existing" || isTarget || pathIsAncestor(path, targetPath) || pathIsDescendant(path, targetPath);
+          if (shouldExpand) {
+            childItems.forEach((child) => addNode(child, depth + 1));
+          } else if (childItems.length) {
+            const collapsed = document.createElement("div");
+            collapsed.className = "import-preview-collapsed";
+            collapsed.style.setProperty("--depth", String(Math.min(depth + 1, 4)));
+            collapsed.textContent = `${plural(childItems.length, "entry")} unchanged`;
+            previewList.appendChild(collapsed);
+          }
+        }
       };
-      items.forEach((entry) => addNode(entry, 0));
+      previewItems.forEach((entry) => addNode(entry, 0));
       if (rendered >= maxItems) {
         const more = document.createElement("div");
         more.className = "import-preview-more";
-        more.textContent = "Preview shortened. The full file is still imported.";
+        more.textContent = "Preview shortened. The full import is still handled by the server.";
         previewList.appendChild(more);
       }
     };
-    const setPreviewState = (state, summary, items = []) => {
+    const setPreviewState = (state, summary, items = [], mode = "add_to_target", targetPath = "", duplicateMode = "rename_conflicts") => {
       if (!preview || !previewTitle || !previewSummary) return;
       preview.hidden = false;
       preview.classList.remove("ok", "warning", "danger");
       preview.classList.add(state);
       previewTitle.textContent = state === "danger" ? "Import preview needs attention" : "Import preview";
       previewSummary.textContent = summary;
-      buildPreviewTree(items);
+      buildPreviewTree(items, mode, targetPath, duplicateMode);
     };
     const syncImportPreview = () => {
       if (!preview || !previewSummary) return;
@@ -392,23 +539,25 @@
         return;
       }
       const mode = modeSelect?.value || "add_to_target";
+      const targetPath = targetSelect?.value || "";
+      const duplicateMode = duplicateSelect?.value || "rename_conflicts";
       const target = targetLabel();
       const stats = collectImportStats(items);
       const countSummary = `${plural(items.length, "top-level entry")}; ${plural(stats.categories, "category")}, ${plural(stats.commands, "command")}, ${plural(stats.sequences, "sequence")} total.`;
       if (mode === "add_to_target") {
-        setPreviewState("ok", `Will add the imported entries into ${target}. Existing entries stay. ${countSummary}`, items);
+        setPreviewState("ok", `Will add the imported entries into ${target}. Existing entries stay. ${countSummary}`, items, mode, targetPath, duplicateMode);
       } else if (mode === "replace_target") {
-        setPreviewState("warning", `Will delete entries inside ${target}, then import this file there. ${countSummary}`, items);
+        setPreviewState("warning", `Will delete entries inside ${target}, then import this file there. ${countSummary}`, items, mode, targetPath, duplicateMode);
       } else if (mode === "replace_selected_category") {
         if ((targetSelect?.value || "") === "") {
-          setPreviewState("danger", "Choose a real category first. The Root menu cannot be replaced with this mode.", items);
+          setPreviewState("danger", "Choose a real category first. The Root menu cannot be replaced with this mode.", items, mode, targetPath, duplicateMode);
         } else if (items.length !== 1 || entryType(items[0]) !== "category") {
-          setPreviewState("danger", `This mode expects exactly one top-level category in the file. This file has ${plural(items.length, "top-level entry")}.`, items);
+          setPreviewState("danger", `This mode expects exactly one top-level category in the file. This file has ${plural(items.length, "top-level entry")}.`, items, mode, targetPath, duplicateMode);
         } else {
-          setPreviewState("warning", `Will replace ${target} with the imported category ${entryName(items[0])}. Child entries inside the old category are deleted.`, items);
+          setPreviewState("warning", `Will replace ${target} with the imported category ${entryName(items[0])}. Child entries inside the old category are deleted.`, items, mode, targetPath, duplicateMode);
         }
       } else if (mode === "replace_all") {
-        setPreviewState("danger", `Will replace the full Quick Shell menu with this file. Current entries outside the import are deleted. ${countSummary}`, items);
+        setPreviewState("danger", `Will replace the full Quick Shell menu with this file. Current entries outside the import are deleted. ${countSummary}`, items, mode, targetPath, duplicateMode);
       }
     };
     const syncImportHelp = () => {

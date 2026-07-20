@@ -261,6 +261,7 @@ def create_app() -> Flask:
             shell_integrations=shell_integration_statuses(_quick_shell_bin(app)),
             bash_history_status=bash_history_timestamp_status(),
             quick_shell_settings=data.get("settings") or {},
+            quick_shell_data=data,
             quick_shell_path=_quick_shell_path(app),
             quick_shell_backups=list_quick_shell_backups(_quick_shell_backup_dir(app)),
             entry_label=entry_label,

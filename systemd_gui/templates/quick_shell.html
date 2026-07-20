@@ -391,6 +391,7 @@
         </div>
         <form class="form-grid quick-shell-import-form" method="post" action="{{ url_for('import_quick_shell') }}" enctype="multipart/form-data" data-quick-shell-import-form>
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <script type="application/json" data-current-quick-shell>{{ quick_shell_data|tojson }}</script>
           <label>
             Export file
             <input type="file" name="import_file" accept="application/json,.json" required>
