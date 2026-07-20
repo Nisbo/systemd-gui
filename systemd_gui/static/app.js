@@ -291,16 +291,157 @@
   document.querySelectorAll("[data-quick-shell-import-form]").forEach((form) => {
     const modeSelect = form.querySelector("[data-import-mode-select]");
     const duplicateSelect = form.querySelector("[data-duplicate-mode-select]");
+    const duplicateControl = form.querySelector("[data-duplicate-control]");
+    const duplicateDisabledHelp = form.querySelector("[data-duplicate-mode-disabled]");
+    const targetSelect = form.querySelector("[data-import-target-select]");
+    const fileInput = form.querySelector("input[name='import_file']");
+    const preview = form.querySelector("[data-import-preview]");
+    const previewTitle = form.querySelector("[data-import-preview-title]");
+    const previewSummary = form.querySelector("[data-import-preview-summary]");
+    const previewList = form.querySelector("[data-import-preview-list]");
+    let importPreviewPayload = null;
+
+    const entryName = (entry) => String(entry?.name || entry?.command || "Unnamed entry");
+    const entryType = (entry) => ["category", "sequence", "command"].includes(entry?.type) ? entry.type : "command";
+    const collectImportStats = (items) => {
+      const stats = { total: 0, categories: 0, commands: 0, sequences: 0 };
+      const walk = (entryList) => {
+        entryList.forEach((entry) => {
+          const type = entryType(entry);
+          stats.total += 1;
+          if (type === "category") {
+            stats.categories += 1;
+            walk(Array.isArray(entry.items) ? entry.items : []);
+          } else if (type === "sequence") {
+            stats.sequences += 1;
+          } else {
+            stats.commands += 1;
+          }
+        });
+      };
+      walk(items);
+      return stats;
+    };
+    const parseImportItems = (payload) => {
+      if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new Error("JSON must contain an object.");
+      if (!Array.isArray(payload.items)) throw new Error("Import file does not contain an items list.");
+      return payload.items.filter((item) => item && typeof item === "object");
+    };
+    const targetLabel = () => (targetSelect?.selectedOptions?.[0]?.textContent || "Root menu").replace(/^[-\s]+/, "").trim() || "Root menu";
+    const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
+    const buildPreviewTree = (items) => {
+      if (!previewList) return;
+      previewList.replaceChildren();
+      let rendered = 0;
+      const maxItems = 24;
+      const addNode = (entry, depth) => {
+        if (rendered >= maxItems) return;
+        rendered += 1;
+        const row = document.createElement("div");
+        const type = entryType(entry);
+        row.className = `import-preview-item ${type}`;
+        row.style.setProperty("--depth", String(Math.min(depth, 4)));
+        const tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = type;
+        const label = document.createElement("strong");
+        label.textContent = entryName(entry);
+        row.append(tag, label);
+        if (type === "command" && entry.command) {
+          const code = document.createElement("code");
+          code.textContent = entry.command;
+          row.appendChild(code);
+        } else if (type === "sequence") {
+          const lineCount = String(entry.commands || "").split(/\r?\n/).filter((line) => line.trim() && !line.trim().startsWith("#")).length;
+          const note = document.createElement("span");
+          note.className = "empty-note";
+          note.textContent = plural(lineCount, "line");
+          row.appendChild(note);
+        }
+        previewList.appendChild(row);
+        if (type === "category") (Array.isArray(entry.items) ? entry.items : []).forEach((child) => addNode(child, depth + 1));
+      };
+      items.forEach((entry) => addNode(entry, 0));
+      if (rendered >= maxItems) {
+        const more = document.createElement("div");
+        more.className = "import-preview-more";
+        more.textContent = "Preview shortened. The full file is still imported.";
+        previewList.appendChild(more);
+      }
+    };
+    const setPreviewState = (state, summary, items = []) => {
+      if (!preview || !previewTitle || !previewSummary) return;
+      preview.hidden = false;
+      preview.classList.remove("ok", "warning", "danger");
+      preview.classList.add(state);
+      previewTitle.textContent = state === "danger" ? "Import preview needs attention" : "Import preview";
+      previewSummary.textContent = summary;
+      buildPreviewTree(items);
+    };
+    const syncImportPreview = () => {
+      if (!preview || !previewSummary) return;
+      if (!importPreviewPayload) {
+        preview.hidden = true;
+        return;
+      }
+      let items = [];
+      try {
+        items = parseImportItems(importPreviewPayload);
+      } catch (error) {
+        setPreviewState("danger", error.message || "This file cannot be previewed.");
+        return;
+      }
+      const mode = modeSelect?.value || "add_to_target";
+      const target = targetLabel();
+      const stats = collectImportStats(items);
+      const countSummary = `${plural(items.length, "top-level entry")}; ${plural(stats.categories, "category")}, ${plural(stats.commands, "command")}, ${plural(stats.sequences, "sequence")} total.`;
+      if (mode === "add_to_target") {
+        setPreviewState("ok", `Will add the imported entries into ${target}. Existing entries stay. ${countSummary}`, items);
+      } else if (mode === "replace_target") {
+        setPreviewState("warning", `Will delete entries inside ${target}, then import this file there. ${countSummary}`, items);
+      } else if (mode === "replace_selected_category") {
+        if ((targetSelect?.value || "") === "") {
+          setPreviewState("danger", "Choose a real category first. The Root menu cannot be replaced with this mode.", items);
+        } else if (items.length !== 1 || entryType(items[0]) !== "category") {
+          setPreviewState("danger", `This mode expects exactly one top-level category in the file. This file has ${plural(items.length, "top-level entry")}.`, items);
+        } else {
+          setPreviewState("warning", `Will replace ${target} with the imported category ${entryName(items[0])}. Child entries inside the old category are deleted.`, items);
+        }
+      } else if (mode === "replace_all") {
+        setPreviewState("danger", `Will replace the full Quick Shell menu with this file. Current entries outside the import are deleted. ${countSummary}`, items);
+      }
+    };
     const syncImportHelp = () => {
+      const duplicateApplies = (modeSelect?.value || "add_to_target") === "add_to_target";
       form.querySelectorAll("[data-import-mode-help]").forEach((node) => {
         node.hidden = node.dataset.importModeHelp !== modeSelect?.value;
       });
       form.querySelectorAll("[data-duplicate-mode-help]").forEach((node) => {
-        node.hidden = node.dataset.duplicateModeHelp !== duplicateSelect?.value;
+        node.hidden = !duplicateApplies || node.dataset.duplicateModeHelp !== duplicateSelect?.value;
       });
+      if (duplicateSelect) duplicateSelect.disabled = !duplicateApplies;
+      if (duplicateControl) duplicateControl.classList.toggle("disabled", !duplicateApplies);
+      if (duplicateDisabledHelp) duplicateDisabledHelp.hidden = duplicateApplies;
+      syncImportPreview();
     };
+    fileInput?.addEventListener("change", () => {
+      const file = fileInput.files?.[0];
+      importPreviewPayload = null;
+      if (!file) {
+        syncImportPreview();
+        return;
+      }
+      file.text().then((text) => {
+        importPreviewPayload = JSON.parse(text);
+        syncImportPreview();
+      }).catch((error) => {
+        importPreviewPayload = {};
+        setPreviewState("danger", error instanceof SyntaxError ? "This file is not valid JSON." : "Could not read this file.");
+      });
+    });
     modeSelect?.addEventListener("change", syncImportHelp);
     duplicateSelect?.addEventListener("change", syncImportHelp);
+    targetSelect?.addEventListener("change", syncImportPreview);
     syncImportHelp();
   });
 
