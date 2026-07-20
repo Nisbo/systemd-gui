@@ -167,7 +167,8 @@
           </label>
           <label>
             Command
-            <input name="command" placeholder="systemctl restart frp-gui" required>
+            <input name="command" placeholder="apt search {package}" required>
+            <span class="field-help">Use placeholders like <code>{package}</code> or <code>{service}</code> to ask for a value before running. Values are inserted shell-safely.</span>
           </label>
           <label class="toggle-label">
             <input type="checkbox" name="enabled" value="1" checked>
@@ -205,7 +206,7 @@
           <label>
             Commands
             <textarea name="commands" rows="7" placeholder="cd /opt/app&#10;git pull --ff-only&#10;systemctl restart app" required></textarea>
-            <span class="field-help">One command per line. Empty lines are skipped. Comment lines starting with <code>#</code> can be printed before the next command. The sequence runs in a separate shell, so <code>cd</code> and variables work inside the sequence but your normal shell returns unchanged afterward. Individual lines are not added to normal shell history; the <code>qs</code> call remains visible.</span>
+            <span class="field-help">One command per line. Empty lines are skipped. Comment lines starting with <code>#</code> can be printed before the next command. Placeholders like <code>{package}</code> ask for a value before running. The sequence runs in a separate shell, so <code>cd</code> and variables work inside the sequence but your normal shell returns unchanged afterward. Individual lines are not added to normal shell history; the <code>qs</code> call remains visible.</span>
           </label>
           <label class="toggle-label">
             <input type="checkbox" name="enabled" value="1" checked>
@@ -290,6 +291,7 @@
               <label>
                 Command
                 <input name="command" value="{{ item.command }}" required>
+                <span class="field-help">Use placeholders like <code>{package}</code> or <code>{service}</code> to ask for a value before running.</span>
               </label>
               <label class="toggle-label">
                 <input type="checkbox" name="confirm" value="1" {% if item.confirm is not defined or item.confirm %}checked{% endif %}>
@@ -303,7 +305,7 @@
               <label>
                 Commands
                 <textarea name="commands" rows="7" required>{{ item.commands }}</textarea>
-                <span class="field-help">Runs in a separate shell. Comment lines starting with <code>#</code> can be printed before the next command. Individual lines are not written to normal shell history; the <code>qs</code> call remains visible.</span>
+                <span class="field-help">Runs in a separate shell. Comment lines starting with <code>#</code> can be printed before the next command. Placeholders like <code>{package}</code> ask for a value before running. Individual lines are not written to normal shell history; the <code>qs</code> call remains visible.</span>
               </label>
               <label class="toggle-label">
                 <input type="checkbox" name="confirm" value="1" {% if item.confirm is not defined or item.confirm %}checked{% endif %}>
@@ -425,6 +427,7 @@
             <button class="primary-button" type="submit" data-confirm="Import Quick Shell entries now? Choose a backup first if you want a restore point.">Import file</button>
           </div>
         </form>
+        <p class="field-help">Shared commands can use placeholders such as <code>apt search {package}</code>. When selected in <code>qs</code>, the shell asks for the value first.</p>
       </div>
 
       <div class="inline-section">
@@ -459,18 +462,14 @@
                     <td>{{ backup.comment or "-" }}</td>
                     <td>{{ backup.size }} B</td>
                     <td class="table-actions">
-                      <a class="ghost-button compact-button" href="{{ url_for('download_quick_shell_backup', backup_id=backup.backup_id) }}">Download</a>
-                      <form method="post" action="{{ url_for('restore_quick_shell_backup_route', backup_id=backup.backup_id) }}" data-confirm="Restore this Quick Shell backup? Existing Quick Shell entries will be replaced.">
+                      <a class="ghost-button icon-button small-icon-button" href="{{ url_for('download_quick_shell_backup', backup_id=backup.backup_id) }}" title="Download backup" aria-label="Download backup">⇩</a>
+                      <form method="post" action="{{ url_for('restore_quick_shell_backup_route', backup_id=backup.backup_id) }}" data-confirm="Restore this Quick Shell backup? Existing Quick Shell entries will be replaced." data-confirm-checkbox-name="backup_current" data-confirm-checkbox-label="Back up current menu first" data-confirm-checkbox-value="1">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <label class="toggle-label compact-toggle">
-                          <input type="checkbox" name="backup_current" value="1">
-                          <span>Back up current first</span>
-                        </label>
-                        <button class="ghost-button compact-button" type="submit">Restore</button>
+                        <button class="ghost-button icon-button small-icon-button" type="submit" title="Restore backup" aria-label="Restore backup">↺</button>
                       </form>
                       <form method="post" action="{{ url_for('delete_quick_shell_backup_route', backup_id=backup.backup_id) }}" data-confirm="Delete this Quick Shell backup?">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <button class="danger-button compact-button" type="submit">Delete</button>
+                        <button class="danger-button icon-button small-icon-button" type="submit" title="Delete backup" aria-label="Delete backup">🗑</button>
                       </form>
                     </td>
                   </tr>

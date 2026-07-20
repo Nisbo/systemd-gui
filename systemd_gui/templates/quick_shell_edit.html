@@ -37,6 +37,7 @@
         <label>
           Command
           <input name="command" value="{{ item.command }}" required>
+          <span class="field-help">Use placeholders like <code>{package}</code> or <code>{service}</code> to ask for a value before running.</span>
         </label>
         <label class="toggle-label">
           <input type="checkbox" name="confirm" value="1" {% if item.confirm is not defined or item.confirm %}checked{% endif %}>
@@ -50,7 +51,7 @@
         <label>
           Commands
           <textarea name="commands" rows="8" required>{{ item.commands }}</textarea>
-          <span class="field-help">One command per line. Empty lines are skipped. Comment lines starting with <code>#</code> can be printed before the next command. Individual lines are not written to normal shell history; the <code>qs</code> call remains visible.</span>
+          <span class="field-help">One command per line. Empty lines are skipped. Comment lines starting with <code>#</code> can be printed before the next command. Placeholders like <code>{package}</code> ask for a value before running. Individual lines are not written to normal shell history; the <code>qs</code> call remains visible.</span>
         </label>
         <label class="toggle-label">
           <input type="checkbox" name="confirm" value="1" {% if item.confirm is not defined or item.confirm %}checked{% endif %}>

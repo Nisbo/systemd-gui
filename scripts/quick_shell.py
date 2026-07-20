@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import importlib.util
+import re
 import shlex
 import shutil
 import subprocess
@@ -23,6 +24,7 @@ COLORS = {
     "yellow": "\033[33m",
     "red": "\033[31m",
 }
+PLACEHOLDER_RE = re.compile(r"\{([A-Za-z][A-Za-z0-9_]*)\}")
 
 
 def _use_color() -> bool:
@@ -237,6 +239,24 @@ def _command_for_item(item) -> str:
     return str(item.get("command") or "").strip()
 
 
+def _placeholder_label(name: str) -> str:
+    return name.replace("_", " ").strip().capitalize()
+
+
+def _resolve_placeholders(value: str, values: dict[str, str] | None = None) -> str:
+    if values is None:
+        values = {}
+
+    def replace(match: re.Match[str]) -> str:
+        name = match.group(1)
+        if name not in values:
+            answer = input(f"{_placeholder_label(name)}: ")
+            values[name] = answer
+        return shlex.quote(values[name])
+
+    return PLACEHOLDER_RE.sub(replace, value)
+
+
 def _sequence_lines(item) -> list[str]:
     return [step["command"] for step in _sequence_steps(item)]
 
@@ -280,7 +300,7 @@ def _print_command(item, styled: bool = True) -> int:
     if item.get("type") == "category":
         print(_error("Categories do not have a command to print. Select a command inside the category."))
         return 1
-    command = _command_for_item(item)
+    command = _resolve_placeholders(_command_for_item(item))
     if not command:
         print(_error("This entry has no command."))
         return 1
@@ -318,7 +338,7 @@ def _copy_command(item) -> int:
     if item.get("type") == "category":
         print(_error("Categories do not have a command to copy. Select a command inside the category."))
         return 1
-    command = _command_for_item(item)
+    command = _resolve_placeholders(_command_for_item(item))
     if not command:
         print(_error("This entry has no command."))
         return 1
@@ -612,7 +632,7 @@ def _command_shell(item) -> str | None:
 def _run_command(item, shell_action_file: Path | None = None) -> int:
     if item.get("type") == "sequence":
         return _run_sequence(item)
-    command = _command_for_item(item)
+    command = _resolve_placeholders(_command_for_item(item))
     if not command:
         print(_error("This entry has no command."))
         return 1
@@ -638,6 +658,15 @@ def _run_command(item, shell_action_file: Path | None = None) -> int:
 
 def _run_sequence(item) -> int:
     steps = _sequence_steps(item)
+    placeholder_values: dict[str, str] = {}
+    resolved_steps: list[dict[str, object]] = []
+    for step in steps:
+        resolved_steps.append({
+            **step,
+            "original_command": str(step["command"]),
+            "command": _resolve_placeholders(str(step["command"]), placeholder_values),
+        })
+    steps = resolved_steps
     lines = [str(step["command"]) for step in steps]
     name = _item_name(item)
     if not steps:
