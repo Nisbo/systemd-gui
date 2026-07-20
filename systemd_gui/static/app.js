@@ -363,7 +363,12 @@
     const prepareImportItem = (item, targetItems, duplicateMode) => {
       const nextItem = cloneJson(item);
       if (duplicateMode === "keep_all") {
-        if (targetItems.some((existing) => itemLabelKey(existing) === itemLabelKey(nextItem))) nextItem.__previewDuplicate = true;
+        const duplicateName = itemLabelKey(nextItem);
+        const duplicateEntries = targetItems.filter((existing) => itemLabelKey(existing) === duplicateName);
+        if (duplicateEntries.length) {
+          duplicateEntries.forEach((existing) => { existing.__previewDuplicate = true; });
+          nextItem.__previewDuplicate = true;
+        }
         return nextItem;
       }
       if (targetItems.some((existing) => itemKey(existing) === itemKey(nextItem))) return null;
@@ -481,7 +486,7 @@
         else if (state === "imported") addStatusChip(entry.__previewRenamed ? "imported + renamed" : "imported", entry.__previewRenamed ? "warning" : "");
         else if (state === "removed") addStatusChip("will be removed");
         else if (state === "skipped") addStatusChip("will be skipped");
-        if (entry.__previewDuplicate) addStatusChip("duplicate name", "warning");
+        if (entry.__previewDuplicate) addStatusChip("duplicate", "warning");
         if (type === "command" && entry.command) {
           const code = document.createElement("code");
           code.textContent = entry.command;
