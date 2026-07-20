@@ -127,6 +127,10 @@ th.actions-heading { text-align:right; }
 .quick-shell-actions { min-width:260px; }
 .quick-shell-setup .quick-shell-actions { min-width:230px; }
 .quick-shell-add-form { align-items:end; margin-top:14px; }
+.quick-shell-import-form .import-explain { grid-column:1 / -1; display:grid; gap:5px; border:1px solid color-mix(in srgb, var(--accent) 24%, var(--line)); border-left:6px solid var(--accent); border-radius:8px; background:color-mix(in srgb, var(--accent) 7%, transparent); padding:12px 14px; }
+.quick-shell-import-form .import-explain[hidden] { display:none; }
+.quick-shell-import-form .import-explain span { color:var(--muted); font-size:.9rem; line-height:1.4; }
+.quick-shell-import-form .import-explain.subtle { border-color:var(--line); border-left-color:color-mix(in srgb, var(--muted) 42%, var(--line)); background:color-mix(in srgb, var(--muted) 6%, transparent); }
 .position-select-label { display:block; }
 .position-input { width:56px; height:30px; padding:3px 6px; font-size:.84rem; font-weight:850; text-align:center; }
 .quick-shell-dialog { width:min(680px, calc(100% - 32px)); }

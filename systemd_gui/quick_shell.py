@@ -224,7 +224,7 @@ def import_quick_shell_items(
     duplicate_mode: str,
 ) -> tuple[dict[str, Any], dict[str, int]]:
     next_data = normalize_tree(data)
-    if mode not in {"replace_all", "add_to_target", "replace_target"}:
+    if mode not in {"replace_all", "add_to_target", "replace_target", "replace_selected_category"}:
         raise ValueError("Unknown import mode.")
     if duplicate_mode not in {"rename_conflicts", "skip_exact", "keep_all"}:
         raise ValueError("Unknown duplicate handling.")
@@ -234,6 +234,17 @@ def import_quick_shell_items(
     if mode == "replace_all":
         next_data["items"] = items
         stats["imported"] = len(items)
+        return next_data, stats
+    if mode == "replace_selected_category":
+        if not target_path:
+            raise ValueError("Choose a category before using Replace selected category.")
+        if len(items) != 1 or items[0].get("type") != "category":
+            raise ValueError("Replace selected category needs an import file with exactly one category at the top level.")
+        target_items, target_index = parent_children_for_path(next_data, target_path)
+        if target_index < 0 or target_index >= len(target_items) or target_items[target_index].get("type") != "category":
+            raise ValueError("Choose a category before using Replace selected category.")
+        target_items[target_index] = items[0]
+        stats["imported"] = 1
         return next_data, stats
 
     target_items = _target_items(next_data, target_path)

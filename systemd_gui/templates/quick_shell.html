@@ -389,7 +389,7 @@
           <strong>Import entries</strong>
           <span>Import a full backup or a shared export file. You decide where entries go and how name conflicts are handled.</span>
         </div>
-        <form class="form-grid" method="post" action="{{ url_for('import_quick_shell') }}" enctype="multipart/form-data">
+        <form class="form-grid quick-shell-import-form" method="post" action="{{ url_for('import_quick_shell') }}" enctype="multipart/form-data" data-quick-shell-import-form>
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <label>
             Export file
@@ -405,20 +405,49 @@
           </label>
           <label>
             Import mode
-            <select name="import_mode">
-              <option value="add_to_target" selected>Add to selected menu</option>
-              <option value="replace_target">Replace selected menu contents</option>
-              <option value="replace_all">Replace everything</option>
+            <select name="import_mode" data-import-mode-select>
+              <option value="add_to_target" selected>Add imported entries into selected menu</option>
+              <option value="replace_target">Replace entries inside selected menu</option>
+              <option value="replace_selected_category">Replace selected category</option>
+              <option value="replace_all">Replace full Quick Shell menu</option>
             </select>
           </label>
           <label>
             Duplicate handling
-            <select name="duplicate_mode">
-              <option value="rename_conflicts" selected>Skip exact duplicates, rename name conflicts</option>
-              <option value="skip_exact">Skip exact duplicates only</option>
-              <option value="keep_all">Keep all imported entries</option>
+            <select name="duplicate_mode" data-duplicate-mode-select>
+              <option value="rename_conflicts" selected>Safe import: skip identical, rename same names</option>
+              <option value="skip_exact">Skip identical only</option>
+              <option value="keep_all">Import everything, even duplicates</option>
             </select>
           </label>
+          <div class="import-explain" data-import-mode-help="add_to_target">
+            <strong>Add imported entries into selected menu</strong>
+            <span>Leaves the selected menu untouched and adds everything from the file inside it. If the file contains a category, that category is added as a child.</span>
+          </div>
+          <div class="import-explain" data-import-mode-help="replace_target" hidden>
+            <strong>Replace entries inside selected menu</strong>
+            <span>Keeps the selected menu or category itself, deletes its current entries, then imports the file content into it. If the file contains a category, that category becomes a child entry.</span>
+          </div>
+          <div class="import-explain" data-import-mode-help="replace_selected_category" hidden>
+            <strong>Replace selected category</strong>
+            <span>Use this to update a command pack like APT. Select the existing category, then import a file that contains exactly one category. The selected category is replaced by that imported category.</span>
+          </div>
+          <div class="import-explain" data-import-mode-help="replace_all" hidden>
+            <strong>Replace full Quick Shell menu</strong>
+            <span>Deletes the whole current Quick Shell menu and replaces it with the import file content. Settings from the file are used too.</span>
+          </div>
+          <div class="import-explain subtle" data-duplicate-mode-help="rename_conflicts">
+            <strong>Safe import</strong>
+            <span>Exact duplicates are skipped. If an imported entry has the same name but different content, it is renamed, for example <code>APT (imported)</code>.</span>
+          </div>
+          <div class="import-explain subtle" data-duplicate-mode-help="skip_exact" hidden>
+            <strong>Skip identical only</strong>
+            <span>Exact duplicates are skipped, but entries with the same name and different content are still imported. You may get duplicate-looking names.</span>
+          </div>
+          <div class="import-explain subtle" data-duplicate-mode-help="keep_all" hidden>
+            <strong>Import everything</strong>
+            <span>No duplicate checks are made. Everything from the file is imported, even if it already exists.</span>
+          </div>
           <label class="toggle-label">
             <input type="checkbox" name="backup_current" value="1">
             <span>Create a server backup before importing</span>

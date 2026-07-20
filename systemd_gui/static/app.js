@@ -288,6 +288,22 @@
     syncQuickShellFields();
   });
 
+  document.querySelectorAll("[data-quick-shell-import-form]").forEach((form) => {
+    const modeSelect = form.querySelector("[data-import-mode-select]");
+    const duplicateSelect = form.querySelector("[data-duplicate-mode-select]");
+    const syncImportHelp = () => {
+      form.querySelectorAll("[data-import-mode-help]").forEach((node) => {
+        node.hidden = node.dataset.importModeHelp !== modeSelect?.value;
+      });
+      form.querySelectorAll("[data-duplicate-mode-help]").forEach((node) => {
+        node.hidden = node.dataset.duplicateModeHelp !== duplicateSelect?.value;
+      });
+    };
+    modeSelect?.addEventListener("change", syncImportHelp);
+    duplicateSelect?.addEventListener("change", syncImportHelp);
+    syncImportHelp();
+  });
+
   const logPanel = document.querySelector("[data-log-panel]");
   if (logPanel) {
     const logControls = document.querySelector("[data-log-controls]");
