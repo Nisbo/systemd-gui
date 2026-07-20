@@ -135,13 +135,14 @@ th.actions-heading { text-align:right; }
 .quick-shell-import-form .import-explain span { color:var(--muted); font-size:.9rem; line-height:1.4; }
 .quick-shell-import-form .import-explain.subtle { border-color:var(--line); border-left-color:color-mix(in srgb, var(--muted) 42%, var(--line)); background:color-mix(in srgb, var(--muted) 6%, transparent); }
 .quick-shell-import-form .import-explain.disabled { opacity:.82; }
-.import-preview { grid-column:1 / -1; display:grid; gap:10px; border:1px solid var(--line); border-left:7px solid var(--accent); border-radius:8px; background:color-mix(in srgb, var(--accent) 5%, transparent); padding:12px 14px; }
+.import-preview { grid-column:1 / -1; display:grid; gap:10px; border:1px solid var(--line); border-radius:8px; background:var(--panel); padding:12px 14px; }
 .import-preview[hidden] { display:none; }
-.import-preview.warning { border-left-color:var(--amber); background:color-mix(in srgb, var(--amber) 10%, transparent); }
-.import-preview.danger { border-left-color:var(--danger); background:color-mix(in srgb, var(--danger) 7%, transparent); }
-.import-preview > span { color:var(--muted); line-height:1.4; }
+.import-preview-head { display:grid; gap:6px; border:1px solid color-mix(in srgb, var(--accent) 24%, var(--line)); border-left:7px solid var(--accent); border-radius:8px; background:color-mix(in srgb, var(--accent) 6%, transparent); padding:10px 12px; }
+.import-preview.warning .import-preview-head { border-color:color-mix(in srgb, var(--amber) 45%, var(--line)); border-left-color:var(--amber); background:color-mix(in srgb, var(--amber) 12%, transparent); }
+.import-preview.danger .import-preview-head { border-color:color-mix(in srgb, var(--danger) 38%, var(--line)); border-left-color:var(--danger); background:color-mix(in srgb, var(--danger) 8%, transparent); }
+.import-preview-head span { color:var(--muted); line-height:1.4; }
 .import-preview-list { display:grid; gap:6px; }
-.import-preview-item { display:flex; flex-wrap:wrap; align-items:center; gap:8px; border:1px solid var(--line); border-radius:8px; background:transparent; margin-left:calc(var(--depth) * 20px); padding:8px 10px; }
+.import-preview-item { display:flex; flex-wrap:wrap; align-items:center; gap:8px; border:1px solid var(--line); border-radius:8px; background:var(--panel); margin-left:calc(var(--depth) * 20px); padding:8px 10px; }
 .import-preview-item.category { border-left:5px solid #2563eb; }
 .import-preview-item.command { border-left:5px solid color-mix(in srgb, var(--muted) 42%, var(--line)); }
 .import-preview-item.sequence { border-left:5px solid var(--accent); }
