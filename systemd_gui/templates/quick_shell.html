@@ -430,11 +430,11 @@
             </label>
             <div class="import-explain" data-import-mode-help="add_to_target">
               <strong>Merge into selected category</strong>
-              <span>Adds imported entries to the selected category. If an imported category has the same name as an existing category, their contents are merged instead of creating a second category.</span>
+              <span>Adds imported entries to the selected category. Same-name categories are opened and merged; same-name commands, sequences and child entries use the conflict handling below.</span>
             </div>
             <div class="import-explain" data-import-mode-help="add_as_new" hidden>
               <strong>Add as new entries</strong>
-              <span>Adds every imported top-level entry as a new child of the selected category. Categories with the same name are not merged, so this mode can intentionally create duplicate categories.</span>
+              <span>Adds every imported top-level entry as a new child of the selected category. Existing entries are not checked or changed, so this mode can intentionally create duplicate names.</span>
             </div>
             <div class="import-explain" data-import-mode-help="replace_target" hidden>
               <strong>Replace entries inside selected category</strong>
@@ -451,28 +451,28 @@
           </div>
           <div class="import-control" data-duplicate-control>
             <label>
-              Duplicate handling
+              Conflict handling
               <select name="duplicate_mode" data-duplicate-mode-select>
-                <option value="rename_conflicts" selected>Safe import: skip identical, rename same names</option>
-                <option value="skip_exact">Skip identical only</option>
+                <option value="replace_conflicts" selected>Update same names: skip identical, replace changed</option>
+                <option value="rename_conflicts">Keep both: skip identical, rename changed</option>
                 <option value="keep_all">Import everything, even duplicates</option>
               </select>
             </label>
-            <div class="import-explain subtle" data-duplicate-mode-help="rename_conflicts">
-              <strong>Safe import</strong>
-              <span>Exact duplicates are skipped. Entries with the same name but different content are renamed, for example <code>APT (imported)</code>. In merge mode, matching categories are merged first and this rule is applied inside them.</span>
+            <div class="import-explain subtle" data-duplicate-mode-help="replace_conflicts">
+              <strong>Update same names</strong>
+              <span>Exact duplicates are skipped. If an imported command, sequence or child category has the same name but different content, the existing entry is replaced. Matching categories are merged first.</span>
             </div>
-            <div class="import-explain subtle" data-duplicate-mode-help="skip_exact" hidden>
-              <strong>Skip identical only</strong>
-              <span>Exact duplicates are skipped. Entries with the same name but different content are still imported and marked as duplicates. In merge mode, matching categories are merged first and this rule is applied inside them.</span>
+            <div class="import-explain subtle" data-duplicate-mode-help="rename_conflicts" hidden>
+              <strong>Keep both by renaming</strong>
+              <span>Exact duplicates are skipped. If an imported command, sequence or child category has the same name but different content, the imported entry is renamed, for example <code>Restart app (imported)</code>.</span>
             </div>
             <div class="import-explain subtle" data-duplicate-mode-help="keep_all" hidden>
               <strong>Import everything</strong>
-              <span>No duplicate checks are made. Everything from the file is imported as-is. In merge mode, matching categories are merged, but duplicate commands, sequences or child categories can still be created inside them.</span>
+              <span>No conflict checks are made. Everything from the file is imported as-is. Matching categories are still merged in merge mode, but duplicate commands, sequences or child categories can be created inside them.</span>
             </div>
             <div class="import-explain subtle disabled" data-duplicate-mode-disabled hidden>
-              <strong>Duplicate handling not used</strong>
-              <span>This import mode replaces existing content first, so existing entries are not compared.</span>
+              <strong>Conflict handling not used</strong>
+              <span>Only Merge into selected category compares existing entries. This mode imports or replaces content directly.</span>
             </div>
           </div>
           <div class="import-preview" data-import-preview hidden>

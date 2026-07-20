@@ -310,6 +310,7 @@
     })();
     let importPreviewPayload = null;
     let importPreviewReady = false;
+    const HANDLED_PREVIEW_IMPORT = { handled: true };
 
     const entryName = (entry) => String(entry?.name || entry?.command || "Unnamed entry");
     const entryType = (entry) => ["category", "sequence", "command"].includes(entry?.type) ? entry.type : "command";
@@ -375,8 +376,14 @@
         return nextItem;
       }
       if (targetItems.some((existing) => itemKey(existing) === itemKey(nextItem))) return null;
-      if (duplicateMode === "skip_exact" && duplicateEntries.length) {
-        markDuplicateEntries();
+      if (duplicateMode === "replace_conflicts" && duplicateEntries.length) {
+        const conflictIndex = targetItems.indexOf(duplicateEntries[0]);
+        const replacedItem = cloneJson(targetItems[conflictIndex]);
+        replacedItem.__previewState = "removed";
+        replacedItem.__previewNote = "same name will be replaced";
+        nextItem.__previewReplaced = true;
+        targetItems.splice(conflictIndex, 1, replacedItem, nextItem);
+        return HANDLED_PREVIEW_IMPORT;
       }
       if (duplicateMode === "rename_conflicts" && targetItems.some((existing) => itemLabelKey(existing) === itemLabelKey(nextItem))) {
         nextItem.name = uniqueImportName(itemLabelKey(nextItem), targetItems);
@@ -412,6 +419,7 @@
         targetItems.push(skipped);
         return;
       }
+      if (preparedItem === HANDLED_PREVIEW_IMPORT) return;
       targetItems.push(preparedItem);
     };
     const collectImportStats = (items) => {
@@ -512,7 +520,7 @@
         };
         if (isTarget && state === "existing") addStatusChip("target");
         if (entry.__previewMerged) addStatusChip("merged", "merged");
-        else if (state === "imported") addStatusChip(entry.__previewRenamed ? "imported + renamed" : "imported", entry.__previewRenamed ? "warning" : "");
+        else if (state === "imported") addStatusChip(entry.__previewRenamed ? "imported + renamed" : (entry.__previewReplaced ? "replaces same name" : "imported"), entry.__previewRenamed || entry.__previewReplaced ? "warning" : "");
         else if (state === "removed") addStatusChip("will be removed");
         else if (state === "skipped") addStatusChip("will be skipped");
         if (entry.__previewDuplicate) addStatusChip("duplicate", "warning");
@@ -556,7 +564,7 @@
         previewList.appendChild(more);
       }
     };
-    const setPreviewState = (state, summary, items = [], mode = "add_to_target", targetPath = "", duplicateMode = "rename_conflicts") => {
+    const setPreviewState = (state, summary, items = [], mode = "add_to_target", targetPath = "", duplicateMode = "replace_conflicts") => {
       if (!preview || !previewTitle || !previewSummary) return;
       preview.hidden = false;
       preview.classList.remove("ok", "warning", "danger");
@@ -596,16 +604,16 @@
       }
       const mode = modeSelect?.value || "add_to_target";
       const targetPath = targetSelect?.value || "";
-      const duplicateMode = duplicateSelect?.value || "rename_conflicts";
+      const duplicateMode = duplicateSelect?.value || "replace_conflicts";
       const target = targetLabel();
       const stats = collectImportStats(items);
       const countSummary = `${plural(items.length, "top-level entry")}; ${plural(stats.categories, "category")}, ${plural(stats.commands, "command")}, ${plural(stats.sequences, "sequence")} total.`;
       if (mode === "add_to_target") {
-        setPreviewState("ok", `Will merge the imported entries into ${target}. Categories with the same name are combined; duplicate handling is applied inside them. ${countSummary}`, items, mode, targetPath, duplicateMode);
+        setPreviewState("ok", `Will merge the imported entries into ${target}. Categories with the same name are combined; conflict handling is applied inside them. ${countSummary}`, items, mode, targetPath, duplicateMode);
       } else if (mode === "add_as_new") {
-        setPreviewState("ok", `Will add imported top-level entries as new entries inside ${target}. Categories with the same name are not merged. ${countSummary}`, items, mode, targetPath, duplicateMode);
+        setPreviewState("ok", `Will add imported top-level entries as new entries inside ${target}. Existing entries are not changed; duplicate names may be created. ${countSummary}`, items, mode, targetPath, "keep_all");
       } else if (mode === "replace_target") {
-        setPreviewState("warning", `Will delete entries inside ${target}, then import this file there. ${countSummary}`, items, mode, targetPath, duplicateMode);
+        setPreviewState("warning", `Will delete entries inside ${target}, then import this file there. Conflict handling is not used. ${countSummary}`, items, mode, targetPath, "keep_all");
       } else if (mode === "replace_selected_category") {
         if ((targetSelect?.value || "") === "") {
           setPreviewState("danger", "Choose a real category first. The Root category cannot be replaced with this mode.", items, mode, targetPath, duplicateMode);
@@ -619,7 +627,7 @@
       }
     };
     const syncImportHelp = () => {
-      const duplicateApplies = ["add_to_target", "add_as_new"].includes(modeSelect?.value || "add_to_target");
+      const duplicateApplies = (modeSelect?.value || "add_to_target") === "add_to_target";
       form.querySelectorAll("[data-import-mode-help]").forEach((node) => {
         node.hidden = node.dataset.importModeHelp !== modeSelect?.value;
       });

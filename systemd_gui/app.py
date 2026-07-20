@@ -465,7 +465,7 @@ def create_app() -> Flask:
         data = read_quick_shell(_quick_shell_path(app))
         mode = request.form.get("import_mode", "add_to_target")
         target_path = request.form.get("target_path", "").strip()
-        duplicate_mode = request.form.get("duplicate_mode", "rename_conflicts")
+        duplicate_mode = request.form.get("duplicate_mode", "replace_conflicts")
         backup_path = None
         try:
             if request.form.get("backup_current") == "1":
@@ -479,7 +479,7 @@ def create_app() -> Flask:
             return redirect(url_for("quick_shell", tab="transfer"))
 
         backup_note = f" Backup created: {backup_path}." if backup_path else ""
-        flash(f"Import completed. Imported: {stats['imported']}, renamed: {stats['renamed']}, skipped: {stats['skipped']}.{backup_note}", "success")
+        flash(f"Import completed. Imported: {stats['imported']}, replaced: {stats.get('replaced', 0)}, renamed: {stats['renamed']}, skipped: {stats['skipped']}.{backup_note}", "success")
         next_path = "" if mode == "replace_all" else target_path
         return redirect(url_for("quick_shell", tab="menu", path=next_path))
 

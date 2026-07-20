@@ -12,6 +12,7 @@ ITEM_TYPES = {"category", "command", "sequence"}
 QUICK_SHELL_EXPORT_KIND = "systemd-gui.quick-shell"
 QUICK_SHELL_EXPORT_VERSION = 1
 _MERGED_IMPORT_ITEM: dict[str, Any] = {"__merged_import_item": True}
+_REPLACED_IMPORT_ITEM: dict[str, Any] = {"__replaced_import_item": True}
 
 
 @dataclass
@@ -227,11 +228,13 @@ def import_quick_shell_items(
     next_data = normalize_tree(data)
     if mode not in {"replace_all", "add_to_target", "add_as_new", "replace_target", "replace_selected_category"}:
         raise ValueError("Unknown import mode.")
-    if duplicate_mode not in {"rename_conflicts", "skip_exact", "keep_all"}:
+    if duplicate_mode == "skip_exact":
+        duplicate_mode = "replace_conflicts"
+    if duplicate_mode not in {"replace_conflicts", "rename_conflicts", "keep_all"}:
         raise ValueError("Unknown duplicate handling.")
 
     items = [normalize_item(item) for item in imported_items]
-    stats = {"imported": 0, "renamed": 0, "skipped": 0}
+    stats = {"imported": 0, "renamed": 0, "replaced": 0, "skipped": 0}
     if mode == "replace_all":
         next_data["items"] = items
         stats["imported"] = len(items)
@@ -251,12 +254,13 @@ def import_quick_shell_items(
     target_items = _target_items(next_data, target_path)
     if mode == "replace_target":
         target_items.clear()
+    effective_duplicate_mode = "keep_all" if mode in {"add_as_new", "replace_target"} else duplicate_mode
     for item in items:
-        next_item = _merge_or_prepare_import_item(item, target_items, duplicate_mode, stats) if mode == "add_to_target" else _prepare_import_item(item, target_items, duplicate_mode)
+        next_item = _merge_or_prepare_import_item(item, target_items, effective_duplicate_mode, stats) if mode == "add_to_target" else _prepare_import_item(item, target_items, effective_duplicate_mode, stats)
         if next_item is None:
             stats["skipped"] += 1
             continue
-        if next_item is not _MERGED_IMPORT_ITEM:
+        if next_item is not _MERGED_IMPORT_ITEM and next_item is not _REPLACED_IMPORT_ITEM:
             if next_item.get("name") != item.get("name"):
                 stats["renamed"] += 1
             target_items.append(next_item)
@@ -714,12 +718,23 @@ def _target_items(data: dict[str, Any], target_path: str) -> list[dict[str, Any]
     return target.setdefault("items", [])
 
 
-def _prepare_import_item(item: dict[str, Any], target_items: list[dict[str, Any]], duplicate_mode: str) -> dict[str, Any] | None:
+def _prepare_import_item(
+    item: dict[str, Any],
+    target_items: list[dict[str, Any]],
+    duplicate_mode: str,
+    stats: dict[str, int] | None = None,
+) -> dict[str, Any] | None:
     next_item = normalize_item(item)
     if duplicate_mode == "keep_all":
         return next_item
     if any(_items_equal(existing, next_item) for existing in target_items):
         return None
+    conflict_index = next((index for index, existing in enumerate(target_items) if _item_name(existing) == _item_name(next_item)), None)
+    if duplicate_mode == "replace_conflicts" and conflict_index is not None:
+        target_items[conflict_index] = next_item
+        if stats is not None:
+            stats["replaced"] += 1
+        return _REPLACED_IMPORT_ITEM
     if duplicate_mode == "rename_conflicts" and any(_item_name(existing) == _item_name(next_item) for existing in target_items):
         next_item["name"] = _unique_import_name(_item_name(next_item), target_items)
     return next_item
@@ -733,10 +748,10 @@ def _merge_or_prepare_import_item(
 ) -> dict[str, Any] | None:
     next_item = normalize_item(item)
     if next_item.get("type") != "category":
-        return _prepare_import_item(next_item, target_items, duplicate_mode)
+        return _prepare_import_item(next_item, target_items, duplicate_mode, stats)
     existing_category = next((existing for existing in target_items if existing.get("type") == "category" and _item_name(existing) == _item_name(next_item)), None)
     if not existing_category:
-        return _prepare_import_item(next_item, target_items, duplicate_mode)
+        return _prepare_import_item(next_item, target_items, duplicate_mode, stats)
     if duplicate_mode != "keep_all" and _items_equal(existing_category, next_item):
         return None
     existing_children = existing_category.setdefault("items", [])
@@ -746,7 +761,7 @@ def _merge_or_prepare_import_item(
             if stats is not None:
                 stats["skipped"] += 1
             continue
-        if next_child is not None and next_child is not _MERGED_IMPORT_ITEM:
+        if next_child is not None and next_child is not _MERGED_IMPORT_ITEM and next_child is not _REPLACED_IMPORT_ITEM:
             if stats is not None and next_child.get("name") != child.get("name"):
                 stats["renamed"] += 1
             existing_children.append(next_child)
