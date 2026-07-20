@@ -350,7 +350,30 @@
       const parentItems = childrenForPreviewPath(rootItems, parentPath);
       return { parentItems, index, parentPath };
     };
-    const itemKey = (entry) => JSON.stringify(entry, (key, value) => key.startsWith("__preview") ? undefined : value);
+    const normalizePreviewItem = (entry) => {
+      const type = entryType(entry);
+      const normalized = {
+        type,
+        name: String(entry?.name || "").trim(),
+        enabled: Boolean(entry?.enabled ?? true),
+      };
+      if (type === "category") {
+        normalized.items = (Array.isArray(entry?.items) ? entry.items : []).map(normalizePreviewItem);
+      } else if (type === "sequence") {
+        normalized.commands = String(entry?.commands || "").trim();
+        normalized.confirm = Boolean(entry?.confirm ?? true);
+        normalized.confirm_each = Boolean(entry?.confirm_each ?? false);
+        normalized.print_comments = Boolean(entry?.print_comments ?? true);
+        normalized.stop_on_error = Boolean(entry?.stop_on_error ?? true);
+        normalized.show_menu_after = Boolean(entry?.show_menu_after ?? false);
+      } else {
+        normalized.command = String(entry?.command || "").trim();
+        normalized.confirm = Boolean(entry?.confirm ?? true);
+        normalized.show_menu_after = Boolean(entry?.show_menu_after ?? false);
+      }
+      return normalized;
+    };
+    const itemKey = (entry) => JSON.stringify(normalizePreviewItem(entry));
     const itemLabelKey = (entry) => String(entry?.name || entryName(entry)).trim();
     const uniqueImportName = (name, targetItems) => {
       const base = name || "Imported entry";
