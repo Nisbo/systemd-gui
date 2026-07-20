@@ -414,8 +414,9 @@
         const conflictIndex = targetItems.indexOf(duplicateEntries[0]);
         const replacedItem = cloneJson(targetItems[conflictIndex]);
         replacedItem.__previewState = "removed";
-        replacedItem.__previewNote = "same name will be replaced";
+        replacedItem.__previewWillBeReplaced = true;
         nextItem.__previewReplaced = true;
+        nextItem.__previewReplacement = true;
         targetItems.splice(conflictIndex, 1, replacedItem, nextItem);
         return HANDLED_PREVIEW_IMPORT;
       }
@@ -528,7 +529,7 @@
         const state = entry.__previewState || "existing";
         const path = entry.__previewPath || "";
         const isTarget = state === "existing" && path !== "" && pathsEqual(path, targetPath);
-        row.className = `import-preview-item ${type} ${state}${isTarget ? " target" : ""}`;
+        row.className = `import-preview-item ${type} ${state}${isTarget ? " target" : ""}${entry.__previewReplacement ? " replacement" : ""}`;
         row.style.setProperty("--depth", String(Math.min(depth, 4)));
         const tag = document.createElement("span");
         tag.className = "tag";
@@ -545,7 +546,7 @@
         if (isTarget && state === "existing") addStatusChip("target");
         if (entry.__previewMerged) addStatusChip("merged", "merged");
         else if (state === "imported") addStatusChip(entry.__previewRenamed ? "imported + renamed" : (entry.__previewReplaced ? "replaces same name" : "imported"), entry.__previewRenamed || entry.__previewReplaced ? "warning" : "");
-        else if (state === "removed") addStatusChip("will be removed");
+        else if (state === "removed") addStatusChip(entry.__previewWillBeReplaced ? "will be replaced" : "will be removed");
         else if (state === "skipped") addStatusChip("will be skipped");
         if (entry.__previewDuplicate) addStatusChip("duplicate", "warning");
         if (entry.__previewSkippedIdentical) addStatusChip("identical skipped");
