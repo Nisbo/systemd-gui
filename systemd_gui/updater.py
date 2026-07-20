@@ -18,7 +18,7 @@ from typing import BinaryIO
 from .version import APP_VERSION, RELEASES_LIST_API_URL
 
 PROJECT_DIRS = ("systemd_gui", "scripts")
-PROJECT_FILES = ("run.py", "README.md", ".gitignore")
+PROJECT_FILES = ("run.py", "README.md", "LICENSE", ".gitignore")
 RUNTIME_DATA_ITEMS = ("favorites.json", "service-notes.json", "quick-shell.json", "unit-backups", "drop-in-backups", "env-backups")
 APP_BACKUP_META_FILE = "backup-meta.txt"
 
