@@ -258,7 +258,7 @@ def import_quick_shell_items(
     if mode in {"add_as_new", "replace_target"}:
         effective_duplicate_mode = "keep_all"
     elif mode == "add_as_copy":
-        effective_duplicate_mode = "rename_conflicts"
+        effective_duplicate_mode = "copy_conflicts"
     for item in items:
         next_item = _merge_or_prepare_import_item(item, target_items, effective_duplicate_mode, stats) if mode == "add_to_target" else _prepare_import_item(item, target_items, effective_duplicate_mode, stats)
         if next_item is None:
@@ -730,6 +730,10 @@ def _prepare_import_item(
 ) -> dict[str, Any] | None:
     next_item = normalize_item(item)
     if duplicate_mode == "keep_all":
+        return next_item
+    if duplicate_mode == "copy_conflicts":
+        if any(_item_name(existing) == _item_name(next_item) for existing in target_items):
+            next_item["name"] = _unique_import_name(_item_name(next_item), target_items)
         return next_item
     if any(_items_equal(existing, next_item) for existing in target_items):
         return None

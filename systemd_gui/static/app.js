@@ -375,7 +375,18 @@
         if (duplicateEntries.length) markDuplicateEntries();
         return nextItem;
       }
-      if (targetItems.some((existing) => itemKey(existing) === itemKey(nextItem))) return null;
+      if (duplicateMode === "copy_conflicts") {
+        if (duplicateEntries.length) {
+          nextItem.name = uniqueImportName(itemLabelKey(nextItem), targetItems);
+          nextItem.__previewRenamed = true;
+        }
+        return nextItem;
+      }
+      const identicalEntry = targetItems.find((existing) => itemKey(existing) === itemKey(nextItem));
+      if (identicalEntry) {
+        identicalEntry.__previewSkippedIdentical = true;
+        return HANDLED_PREVIEW_IMPORT;
+      }
       if (duplicateMode === "replace_conflicts" && duplicateEntries.length) {
         const conflictIndex = targetItems.indexOf(duplicateEntries[0]);
         const replacedItem = cloneJson(targetItems[conflictIndex]);
@@ -396,10 +407,7 @@
         const existingCategory = targetItems.find((existing) => entryType(existing) === "category" && itemLabelKey(existing) === itemLabelKey(item));
         if (existingCategory) {
           if (duplicateMode !== "keep_all" && itemKey(existingCategory) === itemKey(item)) {
-            const skipped = cloneJson(item);
-            skipped.__previewState = "skipped";
-            skipped.__previewNote = "identical category will be skipped";
-            targetItems.push(skipped);
+            existingCategory.__previewSkippedIdentical = true;
             return;
           }
           existingCategory.__previewMerged = true;
@@ -412,13 +420,6 @@
         }
       }
       const preparedItem = prepareImportItem(item, targetItems, duplicateMode);
-      if (!preparedItem) {
-        const skipped = cloneJson(item);
-        skipped.__previewState = "skipped";
-        skipped.__previewNote = "exact duplicate will be skipped";
-        targetItems.push(skipped);
-        return;
-      }
       if (preparedItem === HANDLED_PREVIEW_IMPORT) return;
       targetItems.push(preparedItem);
     };
@@ -524,6 +525,7 @@
         else if (state === "removed") addStatusChip("will be removed");
         else if (state === "skipped") addStatusChip("will be skipped");
         if (entry.__previewDuplicate) addStatusChip("duplicate", "warning");
+        if (entry.__previewSkippedIdentical) addStatusChip("identical skipped");
         if (type === "command" && entry.command) {
           const code = document.createElement("code");
           code.textContent = entry.command;
@@ -613,7 +615,7 @@
       } else if (mode === "add_as_new") {
         setPreviewState("ok", `Will add imported top-level entries as new entries inside ${target}. Existing entries are not changed; duplicate names may be created. ${countSummary}`, items, mode, targetPath, "keep_all");
       } else if (mode === "add_as_copy") {
-        setPreviewState("ok", `Will add imported top-level entries as separate copies inside ${target}. Same-name entries are renamed, for example APT (imported). ${countSummary}`, items, mode, targetPath, "rename_conflicts");
+        setPreviewState("ok", `Will add imported top-level entries as separate copies inside ${target}. Same-name entries are renamed, for example APT (imported). ${countSummary}`, items, mode, targetPath, "copy_conflicts");
       } else if (mode === "replace_target") {
         setPreviewState("warning", `Will delete entries inside ${target}, then import this file there. Conflict handling is not used. ${countSummary}`, items, mode, targetPath, "keep_all");
       } else if (mode === "replace_selected_category") {
