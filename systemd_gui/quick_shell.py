@@ -226,7 +226,7 @@ def import_quick_shell_items(
     duplicate_mode: str,
 ) -> tuple[dict[str, Any], dict[str, int]]:
     next_data = normalize_tree(data)
-    if mode not in {"replace_all", "add_to_target", "add_as_new", "replace_target", "replace_selected_category"}:
+    if mode not in {"replace_all", "add_to_target", "add_as_new", "add_as_copy", "replace_target", "replace_selected_category"}:
         raise ValueError("Unknown import mode.")
     if duplicate_mode == "skip_exact":
         duplicate_mode = "replace_conflicts"
@@ -254,7 +254,11 @@ def import_quick_shell_items(
     target_items = _target_items(next_data, target_path)
     if mode == "replace_target":
         target_items.clear()
-    effective_duplicate_mode = "keep_all" if mode in {"add_as_new", "replace_target"} else duplicate_mode
+    effective_duplicate_mode = duplicate_mode
+    if mode in {"add_as_new", "replace_target"}:
+        effective_duplicate_mode = "keep_all"
+    elif mode == "add_as_copy":
+        effective_duplicate_mode = "rename_conflicts"
     for item in items:
         next_item = _merge_or_prepare_import_item(item, target_items, effective_duplicate_mode, stats) if mode == "add_to_target" else _prepare_import_item(item, target_items, effective_duplicate_mode, stats)
         if next_item is None:

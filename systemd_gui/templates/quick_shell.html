@@ -423,6 +423,7 @@
               <select name="import_mode" data-import-mode-select>
                 <option value="add_to_target" selected>Merge into selected category</option>
                 <option value="add_as_new">Add as new entries</option>
+                <option value="add_as_copy">Add as renamed copy</option>
                 <option value="replace_target">Replace entries inside selected category</option>
                 <option value="replace_selected_category">Replace selected category</option>
                 <option value="replace_all">Replace all Quick Shell categories</option>
@@ -435,6 +436,10 @@
             <div class="import-explain" data-import-mode-help="add_as_new" hidden>
               <strong>Add as new entries</strong>
               <span>Adds every imported top-level entry as a new child of the selected category. Existing entries are not checked or changed, so this mode can intentionally create duplicate names.</span>
+            </div>
+            <div class="import-explain" data-import-mode-help="add_as_copy" hidden>
+              <strong>Add as renamed copy</strong>
+              <span>Adds every imported top-level entry as a separate copy. Same-name entries are renamed, for example <code>APT (imported)</code>, and existing entries stay untouched.</span>
             </div>
             <div class="import-explain" data-import-mode-help="replace_target" hidden>
               <strong>Replace entries inside selected category</strong>
@@ -472,7 +477,7 @@
             </div>
             <div class="import-explain subtle disabled" data-duplicate-mode-disabled hidden>
               <strong>Conflict handling not used</strong>
-              <span>Only Merge into selected category compares existing entries. This mode imports or replaces content directly.</span>
+              <span>This import mode has fixed behavior, so the conflict choice above is not needed.</span>
             </div>
           </div>
           <div class="import-preview" data-import-preview hidden>

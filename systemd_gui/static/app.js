@@ -612,6 +612,8 @@
         setPreviewState("ok", `Will merge the imported entries into ${target}. Categories with the same name are combined; conflict handling is applied inside them. ${countSummary}`, items, mode, targetPath, duplicateMode);
       } else if (mode === "add_as_new") {
         setPreviewState("ok", `Will add imported top-level entries as new entries inside ${target}. Existing entries are not changed; duplicate names may be created. ${countSummary}`, items, mode, targetPath, "keep_all");
+      } else if (mode === "add_as_copy") {
+        setPreviewState("ok", `Will add imported top-level entries as separate copies inside ${target}. Same-name entries are renamed, for example APT (imported). ${countSummary}`, items, mode, targetPath, "rename_conflicts");
       } else if (mode === "replace_target") {
         setPreviewState("warning", `Will delete entries inside ${target}, then import this file there. Conflict handling is not used. ${countSummary}`, items, mode, targetPath, "keep_all");
       } else if (mode === "replace_selected_category") {
