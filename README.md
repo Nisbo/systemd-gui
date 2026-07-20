@@ -1,11 +1,22 @@
 # Systemd Gui
 
-Systemd Gui is a small web interface for managing systemd `.service` units on
-Debian-style servers. It is intended for users who prefer a browser UI over
-working with SSH, `nano`, `vi`, `systemctl` and `journalctl`.
+Systemd Gui is a small web interface for managing systemd `.service` units and
+local Quick Shell command shortcuts on Debian-style servers. It is intended for
+users who prefer a browser UI over working with SSH, `nano`, `vi`, `systemctl`
+and `journalctl`.
 
 The app is written in Python with Flask and is installed behind nginx and
 Gunicorn.
+
+## Screenshots
+
+| Services overview | Service detail |
+| --- | --- |
+| ![Systemd Gui services overview](docs/screenshots/services.jpg) | ![Systemd Gui service detail](docs/screenshots/service-detail.jpg) |
+
+| Quick Shell | Settings |
+| --- | --- |
+| ![Quick Shell command menu](docs/screenshots/quick-shell.jpg) | ![Systemd Gui settings](docs/screenshots/settings.jpg) |
 
 ## Features
 
