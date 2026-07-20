@@ -394,7 +394,7 @@
       if (!Array.isArray(payload.items)) throw new Error("Import file does not contain an items list.");
       return payload.items.filter((item) => item && typeof item === "object");
     };
-    const targetLabel = () => (targetSelect?.selectedOptions?.[0]?.textContent || "Root menu").replace(/^[-\s]+/, "").trim() || "Root menu";
+    const targetLabel = () => (targetSelect?.selectedOptions?.[0]?.textContent || "Root category").replace(/^[-\s]+/, "").trim() || "Root category";
     const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
     const applyPreviewImport = (items, mode, targetPath, duplicateMode) => {
       const tree = decorateExisting(Array.isArray(currentQuickShell.items) ? currentQuickShell.items : []);
@@ -409,7 +409,7 @@
       if (mode === "replace_all") {
         const removedRoot = {
           type: "category",
-          name: "Current full Quick Shell menu",
+          name: "Current Quick Shell categories",
           items: [],
           __previewState: "removed",
           __previewNote: `${plural(tree.length, "top-level entry")} will be replaced`,
@@ -545,19 +545,19 @@
       const stats = collectImportStats(items);
       const countSummary = `${plural(items.length, "top-level entry")}; ${plural(stats.categories, "category")}, ${plural(stats.commands, "command")}, ${plural(stats.sequences, "sequence")} total.`;
       if (mode === "add_to_target") {
-        setPreviewState("ok", `Will add the imported entries into ${target}. Existing entries stay. ${countSummary}`, items, mode, targetPath, duplicateMode);
+        setPreviewState("ok", `Will merge the imported entries into ${target}. Existing entries stay. ${countSummary}`, items, mode, targetPath, duplicateMode);
       } else if (mode === "replace_target") {
         setPreviewState("warning", `Will delete entries inside ${target}, then import this file there. ${countSummary}`, items, mode, targetPath, duplicateMode);
       } else if (mode === "replace_selected_category") {
         if ((targetSelect?.value || "") === "") {
-          setPreviewState("danger", "Choose a real category first. The Root menu cannot be replaced with this mode.", items, mode, targetPath, duplicateMode);
+          setPreviewState("danger", "Choose a real category first. The Root category cannot be replaced with this mode.", items, mode, targetPath, duplicateMode);
         } else if (items.length !== 1 || entryType(items[0]) !== "category") {
           setPreviewState("danger", `This mode expects exactly one top-level category in the file. This file has ${plural(items.length, "top-level entry")}.`, items, mode, targetPath, duplicateMode);
         } else {
           setPreviewState("warning", `Will replace ${target} with the imported category ${entryName(items[0])}. Child entries inside the old category are deleted.`, items, mode, targetPath, duplicateMode);
         }
       } else if (mode === "replace_all") {
-        setPreviewState("danger", `Will replace the full Quick Shell menu with this file. Current entries outside the import are deleted. ${countSummary}`, items, mode, targetPath, duplicateMode);
+        setPreviewState("danger", `Will replace all Quick Shell categories with this file. Current entries outside the import are deleted. ${countSummary}`, items, mode, targetPath, duplicateMode);
       }
     };
     const syncImportHelp = () => {

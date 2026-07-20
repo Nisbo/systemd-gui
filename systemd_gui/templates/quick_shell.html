@@ -5,7 +5,7 @@
     {% set add_tab = "command" %}
   {% endif %}
   {% set quick_tabs = [
-    ("menu", "Menu"),
+    ("menu", "Categories"),
     ("tree", "Full tree"),
     ("transfer", "Import / Export"),
     ("setup", "Shell setup"),
@@ -15,7 +15,7 @@
     <div class="panel-head">
       <div>
         <h2>Quick Shell</h2>
-        <p>Build a small numbered command menu for your server shell.</p>
+        <p>Build a small numbered command category list for your server shell.</p>
       </div>
     </div>
     <nav class="settings-tabs" aria-label="Quick Shell sections">
@@ -31,8 +31,8 @@
     <section class="panel">
       <div class="panel-head">
         <div>
-          <h2>{{ entry_label(parent) if parent else "Root menu" }}</h2>
-          <p>Categories open another menu. Commands and sequences are shown as selectable shell actions.</p>
+          <h2>{{ entry_label(parent) if parent else "Root category" }}</h2>
+          <p>Categories open another category level. Commands and sequences are shown as selectable shell actions.</p>
         </div>
         <button class="primary-button" type="button" data-quick-shell-add-open data-parent-path="{{ parent_path }}" data-entry-type="{{ add_tab }}">Add entry</button>
       </div>
@@ -130,7 +130,7 @@
           <button class="ghost-button" type="submit" form="quick-shell-selected-export-form">Export selected</button>
         </div>
       {% else %}
-        <p class="empty-note">This menu is empty.</p>
+        <p class="empty-note">This category is empty.</p>
       {% endif %}
     </section>
 
@@ -139,7 +139,7 @@
         <div class="panel-head">
           <div>
             <h2 id="quick-shell-add-title">Add entry</h2>
-            <p>Add a command, sequence or category to the selected menu.</p>
+            <p>Add a command, sequence or category to the selected category.</p>
           </div>
           <button class="ghost-button small-icon-button" type="button" data-quick-shell-modal-close aria-label="Close">×</button>
         </div>
@@ -267,6 +267,7 @@
 
     {% for item in entries %}
       {% set item_path = parent_path ~ "." ~ loop.index0 if parent_path else loop.index0|string %}
+      {% set item_parent_path = item_path.rsplit(".", 1)[0] if "." in item_path else "" %}
       <div class="confirm-modal" data-quick-shell-edit-modal id="quick-shell-edit-{{ loop.index0 }}" hidden>
         <div class="confirm-dialog quick-shell-dialog" role="dialog" aria-modal="true" aria-labelledby="quick-shell-edit-title-{{ loop.index0 }}">
           <div class="panel-head">
@@ -280,6 +281,18 @@
           <form class="form-grid single" method="post" action="{{ url_for('update_quick_shell_item', item_path=item_path) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="type" value="{{ item.type }}">
+            <label>
+              Category
+              <select name="parent_path">
+                {% for option in category_options %}
+                  {% set blocked_target = item.type == "category" and (option.path == item_path or option.path.startswith(item_path ~ ".")) %}
+                  <option value="{{ option.path }}" {% if option.path == item_parent_path %}selected{% endif %} {% if blocked_target %}disabled{% endif %}>{{ "-- " * option.depth }}{{ option.label }}</option>
+                {% endfor %}
+              </select>
+              {% if item.type == "category" %}
+                <span class="field-help">A category cannot be moved into itself or one of its child categories.</span>
+              {% endif %}
+            </label>
             <label>
               Name
               <input name="name" value="{{ item.name }}" placeholder="{% if item.type == 'command' %}{{ item.command }}{% elif item.type == 'sequence' %}Sequence name{% else %}Category name{% endif %}">
@@ -379,7 +392,7 @@
       <div class="panel-head">
         <div>
           <h2>Import / Export</h2>
-          <p>Back up your Quick Shell menu or share selected commands with another Systemd Gui server.</p>
+          <p>Back up your Quick Shell categories or share selected commands with another Systemd Gui server.</p>
         </div>
         <a class="primary-button" href="{{ url_for('export_quick_shell_full') }}">Download full export</a>
       </div>
@@ -387,7 +400,7 @@
       <div class="inline-section">
         <div class="update-section-title">
           <strong>Import entries</strong>
-          <span>Import a full backup or a shared export file. You decide where entries go and how name conflicts are handled.</span>
+          <span>Import a full backup or a shared export file. You decide which category receives the entries and how name conflicts are handled.</span>
         </div>
         <form class="form-grid quick-shell-import-form" method="post" action="{{ url_for('import_quick_shell') }}" enctype="multipart/form-data" data-quick-shell-import-form>
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -397,7 +410,7 @@
             <input type="file" name="import_file" accept="application/json,.json" required>
           </label>
           <label>
-            Import into
+            Target category
             <select name="target_path" data-import-target-select>
               {% for option in category_options %}
                 <option value="{{ option.path }}">{{ "-- " * option.depth }}{{ option.label }}</option>
@@ -408,27 +421,27 @@
             <label>
               Import mode
               <select name="import_mode" data-import-mode-select>
-                <option value="add_to_target" selected>Add imported entries into selected menu</option>
-                <option value="replace_target">Replace entries inside selected menu</option>
+                <option value="add_to_target" selected>Merge imported entries into selected category</option>
+                <option value="replace_target">Replace entries inside selected category</option>
                 <option value="replace_selected_category">Replace selected category</option>
-                <option value="replace_all">Replace full Quick Shell menu</option>
+                <option value="replace_all">Replace all Quick Shell categories</option>
               </select>
             </label>
             <div class="import-explain" data-import-mode-help="add_to_target">
-              <strong>Add imported entries into selected menu</strong>
-              <span>Leaves the selected menu untouched and adds everything from the file inside it. If the file contains a category, that category is added as a child.</span>
+              <strong>Merge imported entries into selected category</strong>
+              <span>Leaves the selected category untouched and adds everything from the file inside it. If the file contains a category, that category is added as a child.</span>
             </div>
             <div class="import-explain" data-import-mode-help="replace_target" hidden>
-              <strong>Replace entries inside selected menu</strong>
-              <span>Keeps the selected menu or category itself, deletes its current entries, then imports the file content into it. If the file contains a category, that category becomes a child entry.</span>
+              <strong>Replace entries inside selected category</strong>
+              <span>Keeps the selected category itself, deletes its current entries, then imports the file content into it. If the file contains a category, that category becomes a child entry.</span>
             </div>
             <div class="import-explain" data-import-mode-help="replace_selected_category" hidden>
               <strong>Replace selected category</strong>
               <span>Use this to update a command pack like APT. Select the existing category, then import a file that contains exactly one category. The selected category is replaced by that imported category.</span>
             </div>
             <div class="import-explain" data-import-mode-help="replace_all" hidden>
-              <strong>Replace full Quick Shell menu</strong>
-              <span>Deletes the whole current Quick Shell menu and replaces it with the import file content. Settings from the file are used too.</span>
+              <strong>Replace all Quick Shell categories</strong>
+              <span>Deletes all current Quick Shell categories and replaces them with the import file content. Settings from the file are used too.</span>
             </div>
           </div>
           <div class="import-control" data-duplicate-control>
@@ -450,11 +463,11 @@
             </div>
             <div class="import-explain subtle" data-duplicate-mode-help="keep_all" hidden>
               <strong>Import everything</strong>
-              <span>No duplicate checks are made. Everything from the file is imported, even if it already exists.</span>
+              <span>No duplicate checks are made. Everything from the file is imported, even if the exact same entry or category name already exists in the selected category.</span>
             </div>
             <div class="import-explain subtle disabled" data-duplicate-mode-disabled hidden>
               <strong>Duplicate handling not used</strong>
-              <span>This import mode replaces existing content first, so there are no existing entries to compare with.</span>
+              <span>This import mode replaces existing content first, so existing entries are not compared.</span>
             </div>
           </div>
           <div class="import-preview" data-import-preview hidden>
@@ -506,7 +519,7 @@
                     <td>{{ backup.size }} B</td>
                     <td class="table-actions">
                       <a class="ghost-button icon-button small-icon-button" href="{{ url_for('download_quick_shell_backup', backup_id=backup.backup_id) }}" title="Download backup" aria-label="Download backup">⇩</a>
-                      <form method="post" action="{{ url_for('restore_quick_shell_backup_route', backup_id=backup.backup_id) }}" data-confirm="Restore this Quick Shell backup? Existing Quick Shell entries will be replaced." data-confirm-checkbox-name="backup_current" data-confirm-checkbox-label="Back up current menu first" data-confirm-checkbox-value="1">
+                      <form method="post" action="{{ url_for('restore_quick_shell_backup_route', backup_id=backup.backup_id) }}" data-confirm="Restore this Quick Shell backup? Existing Quick Shell entries will be replaced." data-confirm-checkbox-name="backup_current" data-confirm-checkbox-label="Back up current categories first" data-confirm-checkbox-value="1">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <button class="ghost-button icon-button small-icon-button" type="submit" title="Restore backup" aria-label="Restore backup">↺</button>
                       </form>

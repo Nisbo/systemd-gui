@@ -673,12 +673,42 @@ def move_item_to_position(data: dict[str, Any], item_path: str, position: int) -
     items.insert(next_index, item)
 
 
+def move_item_to_category(data: dict[str, Any], item_path: str, target_parent_path: str) -> str:
+    current_parent = ".".join(item_path.split(".")[:-1])
+    if target_parent_path == current_parent:
+        return item_path
+    if target_parent_path == item_path or target_parent_path.startswith(f"{item_path}."):
+        raise ValueError("A category cannot be moved into itself or one of its child categories.")
+    source_items, index = parent_children_for_path(data, item_path)
+    if index < 0 or index >= len(source_items):
+        raise ValueError("Quick shell entry was not found.")
+    target_items = _target_items(data, target_parent_path)
+    item = source_items.pop(index)
+    next_parent_path = _adjust_path_after_removal(target_parent_path, item_path)
+    target_items.append(item)
+    next_index = len(target_items) - 1
+    return f"{next_parent_path}.{next_index}" if next_parent_path else str(next_index)
+
+
+def _adjust_path_after_removal(target_path: str, removed_path: str) -> str:
+    target_parts = parse_path(target_path)
+    removed_parts = parse_path(removed_path)
+    if not target_parts or not removed_parts:
+        return target_path
+    removed_parent = removed_parts[:-1]
+    removed_index = removed_parts[-1]
+    affected_depth = len(removed_parent)
+    if len(target_parts) > affected_depth and target_parts[:affected_depth] == removed_parent and target_parts[affected_depth] > removed_index:
+        target_parts[affected_depth] -= 1
+    return ".".join(str(part) for part in target_parts)
+
+
 def _target_items(data: dict[str, Any], target_path: str) -> list[dict[str, Any]]:
     if not target_path:
         return data.setdefault("items", [])
     target = item_for_path(data, target_path)
     if target.get("type") != "category":
-        raise ValueError("Imports can only target the root menu or a category.")
+        raise ValueError("Imports can only target the root category or a category.")
     return target.setdefault("items", [])
 
 

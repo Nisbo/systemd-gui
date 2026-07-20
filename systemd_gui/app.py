@@ -27,6 +27,7 @@ from .quick_shell import (
     item_for_path,
     list_quick_shell_backups,
     move_item,
+    move_item_to_category,
     move_item_to_position,
     quick_shell_export_payload,
     quick_shell_payload_items,
@@ -366,14 +367,16 @@ def create_app() -> Flask:
     def update_quick_shell_item(item_path: str):
         data = read_quick_shell(_quick_shell_path(app))
         parent_path = _quick_shell_parent_path(item_path)
+        next_parent_path = request.form.get("parent_path", parent_path).strip()
         try:
             update_item(data, item_path, _quick_shell_item_from_form())
+            next_path = move_item_to_category(data, item_path, next_parent_path)
             write_quick_shell(_quick_shell_path(app), data)
         except ValueError as exc:
             flash(str(exc), "error")
             return redirect(url_for("quick_shell", tab="menu", path=parent_path))
         flash("Quick Shell entry saved.", "success")
-        return redirect(url_for("quick_shell", tab="menu", path=parent_path))
+        return redirect(url_for("quick_shell", tab="menu", path=_quick_shell_parent_path(next_path)))
 
     @app.post("/quick-shell/item/<item_path>/delete")
     def delete_quick_shell_item(item_path: str):
@@ -1083,7 +1086,7 @@ def _quick_shell_item_from_form() -> dict[str, object]:
 
 
 def _quick_shell_category_options(data: dict[str, object]) -> list[dict[str, object]]:
-    options: list[dict[str, object]] = [{"path": "", "label": "Root menu", "depth": 0}]
+    options: list[dict[str, object]] = [{"path": "", "label": "Root category", "depth": 0}]
     for entry in flatten_entries(list(data.get("items") or [])):
         if entry.item.get("type") != "category":
             continue
