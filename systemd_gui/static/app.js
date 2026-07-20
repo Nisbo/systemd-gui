@@ -362,7 +362,10 @@
     };
     const prepareImportItem = (item, targetItems, duplicateMode) => {
       const nextItem = cloneJson(item);
-      if (duplicateMode === "keep_all") return nextItem;
+      if (duplicateMode === "keep_all") {
+        if (targetItems.some((existing) => itemLabelKey(existing) === itemLabelKey(nextItem))) nextItem.__previewDuplicate = true;
+        return nextItem;
+      }
       if (targetItems.some((existing) => itemKey(existing) === itemKey(nextItem))) return null;
       if (duplicateMode === "rename_conflicts" && targetItems.some((existing) => itemLabelKey(existing) === itemLabelKey(nextItem))) {
         nextItem.name = uniqueImportName(itemLabelKey(nextItem), targetItems);
@@ -468,13 +471,17 @@
         const label = document.createElement("strong");
         label.textContent = entryName(entry);
         row.append(tag, label);
-        const status = document.createElement("span");
-        status.className = "import-preview-state";
-        if (isTarget && state === "existing") status.textContent = "target";
-        else if (state === "imported") status.textContent = entry.__previewRenamed ? "imported + renamed" : "imported";
-        else if (state === "removed") status.textContent = "will be removed";
-        else if (state === "skipped") status.textContent = "will be skipped";
-        if (status.textContent) row.appendChild(status);
+        const addStatusChip = (text, extraClass = "") => {
+          const status = document.createElement("span");
+          status.className = `import-preview-state ${extraClass}`.trim();
+          status.textContent = text;
+          row.appendChild(status);
+        };
+        if (isTarget && state === "existing") addStatusChip("target");
+        else if (state === "imported") addStatusChip(entry.__previewRenamed ? "imported + renamed" : "imported", entry.__previewRenamed ? "warning" : "");
+        else if (state === "removed") addStatusChip("will be removed");
+        else if (state === "skipped") addStatusChip("will be skipped");
+        if (entry.__previewDuplicate) addStatusChip("duplicate name", "warning");
         if (type === "command" && entry.command) {
           const code = document.createElement("code");
           code.textContent = entry.command;
