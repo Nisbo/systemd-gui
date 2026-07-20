@@ -3,11 +3,14 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 
 ITEM_TYPES = {"category", "command", "sequence"}
+QUICK_SHELL_EXPORT_KIND = "systemd-gui.quick-shell"
+QUICK_SHELL_EXPORT_VERSION = 1
 
 
 @dataclass
@@ -46,6 +49,14 @@ class BashHistoryTimestampStatus:
     installed: bool
     message: str
     refresh_command: str
+
+
+@dataclass
+class QuickShellBackupEntry:
+    backup_id: str
+    created_at: str
+    comment: str
+    size: int
 
 
 SHELL_INTEGRATIONS = {
@@ -118,6 +129,126 @@ def read_quick_shell(path: Path) -> dict[str, Any]:
 def write_quick_shell(path: Path, data: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(normalize_tree(data), indent=2, sort_keys=False) + "\n", encoding="utf-8")
+
+
+def quick_shell_export_payload(data: dict[str, Any], items: list[dict[str, Any]] | None = None, source: str = "Full menu") -> dict[str, Any]:
+    normalized = normalize_tree(data)
+    export_items = [normalize_item(item) for item in (items if items is not None else normalized.get("items") or [])]
+    return {
+        "kind": QUICK_SHELL_EXPORT_KIND,
+        "version": QUICK_SHELL_EXPORT_VERSION,
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+        "source": source,
+        "settings": normalized.get("settings") or default_quick_shell_settings(),
+        "items": export_items,
+    }
+
+
+def quick_shell_payload_items(payload: Any) -> list[dict[str, Any]]:
+    if not isinstance(payload, dict):
+        raise ValueError("Import file must contain a JSON object.")
+    if payload.get("kind") == QUICK_SHELL_EXPORT_KIND:
+        items = payload.get("items")
+    elif "items" in payload:
+        items = payload.get("items")
+    else:
+        raise ValueError("Import file does not contain Quick Shell entries.")
+    if not isinstance(items, list):
+        raise ValueError("Import file has an invalid entries list.")
+    return [normalize_item(item) for item in items if isinstance(item, dict)]
+
+
+def quick_shell_payload_settings(payload: Any) -> dict[str, Any]:
+    if isinstance(payload, dict):
+        return normalize_settings(payload.get("settings"))
+    return default_quick_shell_settings()
+
+
+def create_quick_shell_backup(path: Path, backup_dir: Path, comment: str = "") -> Path:
+    data = read_quick_shell(path)
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    backup_path = _unique_quick_shell_backup_path(backup_dir)
+    payload = quick_shell_export_payload(data, source="Server backup")
+    payload["comment"] = comment
+    backup_path.write_text(json.dumps(payload, indent=2, sort_keys=False) + "\n", encoding="utf-8")
+    return backup_path
+
+
+def list_quick_shell_backups(backup_dir: Path) -> list[QuickShellBackupEntry]:
+    if not backup_dir.exists():
+        return []
+    entries: list[QuickShellBackupEntry] = []
+    for path in backup_dir.glob("quick-shell.*.json"):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            payload = {}
+        entries.append(
+            QuickShellBackupEntry(
+                backup_id=path.name,
+                created_at=_format_quick_shell_backup_id(path.name),
+                comment=str(payload.get("comment") or ""),
+                size=path.stat().st_size if path.exists() else 0,
+            )
+        )
+    return sorted(entries, key=lambda entry: entry.backup_id, reverse=True)
+
+
+def read_quick_shell_backup(backup_dir: Path, backup_id: str) -> tuple[Path, dict[str, Any]]:
+    path = _quick_shell_backup_path(backup_dir, backup_id)
+    if not path.exists() or not path.is_file():
+        raise FileNotFoundError(f"Quick Shell backup not found: {backup_id}")
+    return path, json.loads(path.read_text(encoding="utf-8"))
+
+
+def restore_quick_shell_backup(path: Path, backup_dir: Path, backup_id: str, backup_current: bool = False) -> Path | None:
+    _backup_path, payload = read_quick_shell_backup(backup_dir, backup_id)
+    backup_path = create_quick_shell_backup(path, backup_dir, f"Before restoring {backup_id}") if backup_current else None
+    write_quick_shell(path, {"settings": payload.get("settings") or {}, "items": quick_shell_payload_items(payload)})
+    return backup_path
+
+
+def delete_quick_shell_backup(backup_dir: Path, backup_id: str) -> Path:
+    path = _quick_shell_backup_path(backup_dir, backup_id)
+    if not path.exists() or not path.is_file():
+        raise FileNotFoundError(f"Quick Shell backup not found: {backup_id}")
+    path.unlink()
+    return path
+
+
+def import_quick_shell_items(
+    data: dict[str, Any],
+    imported_items: list[dict[str, Any]],
+    target_path: str,
+    mode: str,
+    duplicate_mode: str,
+) -> tuple[dict[str, Any], dict[str, int]]:
+    next_data = normalize_tree(data)
+    if mode not in {"replace_all", "add_to_target", "replace_target"}:
+        raise ValueError("Unknown import mode.")
+    if duplicate_mode not in {"rename_conflicts", "skip_exact", "keep_all"}:
+        raise ValueError("Unknown duplicate handling.")
+
+    items = [normalize_item(item) for item in imported_items]
+    stats = {"imported": 0, "renamed": 0, "skipped": 0}
+    if mode == "replace_all":
+        next_data["items"] = items
+        stats["imported"] = len(items)
+        return next_data, stats
+
+    target_items = _target_items(next_data, target_path)
+    if mode == "replace_target":
+        target_items.clear()
+    for item in items:
+        next_item = _prepare_import_item(item, target_items, duplicate_mode)
+        if next_item is None:
+            stats["skipped"] += 1
+            continue
+        if next_item.get("name") != item.get("name"):
+            stats["renamed"] += 1
+        target_items.append(next_item)
+        stats["imported"] += 1
+    return next_data, stats
 
 
 def quick_shell_helper_status(path: Path, app_root: Path | None = None, data_dir: Path | None = None) -> QuickShellHelperStatus:
@@ -529,3 +660,76 @@ def move_item_to_position(data: dict[str, Any], item_path: str, position: int) -
         return
     item = items.pop(index)
     items.insert(next_index, item)
+
+
+def _target_items(data: dict[str, Any], target_path: str) -> list[dict[str, Any]]:
+    if not target_path:
+        return data.setdefault("items", [])
+    target = item_for_path(data, target_path)
+    if target.get("type") != "category":
+        raise ValueError("Imports can only target the root menu or a category.")
+    return target.setdefault("items", [])
+
+
+def _prepare_import_item(item: dict[str, Any], target_items: list[dict[str, Any]], duplicate_mode: str) -> dict[str, Any] | None:
+    next_item = normalize_item(item)
+    if duplicate_mode == "keep_all":
+        return next_item
+    if any(_items_equal(existing, next_item) for existing in target_items):
+        return None
+    if duplicate_mode == "rename_conflicts" and any(_item_name(existing) == _item_name(next_item) for existing in target_items):
+        next_item["name"] = _unique_import_name(_item_name(next_item), target_items)
+    return next_item
+
+
+def _items_equal(left: dict[str, Any], right: dict[str, Any]) -> bool:
+    return json.dumps(normalize_item(left), sort_keys=True) == json.dumps(normalize_item(right), sort_keys=True)
+
+
+def _item_name(item: dict[str, Any]) -> str:
+    return str(item.get("name") or entry_label(item)).strip()
+
+
+def _unique_import_name(name: str, target_items: list[dict[str, Any]]) -> str:
+    base = name or "Imported entry"
+    existing_names = {_item_name(item) for item in target_items}
+    candidate = f"{base} (imported)"
+    counter = 2
+    while candidate in existing_names:
+        candidate = f"{base} (imported {counter})"
+        counter += 1
+    return candidate
+
+
+def _quick_shell_backup_path(backup_dir: Path, backup_id: str) -> Path:
+    if not backup_id or "/" in backup_id or "\\" in backup_id or backup_id in {".", ".."}:
+        raise ValueError("Invalid Quick Shell backup id.")
+    root = backup_dir.resolve()
+    path = (root / backup_id).resolve()
+    if not path.is_relative_to(root):
+        raise ValueError("Invalid Quick Shell backup path.")
+    return path
+
+
+def _unique_quick_shell_backup_path(backup_dir: Path) -> Path:
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    path = backup_dir / f"quick-shell.{stamp}.json"
+    counter = 2
+    while path.exists():
+        path = backup_dir / f"quick-shell.{stamp}-{counter}.json"
+        counter += 1
+    return path
+
+
+def _format_quick_shell_backup_id(backup_id: str) -> str:
+    prefix = "quick-shell."
+    suffix = ".json"
+    if not backup_id.startswith(prefix) or not backup_id.endswith(suffix):
+        return backup_id
+    stamp = backup_id[len(prefix):-len(suffix)]
+    if "-" in stamp[15:]:
+        stamp = stamp.rsplit("-", 1)[0]
+    try:
+        return datetime.strptime(stamp, "%Y%m%d-%H%M%S").strftime("%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return backup_id

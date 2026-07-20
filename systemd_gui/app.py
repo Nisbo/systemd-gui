@@ -15,19 +15,28 @@ from .quick_shell import (
     add_item,
     bash_history_timestamp_status,
     children_for_path,
+    create_quick_shell_backup,
+    delete_quick_shell_backup,
     delete_item,
     entry_label,
     flatten_entries,
+    import_quick_shell_items,
     install_bash_history_timestamps,
     install_quick_shell_helper,
     install_shell_integration,
     item_for_path,
+    list_quick_shell_backups,
     move_item,
     move_item_to_position,
+    quick_shell_export_payload,
+    quick_shell_payload_items,
+    quick_shell_payload_settings,
     quick_shell_helper_status,
+    read_quick_shell_backup,
     read_quick_shell,
     remove_bash_history_timestamps,
     remove_shell_integration,
+    restore_quick_shell_backup,
     shell_integration_statuses,
     update_item,
     write_quick_shell,
@@ -231,7 +240,7 @@ def create_app() -> Flask:
         data = read_quick_shell(_quick_shell_path(app))
         parent_path = request.args.get("path", "").strip()
         active_tab = request.args.get("tab", "menu")
-        if active_tab not in {"menu", "tree", "setup"}:
+        if active_tab not in {"menu", "tree", "transfer", "setup"}:
             active_tab = "menu"
         try:
             parent = item_for_path(data, parent_path) if parent_path else None
@@ -253,6 +262,7 @@ def create_app() -> Flask:
             bash_history_status=bash_history_timestamp_status(),
             quick_shell_settings=data.get("settings") or {},
             quick_shell_path=_quick_shell_path(app),
+            quick_shell_backups=list_quick_shell_backups(_quick_shell_backup_dir(app)),
             entry_label=entry_label,
         )
 
@@ -397,6 +407,123 @@ def create_app() -> Flask:
         except (TypeError, ValueError) as exc:
             flash(str(exc), "error")
         return redirect(url_for("quick_shell", tab="menu", path=parent_path))
+
+    @app.get("/quick-shell/export/full")
+    def export_quick_shell_full():
+        data = read_quick_shell(_quick_shell_path(app))
+        payload = quick_shell_export_payload(data, source="Full menu")
+        return _json_download(payload, "systemd-gui-quick-shell-full.json")
+
+    @app.post("/quick-shell/export/selected")
+    def export_quick_shell_selected():
+        data = read_quick_shell(_quick_shell_path(app))
+        selected_paths = request.form.getlist("selected_paths")
+        items = []
+        for item_path in selected_paths:
+            try:
+                items.append(item_for_path(data, item_path))
+            except ValueError:
+                continue
+        if not items:
+            flash("Select at least one entry to export.", "error")
+            return redirect(url_for("quick_shell", tab="menu", path=request.form.get("parent_path", "")))
+        payload = quick_shell_export_payload(data, items, source="Selected entries")
+        return _json_download(payload, "systemd-gui-quick-shell-selected.json")
+
+    @app.get("/quick-shell/item/<item_path>/export")
+    def export_quick_shell_item(item_path: str):
+        data = read_quick_shell(_quick_shell_path(app))
+        try:
+            item = item_for_path(data, item_path)
+        except ValueError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("quick_shell", tab="menu"))
+        payload = quick_shell_export_payload(data, [item], source=f"Entry: {entry_label(item)}")
+        filename = f"systemd-gui-quick-shell-{_download_slug(entry_label(item))}.json"
+        return _json_download(payload, filename)
+
+    @app.post("/quick-shell/import")
+    def import_quick_shell():
+        upload = request.files.get("import_file")
+        if not upload or not upload.filename:
+            flash("Choose a Quick Shell export file first.", "error")
+            return redirect(url_for("quick_shell", tab="transfer"))
+        try:
+            payload = json.loads(upload.stream.read().decode("utf-8"))
+            imported_items = quick_shell_payload_items(payload)
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+            flash(f"Import failed: {exc}", "error")
+            return redirect(url_for("quick_shell", tab="transfer"))
+        if not imported_items:
+            flash("Import file does not contain any entries.", "error")
+            return redirect(url_for("quick_shell", tab="transfer"))
+
+        data = read_quick_shell(_quick_shell_path(app))
+        mode = request.form.get("import_mode", "add_to_target")
+        target_path = request.form.get("target_path", "").strip()
+        duplicate_mode = request.form.get("duplicate_mode", "rename_conflicts")
+        backup_path = None
+        try:
+            if request.form.get("backup_current") == "1":
+                backup_path = create_quick_shell_backup(_quick_shell_path(app), _quick_shell_backup_dir(app), "Before Quick Shell import")
+            data, stats = import_quick_shell_items(data, imported_items, target_path, mode, duplicate_mode)
+            if mode == "replace_all":
+                data["settings"] = quick_shell_payload_settings(payload)
+            write_quick_shell(_quick_shell_path(app), data)
+        except (OSError, ValueError) as exc:
+            flash(f"Import failed: {exc}", "error")
+            return redirect(url_for("quick_shell", tab="transfer"))
+
+        backup_note = f" Backup created: {backup_path}." if backup_path else ""
+        flash(f"Import completed. Imported: {stats['imported']}, renamed: {stats['renamed']}, skipped: {stats['skipped']}.{backup_note}", "success")
+        next_path = "" if mode == "replace_all" else target_path
+        return redirect(url_for("quick_shell", tab="menu", path=next_path))
+
+    @app.post("/quick-shell/backups")
+    def create_quick_shell_backup_route():
+        comment = request.form.get("comment", "").strip()
+        try:
+            backup_path = create_quick_shell_backup(_quick_shell_path(app), _quick_shell_backup_dir(app), comment)
+        except OSError as exc:
+            flash(f"Quick Shell backup could not be created: {exc}", "error")
+            return redirect(url_for("quick_shell", tab="transfer"))
+        flash(f"Quick Shell backup created: {backup_path}.", "success")
+        return redirect(url_for("quick_shell", tab="transfer"))
+
+    @app.get("/quick-shell/backups/<backup_id>/download")
+    def download_quick_shell_backup(backup_id: str):
+        try:
+            _path, payload = read_quick_shell_backup(_quick_shell_backup_dir(app), backup_id)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            flash(f"Quick Shell backup download failed: {exc}", "error")
+            return redirect(url_for("quick_shell", tab="transfer"))
+        return _json_download(payload, backup_id)
+
+    @app.post("/quick-shell/backups/<backup_id>/restore")
+    def restore_quick_shell_backup_route(backup_id: str):
+        try:
+            backup_path = restore_quick_shell_backup(
+                _quick_shell_path(app),
+                _quick_shell_backup_dir(app),
+                backup_id,
+                request.form.get("backup_current") == "1",
+            )
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            flash(f"Quick Shell backup restore failed: {exc}", "error")
+            return redirect(url_for("quick_shell", tab="transfer"))
+        backup_note = f" Current menu was backed up first: {backup_path}." if backup_path else ""
+        flash(f"Quick Shell backup restored.{backup_note}", "success")
+        return redirect(url_for("quick_shell", tab="menu"))
+
+    @app.post("/quick-shell/backups/<backup_id>/delete")
+    def delete_quick_shell_backup_route(backup_id: str):
+        try:
+            deleted_path = delete_quick_shell_backup(_quick_shell_backup_dir(app), backup_id)
+        except (OSError, ValueError) as exc:
+            flash(f"Quick Shell backup delete failed: {exc}", "error")
+            return redirect(url_for("quick_shell", tab="transfer"))
+        flash(f"Quick Shell backup deleted: {deleted_path}.", "success")
+        return redirect(url_for("quick_shell", tab="transfer"))
 
     @app.post("/settings/check-update")
     def check_update():
@@ -893,8 +1020,36 @@ def _quick_shell_path(app: Flask) -> Path:
     return _data_dir(app) / "quick-shell.json"
 
 
+def _quick_shell_backup_dir(app: Flask) -> Path:
+    return _data_dir(app) / "quick-shell-backups"
+
+
 def _quick_shell_bin(app: Flask) -> Path:
     return Path(app.config["QUICK_SHELL_BIN"])
+
+
+def _json_download(payload: dict[str, object], filename: str) -> Response:
+    content = json.dumps(payload, indent=2, sort_keys=False) + "\n"
+    return Response(
+        content,
+        mimetype="application/json; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{_download_slug(filename, keep_extension=True)}"'},
+    )
+
+
+def _download_slug(value: str, keep_extension: bool = False) -> str:
+    allowed = []
+    for char in value.strip():
+        if char.isalnum() or char in {"-", "_"} or (keep_extension and char == "."):
+            allowed.append(char)
+        elif char.isspace():
+            allowed.append("-")
+    slug = "".join(allowed).strip("-._")
+    if not slug:
+        slug = "quick-shell-export"
+    if keep_extension:
+        return slug
+    return slug[:80]
 
 
 def _quick_shell_item_from_form() -> dict[str, object]:

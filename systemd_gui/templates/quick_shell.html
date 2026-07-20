@@ -7,6 +7,7 @@
   {% set quick_tabs = [
     ("menu", "Menu"),
     ("tree", "Full tree"),
+    ("transfer", "Import / Export"),
     ("setup", "Shell setup"),
   ] %}
 
@@ -43,10 +44,15 @@
       </nav>
 
       {% if entries %}
+        <form id="quick-shell-selected-export-form" method="post" action="{{ url_for('export_quick_shell_selected') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <input type="hidden" name="parent_path" value="{{ parent_path }}">
+        </form>
         <div class="table-wrap quick-shell-table">
           <table>
             <thead>
               <tr>
+                <th>Select</th>
                 <th>Type</th>
                 <th>Name</th>
                 <th>Command</th>
@@ -59,6 +65,9 @@
               {% for item in entries %}
                 {% set item_path = parent_path ~ "." ~ loop.index0 if parent_path else loop.index0|string %}
                 <tr>
+                  <td>
+                    <input type="checkbox" name="selected_paths" value="{{ item_path }}" form="quick-shell-selected-export-form" aria-label="Select {{ entry_label(item) }} for export">
+                  </td>
                   <td><span class="tag {{ 'override' if item.type == 'category' else 'neutral' }}">{{ item.type }}</span></td>
                   <td>
                     <strong>{{ entry_label(item) }}</strong>
@@ -85,6 +94,7 @@
                       {% if item.type == "category" %}
                         <button class="ghost-button small-icon-button" type="button" title="Add entry inside this category" aria-label="Add entry inside this category" data-quick-shell-add-open data-parent-path="{{ item_path }}" data-entry-type="command">+</button>
                         <a class="ghost-button compact-button" href="{{ url_for('quick_shell', tab='menu', path=item_path, add=add_tab) }}">Open</a>
+                        <a class="ghost-button compact-button" href="{{ url_for('export_quick_shell_item', item_path=item_path) }}" title="Export this category including child entries">Export</a>
                       {% endif %}
                       <button class="ghost-button compact-button" type="button" data-quick-shell-edit-open data-target="#quick-shell-edit-{{ loop.index0 }}">Edit</button>
                       <form method="post" action="{{ url_for('move_quick_shell_item', item_path=item_path) }}">
@@ -115,6 +125,9 @@
               {% endfor %}
             </tbody>
           </table>
+        </div>
+        <div class="form-actions">
+          <button class="ghost-button" type="submit" form="quick-shell-selected-export-form">Export selected</button>
         </div>
       {% else %}
         <p class="empty-note">This menu is empty.</p>
@@ -358,6 +371,119 @@
       {% else %}
         <p class="empty-note">No Quick Shell entries yet.</p>
       {% endif %}
+    </section>
+  {% elif active_tab == "transfer" %}
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Import / Export</h2>
+          <p>Back up your Quick Shell menu or share selected commands with another Systemd Gui server.</p>
+        </div>
+        <a class="primary-button" href="{{ url_for('export_quick_shell_full') }}">Download full export</a>
+      </div>
+
+      <div class="inline-section">
+        <div class="update-section-title">
+          <strong>Import entries</strong>
+          <span>Import a full backup or a shared export file. You decide where entries go and how name conflicts are handled.</span>
+        </div>
+        <form class="form-grid" method="post" action="{{ url_for('import_quick_shell') }}" enctype="multipart/form-data">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <label>
+            Export file
+            <input type="file" name="import_file" accept="application/json,.json" required>
+          </label>
+          <label>
+            Import into
+            <select name="target_path">
+              {% for option in category_options %}
+                <option value="{{ option.path }}">{{ "-- " * option.depth }}{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Import mode
+            <select name="import_mode">
+              <option value="add_to_target" selected>Add to selected menu</option>
+              <option value="replace_target">Replace selected menu contents</option>
+              <option value="replace_all">Replace everything</option>
+            </select>
+          </label>
+          <label>
+            Duplicate handling
+            <select name="duplicate_mode">
+              <option value="rename_conflicts" selected>Skip exact duplicates, rename name conflicts</option>
+              <option value="skip_exact">Skip exact duplicates only</option>
+              <option value="keep_all">Keep all imported entries</option>
+            </select>
+          </label>
+          <label class="toggle-label">
+            <input type="checkbox" name="backup_current" value="1">
+            <span>Create a server backup before importing</span>
+          </label>
+          <div class="form-actions">
+            <button class="primary-button" type="submit" data-confirm="Import Quick Shell entries now? Choose a backup first if you want a restore point.">Import file</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="inline-section">
+        <div class="update-section-title">
+          <strong>Server backups</strong>
+          <span>Server backups are stored under <code>data/quick-shell-backups</code>. Create them only when you want a restore point on this server.</span>
+        </div>
+        <div class="app-backup-list">
+          <form class="form-grid backup-create" method="post" action="{{ url_for('create_quick_shell_backup_route') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <label>
+              Backup comment
+              <input name="comment" placeholder="Before importing shared commands">
+            </label>
+            <button class="primary-button" type="submit">Create server backup</button>
+          </form>
+
+          <div class="table-wrap compact-table app-backup-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Created</th>
+                  <th>Comment</th>
+                  <th>Size</th>
+                  <th class="actions-heading">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for backup in quick_shell_backups %}
+                  <tr>
+                    <td>{{ backup.created_at }}</td>
+                    <td>{{ backup.comment or "-" }}</td>
+                    <td>{{ backup.size }} B</td>
+                    <td class="table-actions">
+                      <a class="ghost-button compact-button" href="{{ url_for('download_quick_shell_backup', backup_id=backup.backup_id) }}">Download</a>
+                      <form method="post" action="{{ url_for('restore_quick_shell_backup_route', backup_id=backup.backup_id) }}" data-confirm="Restore this Quick Shell backup? Existing Quick Shell entries will be replaced.">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <label class="toggle-label compact-toggle">
+                          <input type="checkbox" name="backup_current" value="1">
+                          <span>Back up current first</span>
+                        </label>
+                        <button class="ghost-button compact-button" type="submit">Restore</button>
+                      </form>
+                      <form method="post" action="{{ url_for('delete_quick_shell_backup_route', backup_id=backup.backup_id) }}" data-confirm="Delete this Quick Shell backup?">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button class="danger-button compact-button" type="submit">Delete</button>
+                      </form>
+                    </td>
+                  </tr>
+                {% else %}
+                  <tr>
+                    <td colspan="4" class="empty">No Quick Shell server backups yet.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </section>
   {% elif active_tab == "setup" %}
     <section class="panel">
