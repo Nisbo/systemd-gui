@@ -384,6 +384,36 @@
       }
       return nextItem;
     };
+    const importPreviewItemIntoTarget = (item, targetItems, duplicateMode, mergeCategories) => {
+      if (mergeCategories && entryType(item) === "category") {
+        const existingCategory = targetItems.find((existing) => entryType(existing) === "category" && itemLabelKey(existing) === itemLabelKey(item));
+        if (existingCategory) {
+          if (duplicateMode !== "keep_all" && itemKey(existingCategory) === itemKey(item)) {
+            const skipped = cloneJson(item);
+            skipped.__previewState = "skipped";
+            skipped.__previewNote = "identical category will be skipped";
+            targetItems.push(skipped);
+            return;
+          }
+          existingCategory.__previewMerged = true;
+          const existingChildren = Array.isArray(existingCategory.items) ? existingCategory.items : [];
+          existingCategory.items = existingChildren;
+          (Array.isArray(item.items) ? item.items : []).forEach((child) => {
+            importPreviewItemIntoTarget(child, existingChildren, duplicateMode, true);
+          });
+          return;
+        }
+      }
+      const preparedItem = prepareImportItem(item, targetItems, duplicateMode);
+      if (!preparedItem) {
+        const skipped = cloneJson(item);
+        skipped.__previewState = "skipped";
+        skipped.__previewNote = "exact duplicate will be skipped";
+        targetItems.push(skipped);
+        return;
+      }
+      targetItems.push(preparedItem);
+    };
     const collectImportStats = (items) => {
       const stats = { total: 0, categories: 0, commands: 0, sequences: 0 };
       const walk = (entryList) => {
@@ -409,7 +439,7 @@
       return payload.items.filter((item) => item && typeof item === "object");
     };
     const targetLabel = () => (targetSelect?.selectedOptions?.[0]?.textContent || "Root category").replace(/^[-\s]+/, "").trim() || "Root category";
-    const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
+    const plural = (count, word) => `${count} ${count === 1 ? word : (word.endsWith("y") ? `${word.slice(0, -1)}ies` : `${word}s`)}`;
     const applyPreviewImport = (items, mode, targetPath, duplicateMode) => {
       const tree = decorateExisting(Array.isArray(currentQuickShell.items) ? currentQuickShell.items : []);
       const importedItems = decorateImported(items);
@@ -448,15 +478,7 @@
         return tree;
       }
       importedItems.forEach((item) => {
-        const preparedItem = prepareImportItem(item, targetItems, duplicateMode);
-        if (!preparedItem) {
-          const skipped = cloneJson(item);
-          skipped.__previewState = "skipped";
-          skipped.__previewNote = "exact duplicate will be skipped";
-          targetItems.push(skipped);
-          return;
-        }
-        targetItems.push(preparedItem);
+        importPreviewItemIntoTarget(item, targetItems, duplicateMode, mode === "add_to_target");
       });
       return tree;
     };
@@ -473,7 +495,7 @@
         const type = entryType(entry);
         const state = entry.__previewState || "existing";
         const path = entry.__previewPath || "";
-        const isTarget = pathsEqual(path, targetPath);
+        const isTarget = state === "existing" && path !== "" && pathsEqual(path, targetPath);
         row.className = `import-preview-item ${type} ${state}${isTarget ? " target" : ""}`;
         row.style.setProperty("--depth", String(Math.min(depth, 4)));
         const tag = document.createElement("span");
@@ -489,6 +511,7 @@
           row.appendChild(status);
         };
         if (isTarget && state === "existing") addStatusChip("target");
+        if (entry.__previewMerged) addStatusChip("merged", "merged");
         else if (state === "imported") addStatusChip(entry.__previewRenamed ? "imported + renamed" : "imported", entry.__previewRenamed ? "warning" : "");
         else if (state === "removed") addStatusChip("will be removed");
         else if (state === "skipped") addStatusChip("will be skipped");
@@ -513,7 +536,7 @@
         previewList.appendChild(row);
         if (type === "category") {
           const childItems = Array.isArray(entry.items) ? entry.items : [];
-          const shouldExpand = state !== "existing" || isTarget || pathIsAncestor(path, targetPath) || pathIsDescendant(path, targetPath);
+          const shouldExpand = state !== "existing" || isTarget || entry.__previewMerged || pathIsAncestor(path, targetPath) || pathIsDescendant(path, targetPath);
           if (shouldExpand) {
             childItems.forEach((child) => addNode(child, depth + 1));
           } else if (childItems.length) {
@@ -578,7 +601,9 @@
       const stats = collectImportStats(items);
       const countSummary = `${plural(items.length, "top-level entry")}; ${plural(stats.categories, "category")}, ${plural(stats.commands, "command")}, ${plural(stats.sequences, "sequence")} total.`;
       if (mode === "add_to_target") {
-        setPreviewState("ok", `Will merge the imported entries into ${target}. Existing entries stay. ${countSummary}`, items, mode, targetPath, duplicateMode);
+        setPreviewState("ok", `Will merge the imported entries into ${target}. Categories with the same name are combined; duplicate handling is applied inside them. ${countSummary}`, items, mode, targetPath, duplicateMode);
+      } else if (mode === "add_as_new") {
+        setPreviewState("ok", `Will add imported top-level entries as new entries inside ${target}. Categories with the same name are not merged. ${countSummary}`, items, mode, targetPath, duplicateMode);
       } else if (mode === "replace_target") {
         setPreviewState("warning", `Will delete entries inside ${target}, then import this file there. ${countSummary}`, items, mode, targetPath, duplicateMode);
       } else if (mode === "replace_selected_category") {
@@ -594,7 +619,7 @@
       }
     };
     const syncImportHelp = () => {
-      const duplicateApplies = (modeSelect?.value || "add_to_target") === "add_to_target";
+      const duplicateApplies = ["add_to_target", "add_as_new"].includes(modeSelect?.value || "add_to_target");
       form.querySelectorAll("[data-import-mode-help]").forEach((node) => {
         node.hidden = node.dataset.importModeHelp !== modeSelect?.value;
       });

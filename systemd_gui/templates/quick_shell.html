@@ -421,15 +421,20 @@
             <label>
               Import mode
               <select name="import_mode" data-import-mode-select>
-                <option value="add_to_target" selected>Merge imported entries into selected category</option>
+                <option value="add_to_target" selected>Merge into selected category</option>
+                <option value="add_as_new">Add as new entries</option>
                 <option value="replace_target">Replace entries inside selected category</option>
                 <option value="replace_selected_category">Replace selected category</option>
                 <option value="replace_all">Replace all Quick Shell categories</option>
               </select>
             </label>
             <div class="import-explain" data-import-mode-help="add_to_target">
-              <strong>Merge imported entries into selected category</strong>
-              <span>Leaves the selected category untouched and adds everything from the file inside it. If the file contains a category, that category is added as a child.</span>
+              <strong>Merge into selected category</strong>
+              <span>Adds imported entries to the selected category. If an imported category has the same name as an existing category, their contents are merged instead of creating a second category.</span>
+            </div>
+            <div class="import-explain" data-import-mode-help="add_as_new" hidden>
+              <strong>Add as new entries</strong>
+              <span>Adds every imported top-level entry as a new child of the selected category. Categories with the same name are not merged, so this mode can intentionally create duplicate categories.</span>
             </div>
             <div class="import-explain" data-import-mode-help="replace_target" hidden>
               <strong>Replace entries inside selected category</strong>
@@ -455,15 +460,15 @@
             </label>
             <div class="import-explain subtle" data-duplicate-mode-help="rename_conflicts">
               <strong>Safe import</strong>
-              <span>Exact duplicates are skipped. If an imported entry has the same name but different content, it is renamed, for example <code>APT (imported)</code>.</span>
+              <span>Exact duplicates are skipped. Entries with the same name but different content are renamed, for example <code>APT (imported)</code>. In merge mode, matching categories are merged first and this rule is applied inside them.</span>
             </div>
             <div class="import-explain subtle" data-duplicate-mode-help="skip_exact" hidden>
               <strong>Skip identical only</strong>
-              <span>Exact duplicates are skipped, but entries with the same name and different content are still imported. You may get duplicate-looking names.</span>
+              <span>Exact duplicates are skipped. Entries with the same name but different content are still imported and marked as duplicates. In merge mode, matching categories are merged first and this rule is applied inside them.</span>
             </div>
             <div class="import-explain subtle" data-duplicate-mode-help="keep_all" hidden>
               <strong>Import everything</strong>
-              <span>No duplicate checks are made. Everything from the file is imported as-is. If an entry or category with the exact same name already exists, you will get duplicate names in the selected category.</span>
+              <span>No duplicate checks are made. Everything from the file is imported as-is. In merge mode, matching categories are merged, but duplicate commands, sequences or child categories can still be created inside them.</span>
             </div>
             <div class="import-explain subtle disabled" data-duplicate-mode-disabled hidden>
               <strong>Duplicate handling not used</strong>
