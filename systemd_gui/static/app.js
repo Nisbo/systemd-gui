@@ -299,6 +299,7 @@
     const previewTitle = form.querySelector("[data-import-preview-title]");
     const previewSummary = form.querySelector("[data-import-preview-summary]");
     const previewList = form.querySelector("[data-import-preview-list]");
+    const importSubmit = form.querySelector("[data-import-submit]");
     const currentDataNode = form.querySelector("[data-current-quick-shell]");
     const currentQuickShell = (() => {
       try {
@@ -308,6 +309,7 @@
       }
     })();
     let importPreviewPayload = null;
+    let importPreviewReady = false;
 
     const entryName = (entry) => String(entry?.name || entry?.command || "Unnamed entry");
     const entryType = (entry) => ["category", "sequence", "command"].includes(entry?.type) ? entry.type : "command";
@@ -362,16 +364,20 @@
     };
     const prepareImportItem = (item, targetItems, duplicateMode) => {
       const nextItem = cloneJson(item);
+      const duplicateName = itemLabelKey(nextItem);
+      const duplicateEntries = targetItems.filter((existing) => itemLabelKey(existing) === duplicateName);
+      const markDuplicateEntries = () => {
+        duplicateEntries.forEach((existing) => { existing.__previewDuplicate = true; });
+        nextItem.__previewDuplicate = true;
+      };
       if (duplicateMode === "keep_all") {
-        const duplicateName = itemLabelKey(nextItem);
-        const duplicateEntries = targetItems.filter((existing) => itemLabelKey(existing) === duplicateName);
-        if (duplicateEntries.length) {
-          duplicateEntries.forEach((existing) => { existing.__previewDuplicate = true; });
-          nextItem.__previewDuplicate = true;
-        }
+        if (duplicateEntries.length) markDuplicateEntries();
         return nextItem;
       }
       if (targetItems.some((existing) => itemKey(existing) === itemKey(nextItem))) return null;
+      if (duplicateMode === "skip_exact" && duplicateEntries.length) {
+        markDuplicateEntries();
+      }
       if (duplicateMode === "rename_conflicts" && targetItems.some((existing) => itemLabelKey(existing) === itemLabelKey(nextItem))) {
         nextItem.name = uniqueImportName(itemLabelKey(nextItem), targetItems);
         nextItem.__previewRenamed = true;
@@ -536,6 +542,22 @@
       previewSummary.textContent = summary;
       buildPreviewTree(items, mode, targetPath, duplicateMode);
     };
+    const updateImportSubmit = (state) => {
+      if (!importSubmit) return;
+      if (state === "ready") {
+        importSubmit.disabled = false;
+        importSubmit.textContent = "Import file";
+      } else if (state === "loading") {
+        importSubmit.disabled = true;
+        importSubmit.textContent = "Loading import file...";
+      } else if (state === "error") {
+        importSubmit.disabled = true;
+        importSubmit.textContent = "Choose valid import file";
+      } else {
+        importSubmit.disabled = true;
+        importSubmit.textContent = "Load file for import";
+      }
+    };
     const syncImportPreview = () => {
       if (!preview || !previewSummary) return;
       if (!importPreviewPayload) {
@@ -587,21 +609,37 @@
     fileInput?.addEventListener("change", () => {
       const file = fileInput.files?.[0];
       importPreviewPayload = null;
+      importPreviewReady = false;
       if (!file) {
+        updateImportSubmit("empty");
         syncImportPreview();
         return;
       }
+      updateImportSubmit("loading");
       file.text().then((text) => {
-        importPreviewPayload = JSON.parse(text);
+        const payload = JSON.parse(text);
+        parseImportItems(payload);
+        importPreviewPayload = payload;
+        importPreviewReady = true;
+        updateImportSubmit("ready");
         syncImportPreview();
       }).catch((error) => {
         importPreviewPayload = {};
-        setPreviewState("danger", error instanceof SyntaxError ? "This file is not valid JSON." : "Could not read this file.");
+        importPreviewReady = false;
+        updateImportSubmit("error");
+        setPreviewState("danger", error instanceof SyntaxError ? "This file is not valid JSON." : (error.message || "Could not read this file."));
       });
     });
     modeSelect?.addEventListener("change", syncImportHelp);
     duplicateSelect?.addEventListener("change", syncImportHelp);
     targetSelect?.addEventListener("change", syncImportPreview);
+    form.addEventListener("submit", (event) => {
+      if (!importPreviewReady) {
+        event.preventDefault();
+        updateImportSubmit(fileInput?.files?.length ? "loading" : "empty");
+      }
+    });
+    updateImportSubmit("empty");
     syncImportHelp();
   });
 
