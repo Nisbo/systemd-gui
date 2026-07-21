@@ -58,6 +58,8 @@ Gunicorn.
 - Use nested categories and direct paths such as `qs 1-2-3`.
 - Import, export and back up Quick Shell command sets.
 - Use placeholders such as `apt search {package}` and answer them in the shell.
+- Use readable step labels in sequences with `@ Friendly step name` on the line
+  before a command.
 - Add optional shell integration for commands such as `cd /opt`.
 
 ### Settings, Security And Updates
@@ -102,6 +104,12 @@ apt search {package}
 ```
 
 When the command is selected in `qs`, the shell asks for the missing value.
+
+Sequences run multiple commands in a separate shell. Put one command on each
+line. Lines starting with `#` are comments that can be printed before the next
+command. Lines starting with `@` are display labels for the next command, so a
+sequence can show a readable step name while the real command remains hidden in
+the script.
 
 Simple directory commands such as `cd`, `cd /opt` and `cd ~/project` need Shell
 Integration when they should change the current shell. The Quick Shell page can

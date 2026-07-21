@@ -264,6 +264,7 @@ def _sequence_lines(item) -> list[str]:
 def _sequence_steps(item) -> list[dict[str, object]]:
     steps: list[dict[str, object]] = []
     pending_comments: list[str] = []
+    pending_label = ""
     for line in str(item.get("commands") or "").splitlines():
         value = line.strip()
         if not value:
@@ -273,8 +274,14 @@ def _sequence_steps(item) -> list[dict[str, object]]:
             if comment:
                 pending_comments.append(comment)
             continue
-        steps.append({"command": value, "comments": pending_comments})
+        if value.startswith("@"):
+            label = value[1:].strip()
+            if label:
+                pending_label = label
+            continue
+        steps.append({"command": value, "comments": pending_comments, "label": pending_label})
         pending_comments = []
+        pending_label = ""
     return steps
 
 
@@ -708,7 +715,8 @@ def _run_sequence(item) -> int:
                     script_file.write("printf '\\n'\n")
                     for comment in comments:
                         script_file.write(f"printf '%s\\n' {shlex.quote(f'# {comment}')}\n")
-            label = f"[{index}/{len(steps)}] {command}"
+            display_command = str(step.get("label") or command)
+            label = f"[{index}/{len(steps)}] {display_command}"
             script_file.write("printf '\\n'\n")
             script_file.write(f"printf '%s\\n' {shlex.quote(label)}\n")
             script_file.write("__qs_skip=0\n")
