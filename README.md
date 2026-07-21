@@ -84,6 +84,12 @@ Quick Shell entries are stored in:
 data/quick-shell.json
 ```
 
+Importable example command packs are stored in:
+
+```text
+docs/quick-shell-templates
+```
+
 Entries can be nested into categories and subcategories. Disabled entries stay
 stored in the web UI but are hidden from the `qs` menu. By default, `qs` exits
 after a command runs. Enable **Show menu after command** on individual commands

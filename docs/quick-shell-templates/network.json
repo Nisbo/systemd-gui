@@ -1,0 +1,365 @@
+{
+  "kind": "systemd-gui.quick-shell",
+  "version": 1,
+  "created_at": "2026-07-21T00:00:00",
+  "source": "Systemd Gui Network template",
+  "settings": {
+    "history_limit": 80,
+    "history_show_timestamps": true
+  },
+  "items": [
+    {
+      "type": "category",
+      "name": "Network",
+      "enabled": true,
+      "items": [
+        {
+          "type": "category",
+          "name": "Status",
+          "enabled": true,
+          "items": [
+            {
+              "type": "command",
+              "name": "Show IP addresses",
+              "enabled": true,
+              "command": "ip address show",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Show routes",
+              "enabled": true,
+              "command": "ip route show",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Show links",
+              "enabled": true,
+              "command": "ip link show",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Show networkctl status",
+              "enabled": true,
+              "command": "networkctl status",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Show DNS status",
+              "enabled": true,
+              "command": "resolvectl status",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Show resolver file",
+              "enabled": true,
+              "command": "cat /etc/resolv.conf",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Show listening ports",
+              "enabled": true,
+              "command": "ss -tulpn",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Ping host",
+              "enabled": true,
+              "command": "ping -c 4 {host}",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Trace route",
+              "enabled": true,
+              "command": "sh -lc 'if command -v traceroute >/dev/null 2>&1; then traceroute \"$1\"; elif command -v tracepath >/dev/null 2>&1; then tracepath \"$1\"; else echo \"Install traceroute or iputils-tracepath first.\"; exit 127; fi' sh {host}",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Query DNS name",
+              "enabled": true,
+              "command": "sh -lc 'if command -v resolvectl >/dev/null 2>&1; then resolvectl query \"$1\"; elif command -v dig >/dev/null 2>&1; then dig \"$1\"; elif command -v nslookup >/dev/null 2>&1; then nslookup \"$1\"; else echo \"Install systemd-resolved, dnsutils or bind9-dnsutils first.\"; exit 127; fi' sh {domain}",
+              "confirm": false,
+              "show_menu_after": false
+            }
+          ]
+        },
+        {
+          "type": "category",
+          "name": "Interfaces",
+          "enabled": true,
+          "items": [
+            {
+              "type": "command",
+              "name": "Show interface addresses",
+              "enabled": true,
+              "command": "ip address show dev {interface}",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Show interface link",
+              "enabled": true,
+              "command": "ip link show dev {interface}",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Show interface statistics",
+              "enabled": true,
+              "command": "ip -s link show dev {interface}",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Show interface driver",
+              "enabled": true,
+              "command": "ethtool -i {interface}",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Bring interface up",
+              "enabled": true,
+              "command": "ip link set {interface} up",
+              "confirm": true,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Bring interface down",
+              "enabled": true,
+              "command": "ip link set {interface} down",
+              "confirm": true,
+              "show_menu_after": false
+            }
+          ]
+        },
+        {
+          "type": "category",
+          "name": "DHCP",
+          "enabled": true,
+          "items": [
+            {
+              "type": "command",
+              "name": "Renew with networkctl",
+              "enabled": true,
+              "command": "networkctl renew {interface}",
+              "confirm": true,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Renew DHCP lease",
+              "enabled": true,
+              "command": "dhclient -v {interface}",
+              "confirm": true,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Release DHCP lease",
+              "enabled": true,
+              "command": "dhclient -r {interface}",
+              "confirm": true,
+              "show_menu_after": false
+            }
+          ]
+        },
+        {
+          "type": "category",
+          "name": "DNS",
+          "enabled": true,
+          "items": [
+            {
+              "type": "command",
+              "name": "Resolve domain",
+              "enabled": true,
+              "command": "resolvectl query {domain}",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Show DNS servers",
+              "enabled": true,
+              "command": "resolvectl dns",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Flush DNS cache",
+              "enabled": true,
+              "command": "resolvectl flush-caches",
+              "confirm": true,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Restart systemd-resolved",
+              "enabled": true,
+              "command": "systemctl restart systemd-resolved",
+              "confirm": true,
+              "show_menu_after": false
+            }
+          ]
+        },
+        {
+          "type": "category",
+          "name": "Network services",
+          "enabled": true,
+          "items": [
+            {
+              "type": "command",
+              "name": "Show systemd-networkd status",
+              "enabled": true,
+              "command": "systemctl status systemd-networkd --no-pager",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Restart systemd-networkd",
+              "enabled": true,
+              "command": "systemctl restart systemd-networkd",
+              "confirm": true,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Show NetworkManager status",
+              "enabled": true,
+              "command": "systemctl status NetworkManager --no-pager",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Show NetworkManager devices",
+              "enabled": true,
+              "command": "nmcli device status",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Show NetworkManager connections",
+              "enabled": true,
+              "command": "nmcli connection show",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Restart NetworkManager",
+              "enabled": true,
+              "command": "systemctl restart NetworkManager",
+              "confirm": true,
+              "show_menu_after": false
+            }
+          ]
+        },
+        {
+          "type": "category",
+          "name": "Firewall and ports",
+          "enabled": true,
+          "items": [
+            {
+              "type": "command",
+              "name": "Show TCP and UDP sockets",
+              "enabled": true,
+              "command": "ss -tunap",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Show nftables rules",
+              "enabled": true,
+              "command": "nft list ruleset",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Show iptables rules",
+              "enabled": true,
+              "command": "iptables -L -n -v",
+              "confirm": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "command",
+              "name": "Show UFW status",
+              "enabled": true,
+              "command": "ufw status verbose",
+              "confirm": false,
+              "show_menu_after": false
+            }
+          ]
+        },
+        {
+          "type": "category",
+          "name": "Checks",
+          "enabled": true,
+          "items": [
+            {
+              "type": "sequence",
+              "name": "Basic network check",
+              "enabled": true,
+              "commands": "# Show IP addresses\nip address show\n\n# Show routes\nip route show\n\n# Show DNS status\nresolvectl status\n\n# Ping a host\nping -c 4 {host}",
+              "confirm": true,
+              "confirm_each": false,
+              "print_comments": true,
+              "stop_on_error": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "sequence",
+              "name": "Interface check",
+              "enabled": true,
+              "commands": "# Show interface addresses\nip address show dev {interface}\n\n# Show interface link state\nip link show dev {interface}\n\n# Show interface counters\nip -s link show dev {interface}\n\n# Show routes\nip route show",
+              "confirm": true,
+              "confirm_each": false,
+              "print_comments": true,
+              "stop_on_error": false,
+              "show_menu_after": false
+            },
+            {
+              "type": "sequence",
+              "name": "DNS check",
+              "enabled": true,
+              "commands": "# Show DNS status\nresolvectl status\n\n# Show configured DNS servers\nresolvectl dns\n\n# Resolve a domain\nresolvectl query {domain}",
+              "confirm": true,
+              "confirm_each": false,
+              "print_comments": true,
+              "stop_on_error": false,
+              "show_menu_after": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
