@@ -62,6 +62,14 @@ Gunicorn.
   before a command.
 - Add optional shell integration for commands such as `cd /opt`.
 
+### Nodes
+
+- Discover other Systemd Gui installations on the local network with Avahi/mDNS.
+- Save discovered nodes so they remain visible even when offline.
+- Store optional SSH connection details for future Quick Shell remote access.
+- Open saved or discovered node GUIs directly from the browser.
+- Announce the local node on the LAN with an on/off setting.
+
 ### Settings, Security And Updates
 
 - Change the web login password.
@@ -119,6 +127,27 @@ zsh. Normal commands do not need integration and work through the global helper.
 Fresh installations create `/usr/local/bin/qs` automatically. If you added Quick
 Shell through a Git update, open **Quick Shell** in the web UI and use **Install
 or update helper** once.
+
+## Nodes And LAN Discovery
+
+The Nodes page can discover other Systemd Gui installations on the same LAN
+through Avahi/mDNS service type:
+
+```text
+_systemd-gui._tcp.local
+```
+
+Fresh Debian installs include `avahi-daemon` and `avahi-utils`, announce the
+local node by default and create:
+
+```text
+data/nodes.json
+```
+
+You can disable local announcement on the Nodes page. Saved nodes can include
+optional SSH user, host, port and key-path fields. SSH passwords can also be
+stored, but SSH keys are recommended because local password storage only protects
+against casual exposure, not a compromised server.
 
 ## Safety
 
@@ -189,8 +218,9 @@ data/app-updates/backups
 ```
 
 App backups include the application files plus selected runtime data such as
-favorites, service notes, Quick Shell entries, unit backups and environment-file
-backups. The app backup directory itself is not copied recursively.
+favorites, service notes, Quick Shell entries, saved nodes, unit backups and
+environment-file backups. The app backup directory itself is not copied
+recursively.
 
 ## License
 

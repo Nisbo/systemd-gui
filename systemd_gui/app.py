@@ -11,6 +11,17 @@ from pathlib import Path
 
 from flask import Flask, Response, flash, redirect, render_template, request, session, url_for
 
+from .nodes import (
+    announcement_status,
+    discover_nodes,
+    install_announcement,
+    merge_discovered_with_saved,
+    node_from_form,
+    normalize_node,
+    read_nodes,
+    remove_announcement,
+    write_nodes,
+)
 from .quick_shell import (
     add_item,
     bash_history_timestamp_status,
@@ -109,6 +120,7 @@ def create_app() -> Flask:
         DATA_DIR=Path(os.environ.get("SYSTEMD_GUI_DATA_DIR", "data")),
         ENV_FILE=Path(os.environ.get("SYSTEMD_GUI_ENV_FILE", "/etc/systemd-gui.env")),
         SYSTEMD_GUI_SERVICE=os.environ.get("SYSTEMD_GUI_SERVICE", "systemd-gui"),
+        SYSTEMD_GUI_PUBLIC_PORT=int(os.environ.get("SYSTEMD_GUI_PUBLIC_PORT", "8850")),
         QUICK_SHELL_BIN=Path(os.environ.get("SYSTEMD_GUI_QS_BIN", "/usr/local/bin/qs")),
     )
     _sync_settings_from_env(app)
@@ -235,6 +247,110 @@ def create_app() -> Flask:
             update_result=session.pop("update_result", None),
             app_update_pending_restart=session.get("app_update_pending_restart", False),
         )
+
+    @app.get("/nodes")
+    def nodes():
+        data = read_nodes(_nodes_path(app))
+        settings = data.get("settings") or {}
+        saved_nodes = data.get("nodes") or []
+        discovery = discover_nodes()
+        discovered_raw = [node for node in discovery.nodes if node.get("node_id") != settings.get("node_id")]
+        discovered_nodes = merge_discovered_with_saved(saved_nodes, discovered_raw)
+        return render_template(
+            "nodes.html",
+            nodes_data=data,
+            node_settings=settings,
+            saved_nodes=saved_nodes,
+            discovery=discovery,
+            discovered_nodes=discovered_nodes,
+            announcement=announcement_status(settings, app.config["SYSTEMD_GUI_PUBLIC_PORT"]),
+            nodes_path=_nodes_path(app),
+            public_port=app.config["SYSTEMD_GUI_PUBLIC_PORT"],
+        )
+
+    @app.post("/nodes/settings")
+    def update_nodes_settings():
+        data = read_nodes(_nodes_path(app))
+        settings = data.get("settings") or {}
+        settings["node_name"] = request.form.get("node_name", "").strip() or settings.get("node_name")
+        settings["announce_enabled"] = request.form.get("announce_enabled") == "1"
+        data["settings"] = settings
+        write_nodes(_nodes_path(app), data)
+        if settings["announce_enabled"]:
+            try:
+                install_announcement(settings, app.config["SYSTEMD_GUI_PUBLIC_PORT"])
+                flash("LAN announcement is enabled for this node.", "success")
+            except OSError as exc:
+                flash(f"LAN announcement could not be enabled: {exc}", "error")
+        else:
+            try:
+                remove_announcement()
+                flash("LAN announcement is disabled for this node.", "success")
+            except OSError as exc:
+                flash(f"LAN announcement could not be disabled: {exc}", "error")
+        return redirect(url_for("nodes"))
+
+    @app.post("/nodes")
+    def create_node():
+        data = read_nodes(_nodes_path(app))
+        node = node_from_form(request.form)
+        if not node["url"]:
+            flash("Node URL is required.", "error")
+            return redirect(url_for("nodes"))
+        data["nodes"] = _upsert_node(list(data.get("nodes") or []), node)
+        write_nodes(_nodes_path(app), data)
+        flash(f"Node {node['name']} saved.", "success")
+        return redirect(url_for("nodes"))
+
+    @app.post("/nodes/discovered")
+    def save_discovered_node():
+        data = read_nodes(_nodes_path(app))
+        node = normalize_node({
+            "node_id": request.form.get("node_id", ""),
+            "name": request.form.get("name", ""),
+            "url": request.form.get("url", ""),
+            "host": request.form.get("host", ""),
+            "port": request.form.get("port", ""),
+            "ssh_host": request.form.get("host", ""),
+        })
+        if not node["url"]:
+            flash("Discovered node has no usable URL.", "error")
+            return redirect(url_for("nodes"))
+        data["nodes"] = _upsert_node(list(data.get("nodes") or []), node)
+        write_nodes(_nodes_path(app), data)
+        flash(f"Discovered node {node['name']} saved.", "success")
+        return redirect(url_for("nodes"))
+
+    @app.post("/nodes/<node_id>/update")
+    def update_node(node_id: str):
+        data = read_nodes(_nodes_path(app))
+        nodes_list = list(data.get("nodes") or [])
+        for index, node in enumerate(nodes_list):
+            if str(node.get("id")) == node_id:
+                updated = node_from_form(request.form, node)
+                if not updated["url"]:
+                    flash("Node URL is required.", "error")
+                    return redirect(url_for("nodes"))
+                nodes_list[index] = updated
+                data["nodes"] = nodes_list
+                write_nodes(_nodes_path(app), data)
+                flash(f"Node {updated['name']} updated.", "success")
+                return redirect(url_for("nodes"))
+        flash("Node not found.", "error")
+        return redirect(url_for("nodes"))
+
+    @app.post("/nodes/<node_id>/delete")
+    def delete_node(node_id: str):
+        data = read_nodes(_nodes_path(app))
+        nodes_list = list(data.get("nodes") or [])
+        kept_nodes = [node for node in nodes_list if str(node.get("id")) != node_id]
+        if len(kept_nodes) == len(nodes_list):
+            flash("Node not found.", "error")
+        else:
+            data["nodes"] = kept_nodes
+            write_nodes(_nodes_path(app), data)
+            flash("Node deleted.", "success")
+        return redirect(url_for("nodes"))
 
     @app.get("/quick-shell")
     def quick_shell():
@@ -1026,6 +1142,23 @@ def _quick_shell_path(app: Flask) -> Path:
 
 def _quick_shell_backup_dir(app: Flask) -> Path:
     return _data_dir(app) / "quick-shell-backups"
+
+
+def _nodes_path(app: Flask) -> Path:
+    return _data_dir(app) / "nodes.json"
+
+
+def _upsert_node(nodes: list[dict[str, object]], node: dict[str, object]) -> list[dict[str, object]]:
+    node_id = str(node.get("node_id") or "")
+    node_url = str(node.get("url") or "").rstrip("/").lower()
+    for index, existing in enumerate(nodes):
+        existing_id = str(existing.get("node_id") or "")
+        existing_url = str(existing.get("url") or "").rstrip("/").lower()
+        if (node_id and existing_id == node_id) or (node_url and existing_url == node_url):
+            merged = {**existing, **node, "id": existing.get("id") or node.get("id")}
+            nodes[index] = merged
+            return nodes
+    return [*nodes, node]
 
 
 def _quick_shell_bin(app: Flask) -> Path:

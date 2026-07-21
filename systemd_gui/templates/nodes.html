@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Nodes</h2>
+        <p>Find other Systemd Gui installations on your LAN and save the ones you want to manage.</p>
+      </div>
+      <a class="ghost-button" href="{{ url_for('nodes') }}">Refresh</a>
+    </div>
+
+    <div class="diagnostic warning">
+      <strong>Remote shell actions are not enabled here yet</strong>
+      <span>This page stores trusted node information first. Later, Quick Shell can use SSH to open <code>qs</code> on a saved node.</span>
+    </div>
+
+    <dl class="detail-grid three">
+      <div><dt>This node</dt><dd>{{ node_settings.node_name }}</dd></div>
+      <div><dt>Node ID</dt><dd><code>{{ node_settings.node_id }}</code></dd></div>
+      <div><dt>Storage</dt><dd><code>{{ nodes_path }}</code></dd></div>
+    </dl>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>LAN announcement</h2>
+        <p>Announce this server as <code>_systemd-gui._tcp.local</code> so other installations can find it.</p>
+      </div>
+      <span class="tag {% if announcement.installed and announcement.current %}{% elif announcement.available %}neutral{% else %}danger{% endif %}">
+        {% if announcement.installed and announcement.current %}Announced{% elif announcement.available %}Ready{% else %}Unavailable{% endif %}
+      </span>
+    </div>
+
+    <form class="form-grid" method="post" action="{{ url_for('update_nodes_settings') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>
+        Local display name
+        <input name="node_name" value="{{ node_settings.node_name }}" placeholder="Server name">
+        <span class="field-help">Shown to other Systemd Gui installations in the LAN discovery list.</span>
+      </label>
+      <label class="toggle-label">
+        <input type="checkbox" name="announce_enabled" value="1" {% if node_settings.announce_enabled %}checked{% endif %}>
+        <span>Announce this node on LAN</span>
+      </label>
+      <div class="diagnostic {% if announcement.available %}warning{% else %}error{% endif %}">
+        <strong>Avahi/mDNS</strong>
+        <span>{{ announcement.message }}</span>
+        <span>Service file: <code>{{ announcement.service_file }}</code></span>
+      </div>
+      <div class="form-actions">
+        <button class="primary-button" type="submit">Save announcement settings</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Saved nodes</h2>
+        <p>Saved nodes stay here even when they are offline. SSH fields are optional and used later by Quick Shell.</p>
+      </div>
+    </div>
+
+    {% if saved_nodes %}
+      <div class="node-grid">
+        {% for node in saved_nodes %}
+          <article class="node-card">
+            <div class="node-card-head">
+              <div>
+                <h3>{{ node.name }}</h3>
+                <p><code>{{ node.url }}</code></p>
+              </div>
+              <a class="ghost-button compact-button" href="{{ node.url }}" target="_blank" rel="noopener">Open GUI</a>
+            </div>
+
+            <form class="form-grid" method="post" action="{{ url_for('update_node', node_id=node.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <input type="hidden" name="keep_ssh_password" value="1">
+              <label>
+                Name
+                <input name="name" value="{{ node.name }}" required>
+              </label>
+              <label>
+                GUI URL
+                <input name="url" value="{{ node.url }}" placeholder="http://server:8850" required>
+              </label>
+              <label>
+                SSH user
+                <input name="ssh_user" value="{{ node.ssh_user }}" placeholder="root">
+              </label>
+              <label>
+                SSH host
+                <input name="ssh_host" value="{{ node.ssh_host }}" placeholder="{{ node.host }}">
+              </label>
+              <label>
+                SSH port
+                <input name="ssh_port" value="{{ node.ssh_port or '22' }}" inputmode="numeric">
+              </label>
+              <label>
+                SSH key path
+                <input name="ssh_key_path" value="{{ node.ssh_key_path }}" placeholder="/root/.ssh/id_ed25519">
+                <span class="field-help">Recommended. A key is safer than storing a password.</span>
+              </label>
+              <label>
+                SSH password
+                <input name="ssh_password" type="password" placeholder="{% if node.ssh_password %}Stored; leave empty to keep{% else %}Optional, not recommended{% endif %}">
+                <span class="field-help">Optional and stored in <code>nodes.json</code>. Use only on trusted systems.</span>
+              </label>
+              <label>
+                Note
+                <input name="note" value="{{ node.note }}" placeholder="Purpose, location or owner">
+              </label>
+              <div class="form-actions node-actions">
+                <button class="primary-button" type="submit">Save node</button>
+              </div>
+            </form>
+            <form method="post" action="{{ url_for('delete_node', node_id=node.id) }}" data-confirm="Delete this saved node?">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button class="danger-button" type="submit">Delete node</button>
+            </form>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="empty-note">No saved nodes yet. Save a discovered node below or add one manually.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Discovered nodes</h2>
+        <p>These nodes currently announce Systemd Gui through Avahi/mDNS on your LAN.</p>
+      </div>
+      <span class="tag {% if discovery.available %}{% else %}danger{% endif %}">
+        {% if discovery.available %}Discovery active{% else %}Discovery unavailable{% endif %}
+      </span>
+    </div>
+
+    {% if not discovery.available %}
+      <div class="diagnostic error">
+        <strong>LAN discovery unavailable</strong>
+        <span>{{ discovery.message }}</span>
+      </div>
+    {% elif discovered_nodes %}
+      <div class="table-wrap compact-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>URL</th>
+              <th>Version</th>
+              <th class="actions-heading">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for node in discovered_nodes %}
+              <tr>
+                <td>
+                  <strong>{{ node.name }}</strong>
+                  {% if node.saved %}<span class="tag neutral">Saved</span>{% else %}<span class="tag override">Discovered</span>{% endif %}
+                </td>
+                <td><code>{{ node.url }}</code></td>
+                <td>{{ node.version or '-' }}</td>
+                <td>
+                  <div class="table-actions">
+                    <a class="ghost-button compact-button" href="{{ node.url }}" target="_blank" rel="noopener">Open</a>
+                    {% if not node.saved %}
+                      <form method="post" action="{{ url_for('save_discovered_node') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="node_id" value="{{ node.node_id }}">
+                        <input type="hidden" name="name" value="{{ node.name }}">
+                        <input type="hidden" name="url" value="{{ node.url }}">
+                        <input type="hidden" name="host" value="{{ node.host }}">
+                        <input type="hidden" name="port" value="{{ node.port }}">
+                        <button class="primary-button compact-button" type="submit">Save</button>
+                      </form>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty-note">No Systemd Gui nodes were discovered right now.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Add node manually</h2>
+        <p>Use this when mDNS is not available or when the node is in another network segment.</p>
+      </div>
+    </div>
+    <form class="form-grid" method="post" action="{{ url_for('create_node') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>
+        Name
+        <input name="name" placeholder="Backup server">
+      </label>
+      <label>
+        GUI URL
+        <input name="url" placeholder="http://192.168.1.20:8850" required>
+      </label>
+      <label>
+        SSH user
+        <input name="ssh_user" placeholder="root">
+      </label>
+      <label>
+        SSH host
+        <input name="ssh_host" placeholder="192.168.1.20">
+      </label>
+      <label>
+        SSH port
+        <input name="ssh_port" value="22" inputmode="numeric">
+      </label>
+      <label>
+        SSH key path
+        <input name="ssh_key_path" placeholder="/root/.ssh/id_ed25519">
+      </label>
+      <label>
+        SSH password
+        <input name="ssh_password" type="password" placeholder="Optional, not recommended">
+        <span class="field-help">Stored in <code>nodes.json</code> if entered. Prefer SSH keys where possible.</span>
+      </label>
+      <label>
+        Note
+        <input name="note" placeholder="Optional">
+      </label>
+      <div class="form-actions">
+        <button class="primary-button" type="submit">Add node</button>
+      </div>
+    </form>
+  </section>
+{% endblock %}
