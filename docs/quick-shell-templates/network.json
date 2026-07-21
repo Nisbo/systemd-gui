@@ -54,7 +54,7 @@
               "type": "command",
               "name": "Show DNS status",
               "enabled": true,
-              "command": "resolvectl status",
+              "command": "sh -lc 'if command -v resolvectl >/dev/null 2>&1; then resolvectl status; elif command -v systemd-resolve >/dev/null 2>&1; then systemd-resolve --status; else echo \"resolvectl/systemd-resolve not found. Showing /etc/resolv.conf instead:\"; cat /etc/resolv.conf; fi'",
               "confirm": false,
               "show_menu_after": false
             },
@@ -94,7 +94,7 @@
               "type": "command",
               "name": "Query DNS name",
               "enabled": true,
-              "command": "sh -lc 'if command -v resolvectl >/dev/null 2>&1; then resolvectl query \"$1\"; elif command -v dig >/dev/null 2>&1; then dig \"$1\"; elif command -v nslookup >/dev/null 2>&1; then nslookup \"$1\"; else echo \"Install systemd-resolved, dnsutils or bind9-dnsutils first.\"; exit 127; fi' sh {domain}",
+              "command": "sh -lc 'if command -v resolvectl >/dev/null 2>&1; then resolvectl query \"$1\"; elif command -v systemd-resolve >/dev/null 2>&1; then systemd-resolve \"$1\"; elif command -v dig >/dev/null 2>&1; then dig \"$1\"; elif command -v nslookup >/dev/null 2>&1; then nslookup \"$1\"; elif command -v getent >/dev/null 2>&1; then getent hosts \"$1\"; else echo \"No DNS lookup tool found. Try installing systemd-resolved, dnsutils or bind9-dnsutils.\"; exit 127; fi' sh {domain}",
               "confirm": false,
               "show_menu_after": false
             }
@@ -195,7 +195,7 @@
               "type": "command",
               "name": "Resolve domain",
               "enabled": true,
-              "command": "resolvectl query {domain}",
+              "command": "sh -lc 'if command -v resolvectl >/dev/null 2>&1; then resolvectl query \"$1\"; elif command -v systemd-resolve >/dev/null 2>&1; then systemd-resolve \"$1\"; elif command -v dig >/dev/null 2>&1; then dig \"$1\"; elif command -v nslookup >/dev/null 2>&1; then nslookup \"$1\"; elif command -v getent >/dev/null 2>&1; then getent hosts \"$1\"; else echo \"No DNS lookup tool found. Try installing systemd-resolved, dnsutils or bind9-dnsutils.\"; exit 127; fi' sh {domain}",
               "confirm": false,
               "show_menu_after": false
             },
@@ -203,7 +203,7 @@
               "type": "command",
               "name": "Show DNS servers",
               "enabled": true,
-              "command": "resolvectl dns",
+              "command": "sh -lc 'if command -v resolvectl >/dev/null 2>&1; then resolvectl dns; elif command -v systemd-resolve >/dev/null 2>&1; then systemd-resolve --status | sed -n \"/DNS Servers/,+3p\"; else echo \"Configured nameservers from /etc/resolv.conf:\"; grep -E \"^nameserver\" /etc/resolv.conf || true; fi'",
               "confirm": false,
               "show_menu_after": false
             },
@@ -211,7 +211,7 @@
               "type": "command",
               "name": "Flush DNS cache",
               "enabled": true,
-              "command": "resolvectl flush-caches",
+              "command": "sh -lc 'if command -v resolvectl >/dev/null 2>&1; then resolvectl flush-caches; elif command -v systemd-resolve >/dev/null 2>&1; then systemd-resolve --flush-caches; else echo \"No systemd DNS cache command found on this system.\"; exit 127; fi'",
               "confirm": true,
               "show_menu_after": false
             },
@@ -328,7 +328,7 @@
               "type": "sequence",
               "name": "Basic network check",
               "enabled": true,
-              "commands": "# Show IP addresses\nip address show\n\n# Show routes\nip route show\n\n# Show DNS status\nresolvectl status\n\n# Ping a host\nping -c 4 {host}",
+              "commands": "# Show IP addresses\nip address show\n\n# Show routes\nip route show\n\n# Show DNS status\nif command -v resolvectl >/dev/null 2>&1; then\n  resolvectl status\nelif command -v systemd-resolve >/dev/null 2>&1; then\n  systemd-resolve --status\nelse\n  echo \"resolvectl/systemd-resolve not found. Showing /etc/resolv.conf instead:\"\n  cat /etc/resolv.conf\nfi\n\n# Ping a host\nping -c 4 {host}",
               "confirm": true,
               "confirm_each": false,
               "print_comments": true,
@@ -350,7 +350,7 @@
               "type": "sequence",
               "name": "DNS check",
               "enabled": true,
-              "commands": "# Show DNS status\nresolvectl status\n\n# Show configured DNS servers\nresolvectl dns\n\n# Resolve a domain\nresolvectl query {domain}",
+              "commands": "# Show DNS status\nif command -v resolvectl >/dev/null 2>&1; then\n  resolvectl status\nelif command -v systemd-resolve >/dev/null 2>&1; then\n  systemd-resolve --status\nelse\n  echo \"resolvectl/systemd-resolve not found. Showing /etc/resolv.conf instead:\"\n  cat /etc/resolv.conf\nfi\n\n# Show configured DNS servers\nif command -v resolvectl >/dev/null 2>&1; then\n  resolvectl dns\nelif command -v systemd-resolve >/dev/null 2>&1; then\n  systemd-resolve --status | sed -n \"/DNS Servers/,+3p\"\nelse\n  echo \"Configured nameservers from /etc/resolv.conf:\"\n  grep -E \"^nameserver\" /etc/resolv.conf || true\nfi\n\n# Resolve a domain\nif command -v resolvectl >/dev/null 2>&1; then\n  resolvectl query {domain}\nelif command -v systemd-resolve >/dev/null 2>&1; then\n  systemd-resolve {domain}\nelif command -v dig >/dev/null 2>&1; then\n  dig {domain}\nelif command -v nslookup >/dev/null 2>&1; then\n  nslookup {domain}\nelif command -v getent >/dev/null 2>&1; then\n  getent hosts {domain}\nelse\n  echo \"No DNS lookup tool found. Try installing systemd-resolved, dnsutils or bind9-dnsutils.\"\n  exit 127\nfi",
               "confirm": true,
               "confirm_each": false,
               "print_comments": true,
