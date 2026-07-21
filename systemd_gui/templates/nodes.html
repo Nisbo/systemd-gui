@@ -32,6 +32,26 @@
       </span>
     </div>
 
+    {% if not announcement.available or not announcement.installed or not announcement.current %}
+      <div class="diagnostic warning">
+        <strong>Discovery setup can be repaired from here</strong>
+        <span>This installs <code>avahi-daemon</code> and <code>avahi-utils</code> on Debian-style systems, starts Avahi and writes the Systemd Gui LAN announcement file.</span>
+        <form method="post" action="{{ url_for('install_nodes_discovery') }}" data-confirm="Install or repair LAN discovery support now? This may run apt-get install avahi-daemon avahi-utils on this server.">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="primary-button" type="submit">Install/repair LAN discovery</button>
+        </form>
+      </div>
+    {% endif %}
+
+    {% if nodes_install_result %}
+      <div class="update-result {{ 'ok' if nodes_install_result.ok else 'error' }}">
+        <strong>{{ nodes_install_result.message }}</strong>
+        {% if nodes_install_result.output %}
+          <pre class="config-preview update-output">{{ nodes_install_result.output }}</pre>
+        {% endif %}
+      </div>
+    {% endif %}
+
     <form class="form-grid" method="post" action="{{ url_for('update_nodes_settings') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <label>

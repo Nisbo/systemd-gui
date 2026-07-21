@@ -149,6 +149,11 @@ optional SSH user, host, port and key-path fields. SSH passwords can also be
 stored, but SSH keys are recommended because local password storage only protects
 against casual exposure, not a compromised server.
 
+If the app was updated from an older version and Avahi is missing, the Nodes
+page offers **Install/repair LAN discovery**. On Debian-style systems this
+installs `avahi-daemon` and `avahi-utils`, starts Avahi and writes the local
+Systemd Gui announcement.
+
 ## Safety
 
 Systemd Gui can control system services and should be treated as an

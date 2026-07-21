@@ -15,6 +15,7 @@ from .nodes import (
     announcement_status,
     discover_nodes,
     install_announcement,
+    install_discovery_support,
     merge_discovered_with_saved,
     node_from_form,
     normalize_node,
@@ -264,6 +265,7 @@ def create_app() -> Flask:
             discovery=discovery,
             discovered_nodes=discovered_nodes,
             announcement=announcement_status(settings, app.config["SYSTEMD_GUI_PUBLIC_PORT"]),
+            nodes_install_result=session.pop("nodes_install_result", None),
             nodes_path=_nodes_path(app),
             public_port=app.config["SYSTEMD_GUI_PUBLIC_PORT"],
         )
@@ -288,6 +290,22 @@ def create_app() -> Flask:
                 flash("LAN announcement is disabled for this node.", "success")
             except OSError as exc:
                 flash(f"LAN announcement could not be disabled: {exc}", "error")
+        return redirect(url_for("nodes"))
+
+    @app.post("/nodes/install-discovery")
+    def install_nodes_discovery():
+        data = read_nodes(_nodes_path(app))
+        settings = data.get("settings") or {}
+        settings["announce_enabled"] = True
+        data["settings"] = settings
+        write_nodes(_nodes_path(app), data)
+        result = install_discovery_support(settings, app.config["SYSTEMD_GUI_PUBLIC_PORT"])
+        session["nodes_install_result"] = {
+            "ok": result.ok,
+            "message": result.message,
+            "output": result.output[-1600:],
+        }
+        flash(result.message, "success" if result.ok else "error")
         return redirect(url_for("nodes"))
 
     @app.post("/nodes")

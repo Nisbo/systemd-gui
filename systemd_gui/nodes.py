@@ -24,6 +24,13 @@ class DiscoveryResult:
     nodes: list[dict[str, str]]
 
 
+@dataclass(frozen=True)
+class NodeCommandResult:
+    ok: bool
+    message: str
+    output: str = ""
+
+
 def default_nodes_data() -> dict[str, object]:
     return {
         "settings": {
@@ -198,6 +205,31 @@ def install_announcement(settings: dict[str, object], public_port: int) -> None:
     _reload_avahi()
 
 
+def install_discovery_support(settings: dict[str, object], public_port: int) -> NodeCommandResult:
+    apt_get = shutil.which("apt-get")
+    if not apt_get:
+        return NodeCommandResult(False, "Automatic package installation is only available on Debian-style systems with apt-get.")
+    commands = [
+        [apt_get, "update"],
+        [apt_get, "install", "-y", "avahi-daemon", "avahi-utils"],
+    ]
+    output_parts: list[str] = []
+    for command in commands:
+        try:
+            result = subprocess.run(command, check=False, capture_output=True, text=True, timeout=180)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            return NodeCommandResult(False, f"LAN discovery setup failed: {exc}", "\n".join(output_parts))
+        output_parts.append(f"$ {' '.join(command)}\n{result.stdout}{result.stderr}")
+        if result.returncode != 0:
+            return NodeCommandResult(False, f"Command failed with exit code {result.returncode}: {' '.join(command)}", "\n".join(output_parts))
+    _enable_avahi()
+    try:
+        install_announcement(settings, public_port)
+    except OSError as exc:
+        return NodeCommandResult(False, f"Avahi was installed, but announcement could not be created: {exc}", "\n".join(output_parts))
+    return NodeCommandResult(True, "LAN discovery support installed and announcement enabled.", "\n".join(output_parts))
+
+
 def remove_announcement() -> None:
     if AVAHI_SERVICE_FILE.exists():
         AVAHI_SERVICE_FILE.unlink()
@@ -282,6 +314,12 @@ def _reload_avahi() -> None:
     systemctl = shutil.which("systemctl")
     if systemctl:
         subprocess.run([systemctl, "reload", "avahi-daemon"], check=False, capture_output=True, text=True, timeout=8)
+
+
+def _enable_avahi() -> None:
+    systemctl = shutil.which("systemctl")
+    if systemctl:
+        subprocess.run([systemctl, "enable", "--now", "avahi-daemon"], check=False, capture_output=True, text=True, timeout=20)
 
 
 def _node_url_key(url: str) -> str:
