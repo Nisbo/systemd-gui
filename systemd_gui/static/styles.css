@@ -53,6 +53,7 @@ button:disabled { opacity:.48; cursor:not-allowed; }
 .form-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; } .form-grid.single { grid-template-columns:1fr; }
 label { display:grid; gap:7px; color:var(--muted); font-size:.9rem; font-weight:800; }
 .field-help { color:var(--muted); font-size:.84rem; font-weight:650; line-height:1.35; }
+.field-help-list { display:grid; gap:4px; margin-top:4px; }
 input,textarea,select { width:100%; border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--ink); font:inherit; padding:10px 12px; } input,select { height:44px; } textarea { font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; line-height:1.45; }
 .search-row { margin-bottom:16px; } .search-row input { flex:1; } .search-row select { flex:0 0 150px; }
 .table-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:8px; } table { width:100%; min-width:1080px; border-collapse:collapse; } th,td { padding:13px 14px; border-bottom:1px solid var(--line); text-align:left; vertical-align:middle; } th { color:var(--muted); font-size:.78rem; text-transform:uppercase; } tr:last-child td { border-bottom:0; }

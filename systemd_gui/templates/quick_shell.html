@@ -206,7 +206,14 @@
           <label>
             Commands
             <textarea name="commands" rows="7" placeholder="cd /opt/app&#10;git pull --ff-only&#10;systemctl restart app" required></textarea>
-            <span class="field-help">One command per line. Empty lines are skipped. Use <code>@ Friendly step name</code> on the line before a command to show that name while running. Comment lines starting with <code>#</code> can be printed before the next command. Placeholders like <code>{package}</code> ask for a value before running. The sequence runs in a separate shell, so <code>cd</code> and variables work inside the sequence but your normal shell returns unchanged afterward. Individual lines are not added to normal shell history; the <code>qs</code> call remains visible.</span>
+            <span class="field-help field-help-list">
+              <span>One command per line. Empty lines are skipped.</span>
+              <span><code>@ Friendly step name</code> on the line before a command changes the displayed step title only.</span>
+              <span><code># Comment</code> can be printed before the next command when comments are enabled.</span>
+              <span>Placeholders like <code>{package}</code> ask for a value before running.</span>
+              <span>The sequence runs in a separate shell; your normal shell returns unchanged afterward.</span>
+              <span>Individual lines are not added to normal shell history; the <code>qs</code> call remains visible.</span>
+            </span>
           </label>
           <label class="toggle-label">
             <input type="checkbox" name="enabled" value="1" checked>
@@ -318,7 +325,14 @@
               <label>
                 Commands
                 <textarea name="commands" rows="7" required>{{ item.commands }}</textarea>
-                <span class="field-help">Runs in a separate shell. Comment lines starting with <code>#</code> can be printed before the next command. Placeholders like <code>{package}</code> ask for a value before running. Individual lines are not written to normal shell history; the <code>qs</code> call remains visible.</span>
+                <span class="field-help field-help-list">
+                  <span>One command per line. Empty lines are skipped.</span>
+                  <span><code>@ Friendly step name</code> on the line before a command changes the displayed step title only.</span>
+                  <span><code># Comment</code> can be printed before the next command when comments are enabled.</span>
+                  <span>Placeholders like <code>{package}</code> ask for a value before running.</span>
+                  <span>The sequence runs in a separate shell; your normal shell returns unchanged afterward.</span>
+                  <span>Individual lines are not written to normal shell history; the <code>qs</code> call remains visible.</span>
+                </span>
               </label>
               <label class="toggle-label">
                 <input type="checkbox" name="confirm" value="1" {% if item.confirm is not defined or item.confirm %}checked{% endif %}>
