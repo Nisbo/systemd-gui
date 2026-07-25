@@ -93,9 +93,11 @@ def _enabled_items(items):
 
 
 def _menu_title(stack):
+    remote_label = os.environ.get("SYSTEMD_GUI_REMOTE_NODE", "").strip()
+    base_title = f"Quick Shell @ {remote_label}" if remote_label else "Quick Shell"
     if not stack:
-        return "Quick Shell"
-    return "Quick Shell / " + " / ".join(stack)
+        return base_title
+    return base_title + " / " + " / ".join(stack)
 
 
 def _prompt_choice(max_number: int, can_go_back: bool, can_open_remote: bool = False) -> str:
@@ -279,7 +281,9 @@ def _ssh_base_command(node: dict[str, object], user: str) -> list[str]:
     command = ["ssh", "-t", "-p", port]
     if key_path:
         command.extend(["-i", key_path])
-    command.extend([f"{user}@{host}", "qs"])
+    remote_label = _remote_node_label({**node, "ssh_user": user})
+    remote_command = f"SYSTEMD_GUI_REMOTE_NODE={shlex.quote(remote_label)} qs"
+    command.extend([f"{user}@{host}", remote_command])
     return command
 
 
