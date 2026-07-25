@@ -493,6 +493,29 @@ def _show_remote_nodes_menu() -> int | None:
         return _run_remote_node(nodes[selected_index])
 
 
+def _run_remote_nodes_direct(args: list[str]) -> int:
+    try:
+        direct_path = _parse_direct_path(args)
+    except ValueError as exc:
+        print(_error(str(exc)), file=sys.stderr)
+        return 2
+    if not direct_path:
+        result_code = _show_remote_nodes_menu()
+        return result_code or 0
+    if len(direct_path) > 1:
+        print(_error('Remote nodes only use one number, for example: qs n 1'), file=sys.stderr)
+        return 2
+    nodes = _read_remote_nodes()
+    if not nodes:
+        print(_error("No saved nodes with an SSH host are configured yet."), file=sys.stderr)
+        return 1
+    selected_index = direct_path[0] - 1
+    if selected_index < 0 or selected_index >= len(nodes):
+        print(_error("That number is not in the remote node list."), file=sys.stderr)
+        return 1
+    return _run_remote_node(nodes[selected_index])
+
+
 def _command_for_item(item) -> str:
     if item.get("type") == "sequence":
         return str(item.get("commands") or "").strip()
@@ -1161,6 +1184,11 @@ def main() -> int:
     if args[:1] in (["--print"], ["--p"], ["--copy"], ["--c"]):
         output_mode = "print" if args[0] in {"--print", "--p"} else "copy"
         args = args[1:]
+    if args[:1] and args[0].lower() in {"n", "nodes", "remote", "remotes"}:
+        if output_mode != "run":
+            print(_error("Remote nodes cannot be printed or copied."), file=sys.stderr)
+            return 2
+        return _run_remote_nodes_direct(args[1:])
 
     try:
         direct_path = _parse_direct_path(args)
