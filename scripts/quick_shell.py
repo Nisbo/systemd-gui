@@ -107,7 +107,7 @@ def _print_menu_header(title: str) -> None:
     print(_style("=" * len(title), "green"))
     remote_label = _remote_context_label()
     if remote_label:
-        print(f"{_style('Remote:', 'yellow')} {remote_label}")
+        print(f"{_style('REMOTE:', 'bold', 'red')} {remote_label}")
 
 
 def _prompt_choice(max_number: int, can_go_back: bool, can_open_remote: bool = False) -> str:
