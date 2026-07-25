@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import subprocess
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -59,6 +61,14 @@ class QuickShellBackupEntry:
     created_at: str
     comment: str
     size: int
+
+
+@dataclass(frozen=True)
+class RemoteSshSupportStatus:
+    ssh_installed: bool
+    sshpass_installed: bool
+    sshpass_path: str
+    message: str
 
 
 SHELL_INTEGRATIONS = {
@@ -294,6 +304,34 @@ def quick_shell_helper_status(path: Path, app_root: Path | None = None, data_dir
     else:
         message = "Helper is installed."
     return QuickShellHelperStatus(path=path, installed=installed, executable=executable, ready=ready, message=message)
+
+
+def remote_ssh_support_status() -> RemoteSshSupportStatus:
+    ssh = shutil.which("ssh")
+    sshpass = shutil.which("sshpass")
+    if sshpass:
+        message = "Ready for saved password logins. SSH keys also work without sshpass."
+    elif ssh:
+        message = "SSH is installed. Saved passwords need sshpass; SSH keys and interactive password prompts still work."
+    else:
+        message = "SSH is not installed. Remote Quick Shell needs the ssh client."
+    return RemoteSshSupportStatus(
+        ssh_installed=bool(ssh),
+        sshpass_installed=bool(sshpass),
+        sshpass_path=sshpass or "",
+        message=message,
+    )
+
+
+def install_sshpass_package() -> None:
+    apt_get = shutil.which("apt-get")
+    if not apt_get:
+        raise OSError("Automatic sshpass installation is only available on Debian-style systems with apt-get.")
+    result = subprocess.run([apt_get, "install", "-y", "sshpass"], check=False, capture_output=True, text=True, timeout=180)
+    if result.returncode != 0:
+        output = (result.stderr or result.stdout or "").strip()
+        detail = f": {output[-500:]}" if output else ""
+        raise OSError(f"apt-get install sshpass failed with exit code {result.returncode}{detail}")
 
 
 def install_quick_shell_helper(path: Path, app_root: Path, data_dir: Path) -> None:

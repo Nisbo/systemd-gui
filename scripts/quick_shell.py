@@ -309,7 +309,9 @@ def _run_remote_node(node: dict[str, object]) -> int:
             env["SSHPASS"] = password
             command = [sshpass, "-e", *command]
         else:
-            print(_style("Stored password found, but sshpass is not installed. ssh will ask normally if password login is allowed.", "yellow"))
+            print(_error("Stored password found, but sshpass is not installed."))
+            print(_muted("Install sshpass from Quick Shell > Shell setup, or install it manually with: apt install sshpass"))
+            return 2
 
     print()
     print(_heading(f"Connecting to {_remote_node_label(node)}", "blue"))

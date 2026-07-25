@@ -649,6 +649,21 @@
           </form>
         </div>
 
+        <div class="quick-shell-helper">
+          <div>
+            <h3>Remote SSH</h3>
+            <p>{{ remote_ssh_status.message }} Remote nodes are opened from <code>qs</code> with the saved SSH host, user, port and key or password.</p>
+          </div>
+          <dl class="detail-grid two quick-shell-helper-grid">
+            <div><dt>ssh</dt><dd>{{ "Installed" if remote_ssh_status.ssh_installed else "Missing" }}</dd></div>
+            <div><dt>sshpass</dt><dd>{{ remote_ssh_status.sshpass_path or "Missing" }}</dd></div>
+          </dl>
+          <form method="post" action="{{ url_for('install_quick_shell_sshpass') }}" data-confirm="Install sshpass now? This allows saved Remote Quick Shell passwords to be used automatically. SSH keys do not need sshpass.">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="primary-button" type="submit" {% if remote_ssh_status.sshpass_installed %}disabled{% endif %}>Install sshpass</button>
+          </form>
+        </div>
+
         <div class="update-section-title">
           <strong>Shell Integrations</strong>
           <span>Install this for shells where shortcuts should change the current shell, for example <code>cd /opt</code> or <code>cd ~/project</code>. New GUI entries are picked up automatically.</span>

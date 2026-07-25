@@ -37,6 +37,7 @@ from .quick_shell import (
     install_bash_history_timestamps,
     install_quick_shell_helper,
     install_shell_integration,
+    install_sshpass_package,
     item_for_path,
     list_quick_shell_backups,
     move_item,
@@ -48,6 +49,7 @@ from .quick_shell import (
     quick_shell_helper_status,
     read_quick_shell_backup,
     read_quick_shell,
+    remote_ssh_support_status,
     remove_bash_history_timestamps,
     remove_shell_integration,
     restore_quick_shell_backup,
@@ -454,6 +456,7 @@ def create_app() -> Flask:
             flat_entries=flatten_entries(data.get("items") or []),
             category_options=_quick_shell_category_options(data),
             helper_status=quick_shell_helper_status(_quick_shell_bin(app), _app_root(app), _data_dir(app)),
+            remote_ssh_status=remote_ssh_support_status(),
             shell_integrations=shell_integration_statuses(_quick_shell_bin(app)),
             bash_history_status=bash_history_timestamp_status(),
             quick_shell_settings=data.get("settings") or {},
@@ -487,6 +490,16 @@ def create_app() -> Flask:
             flash(f"Quick Shell helper could not be installed: {exc}", "error")
             return redirect(url_for("quick_shell", tab="setup"))
         flash(f"Quick Shell helper installed at {_quick_shell_bin(app)}.", "success")
+        return redirect(url_for("quick_shell", tab="setup"))
+
+    @app.post("/quick-shell/install-sshpass")
+    def install_quick_shell_sshpass():
+        try:
+            install_sshpass_package()
+        except OSError as exc:
+            flash(f"sshpass could not be installed: {exc}", "error")
+            return redirect(url_for("quick_shell", tab="setup"))
+        flash("sshpass installed. Saved Remote Quick Shell passwords can now be used automatically.", "success")
         return redirect(url_for("quick_shell", tab="setup"))
 
     @app.post("/quick-shell/integration/<shell_id>/install")

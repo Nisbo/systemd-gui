@@ -67,7 +67,7 @@ else
 fi
 
 apt update
-APT_PACKAGES=(git python3 python3-flask gunicorn avahi-daemon avahi-utils)
+APT_PACKAGES=(git python3 python3-flask gunicorn avahi-daemon avahi-utils sshpass)
 if [[ "${SYSTEMD_GUI_SKIP_NGINX}" != "1" ]]; then
   APT_PACKAGES+=(nginx)
 fi

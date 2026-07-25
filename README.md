@@ -129,6 +129,12 @@ Press `S` inside `qs` to open command history. The history source can be changed
 in **Quick Shell > Shell setup**: shell history only, Quick Shell run history
 only, or both combined.
 
+Press `N` inside the root `qs` menu to open **Remote nodes**. Saved nodes from
+`data/nodes.json` are shown there when they have an SSH host. Selecting a node
+opens SSH and starts `qs` on the remote server. SSH keys work with the normal
+SSH client. Saved SSH passwords require `sshpass`, which fresh Debian installs
+include and older installs can add from **Quick Shell > Shell setup**.
+
 Sequences run multiple commands in a separate shell. Put one command on each
 line. Lines starting with `#` are comments that can be printed before the next
 command. Lines starting with `@` are display labels for the next command, so a
@@ -153,8 +159,8 @@ through Avahi/mDNS service type:
 _systemd-gui._tcp.local
 ```
 
-Fresh Debian installs include `avahi-daemon` and `avahi-utils`, announce the
-local node by default and create:
+Fresh Debian installs include `avahi-daemon`, `avahi-utils` and `sshpass`,
+announce the local node by default and create:
 
 ```text
 data/nodes.json
