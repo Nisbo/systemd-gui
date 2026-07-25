@@ -330,6 +330,92 @@ def _ssh_base_command(node: dict[str, object], user: str, keep_menu: bool) -> li
     return command
 
 
+def _ssh_preflight_command(ssh: str, node: dict[str, object], user: str) -> list[str]:
+    host = _remote_node_host(node)
+    port = _remote_node_port(node)
+    key_path = str(node.get("ssh_key_path") or "").strip()
+    command = [
+        ssh,
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "StrictHostKeyChecking=accept-new",
+        "-p",
+        port,
+    ]
+    if key_path:
+        command.extend(["-i", key_path])
+    command.extend([f"{user}@{host}", "true"])
+    return command
+
+
+def _ssh_host_key_changed(stderr: str) -> bool:
+    text = stderr.lower()
+    return (
+        "remote host identification has changed" in text
+        or ("host key verification failed" in text and "offending" in text)
+    )
+
+
+def _known_hosts_target(host: str, port: str) -> str:
+    if port != "22":
+        return f"[{host}]:{port}"
+    return host
+
+
+def _forget_known_host(host: str, port: str) -> bool:
+    ssh_keygen = shutil.which("ssh-keygen")
+    if not ssh_keygen:
+        print(_error("ssh-keygen is not installed, so qs cannot update known_hosts automatically."))
+        print(_muted(f"Remove the old entry manually, then reconnect: ssh-keygen -R {_known_hosts_target(host, port)}"))
+        return False
+    target = _known_hosts_target(host, port)
+    result = subprocess.run([ssh_keygen, "-R", target], check=False, capture_output=True, text=True)
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip()
+        print(_error(f"Could not remove the old SSH host key for {target}."))
+        if detail:
+            print(_muted(detail))
+        return False
+    return True
+
+
+def _confirm_changed_host_key(node: dict[str, object], user: str) -> bool:
+    host = _remote_node_host(node)
+    port = _remote_node_port(node)
+    label = _remote_node_label({**node, "ssh_user": user})
+    print()
+    print(_error(f"SSH host key changed for {label}"))
+    print(_muted("This can be harmless after reinstalling the server, but it can also mean you are connecting to a different machine."))
+    print(_muted(f"Only trust the new key if you expected this change for {host}:{port}."))
+    print()
+    print(f"{_style('1', 'yellow')} Trust new key and reconnect")
+    print(f"{_style('2', 'yellow')} Cancel")
+    answer = input("Choose (1/2): ").strip().lower()
+    if answer not in {"1", "trust", "y", "yes"}:
+        print(_muted("Remote connection cancelled."))
+        return False
+    return _forget_known_host(host, port)
+
+
+def _check_remote_host_key(ssh: str, node: dict[str, object], user: str) -> bool:
+    try:
+        result = subprocess.run(
+            _ssh_preflight_command(ssh, node, user),
+            check=False,
+            capture_output=True,
+            text=True,
+            stdin=subprocess.DEVNULL,
+            timeout=15,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return True
+    stderr = result.stderr or ""
+    if _ssh_host_key_changed(stderr):
+        return _confirm_changed_host_key(node, user)
+    return True
+
+
 def _run_remote_node(node: dict[str, object]) -> int:
     host = _remote_node_host(node)
     if not host:
@@ -346,6 +432,8 @@ def _run_remote_node(node: dict[str, object]) -> int:
     if not ssh:
         print(_error("ssh is not installed on this system."))
         return 1
+    if not _check_remote_host_key(ssh, node, user):
+        return 3
     keep_menu = _ask_remote_keep_menu(node)
     command = _ssh_base_command(node, user, keep_menu)
     command[0] = ssh
