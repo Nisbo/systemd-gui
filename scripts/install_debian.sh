@@ -14,11 +14,56 @@ if [[ "${EUID}" -ne 0 ]]; then
   exit 1
 fi
 
-SYSTEMD_GUI_SKIP_NGINX="${SYSTEMD_GUI_SKIP_NGINX:-0}"
-if [[ "${SYSTEMD_GUI_SKIP_NGINX}" =~ ^(1|true|yes|on)$ ]]; then
+port_80_listeners() {
+  if command -v ss >/dev/null 2>&1; then
+    ss -H -ltnp 'sport = :80' 2>/dev/null || true
+  elif command -v lsof >/dev/null 2>&1; then
+    lsof -nP -iTCP:80 -sTCP:LISTEN 2>/dev/null || true
+  else
+    return 0
+  fi
+}
+
+SYSTEMD_GUI_SKIP_NGINX_REQUESTED="${SYSTEMD_GUI_SKIP_NGINX:-auto}"
+if [[ "${SYSTEMD_GUI_SKIP_NGINX_REQUESTED}" =~ ^(1|true|yes|on)$ ]]; then
   SYSTEMD_GUI_SKIP_NGINX=1
+elif [[ "${SYSTEMD_GUI_SKIP_NGINX_REQUESTED}" =~ ^(0|false|no|off)$ ]]; then
+  SYSTEMD_GUI_SKIP_NGINX=0
 else
   SYSTEMD_GUI_SKIP_NGINX=0
+  PORT_80_LISTENERS="$(port_80_listeners)"
+  if [[ -n "${PORT_80_LISTENERS}" ]] && ! grep -qi "nginx" <<<"${PORT_80_LISTENERS}"; then
+    echo "Port 80 is already in use by another process:"
+    echo "${PORT_80_LISTENERS}"
+    echo
+    echo "This usually means an existing reverse proxy such as Nginx Proxy Manager, Docker, Caddy or Traefik."
+    echo "Choose how Systemd Gui should be installed:"
+    echo "  1) Reverse proxy mode: skip Debian nginx and bind Systemd Gui to 0.0.0.0:8851"
+    echo "  2) Abort installation"
+    echo "  3) Continue with installer-managed nginx anyway"
+    if [[ -t 0 ]]; then
+      read -r -p "Selection [1]: " SYSTEMD_GUI_INSTALL_MODE
+    else
+      SYSTEMD_GUI_INSTALL_MODE=1
+      echo "Non-interactive install detected. Using reverse proxy mode."
+    fi
+    case "${SYSTEMD_GUI_INSTALL_MODE:-1}" in
+      1|"")
+        SYSTEMD_GUI_SKIP_NGINX=1
+        ;;
+      2)
+        echo "Installation aborted."
+        exit 1
+        ;;
+      3)
+        SYSTEMD_GUI_SKIP_NGINX=0
+        ;;
+      *)
+        echo "Unknown selection: ${SYSTEMD_GUI_INSTALL_MODE}"
+        exit 1
+        ;;
+    esac
+  fi
 fi
 
 apt update
@@ -28,7 +73,11 @@ if [[ "${SYSTEMD_GUI_SKIP_NGINX}" != "1" ]]; then
 fi
 apt install -y "${APT_PACKAGES[@]}"
 
-SYSTEMD_GUI_HOST="${SYSTEMD_GUI_HOST:-127.0.0.1}"
+if [[ "${SYSTEMD_GUI_SKIP_NGINX}" == "1" ]]; then
+  SYSTEMD_GUI_HOST="${SYSTEMD_GUI_HOST:-0.0.0.0}"
+else
+  SYSTEMD_GUI_HOST="${SYSTEMD_GUI_HOST:-127.0.0.1}"
+fi
 SYSTEMD_GUI_PORT="${SYSTEMD_GUI_PORT:-8851}"
 if [[ "${SYSTEMD_GUI_SKIP_NGINX}" == "1" ]]; then
   SYSTEMD_GUI_PUBLIC_PORT="${SYSTEMD_GUI_PUBLIC_PORT:-${SYSTEMD_GUI_PORT}}"
