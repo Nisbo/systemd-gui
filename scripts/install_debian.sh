@@ -14,12 +14,27 @@ if [[ "${EUID}" -ne 0 ]]; then
   exit 1
 fi
 
+SYSTEMD_GUI_SKIP_NGINX="${SYSTEMD_GUI_SKIP_NGINX:-0}"
+if [[ "${SYSTEMD_GUI_SKIP_NGINX}" =~ ^(1|true|yes|on)$ ]]; then
+  SYSTEMD_GUI_SKIP_NGINX=1
+else
+  SYSTEMD_GUI_SKIP_NGINX=0
+fi
+
 apt update
-apt install -y git python3 python3-flask gunicorn nginx avahi-daemon avahi-utils
+APT_PACKAGES=(git python3 python3-flask gunicorn avahi-daemon avahi-utils)
+if [[ "${SYSTEMD_GUI_SKIP_NGINX}" != "1" ]]; then
+  APT_PACKAGES+=(nginx)
+fi
+apt install -y "${APT_PACKAGES[@]}"
 
 SYSTEMD_GUI_HOST="${SYSTEMD_GUI_HOST:-127.0.0.1}"
 SYSTEMD_GUI_PORT="${SYSTEMD_GUI_PORT:-8851}"
-SYSTEMD_GUI_PUBLIC_PORT="${SYSTEMD_GUI_PUBLIC_PORT:-8850}"
+if [[ "${SYSTEMD_GUI_SKIP_NGINX}" == "1" ]]; then
+  SYSTEMD_GUI_PUBLIC_PORT="${SYSTEMD_GUI_PUBLIC_PORT:-${SYSTEMD_GUI_PORT}}"
+else
+  SYSTEMD_GUI_PUBLIC_PORT="${SYSTEMD_GUI_PUBLIC_PORT:-8850}"
+fi
 SYSTEMD_GUI_SERVICE="${SYSTEMD_GUI_SERVICE:-systemd-gui}"
 SYSTEMD_GUI_PASSWORD="${SYSTEMD_GUI_PASSWORD:-$(python3 -c 'import secrets; print(secrets.token_urlsafe(12))')}"
 SYSTEMD_GUI_SECRET="${SYSTEMD_GUI_SECRET:-$(python3 -c 'import secrets; print(secrets.token_hex(32))')}"
@@ -78,6 +93,7 @@ User=root
 WantedBy=multi-user.target
 EOF
 
+if [[ "${SYSTEMD_GUI_SKIP_NGINX}" != "1" ]]; then
 cat > "${NGINX_SITE}" <<EOF
 server {
     listen ${SYSTEMD_GUI_PUBLIC_PORT};
@@ -94,6 +110,7 @@ server {
 EOF
 
 ln -sf "${NGINX_SITE}" "${NGINX_LINK}"
+fi
 
 cat > "${QS_BIN}" <<EOF
 #!/usr/bin/env sh
@@ -126,12 +143,20 @@ systemctl enable systemd-gui
 systemctl restart systemd-gui
 systemctl enable avahi-daemon
 systemctl restart avahi-daemon
-nginx -t
-systemctl reload nginx || systemctl restart nginx
+if [[ "${SYSTEMD_GUI_SKIP_NGINX}" != "1" ]]; then
+  nginx -t
+  systemctl reload nginx || systemctl restart nginx
+fi
 
 echo
 echo "Systemd Gui installed."
-echo "Open: http://YOUR-SERVER-IP:${SYSTEMD_GUI_PUBLIC_PORT}"
+if [[ "${SYSTEMD_GUI_SKIP_NGINX}" == "1" ]]; then
+  echo "Nginx setup: skipped"
+  echo "Gunicorn bind: ${SYSTEMD_GUI_HOST}:${SYSTEMD_GUI_PORT}"
+  echo "Open direct or proxy this target from your existing reverse proxy."
+else
+  echo "Open: http://YOUR-SERVER-IP:${SYSTEMD_GUI_PUBLIC_PORT}"
+fi
 echo "Password: ${SYSTEMD_GUI_PASSWORD}"
 echo "Environment file: ${ENV_FILE}"
 echo "Quick Shell: qs"

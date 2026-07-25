@@ -228,6 +228,26 @@ export SYSTEMD_GUI_PASSWORD='change-me'
 The installer writes `/etc/systemd-gui.env`, creates the
 `systemd-gui.service` systemd unit, configures nginx and starts the app.
 
+### Existing Reverse Proxy
+
+If the server already runs a reverse proxy such as Nginx Proxy Manager, skip the
+installer-managed nginx site and expose Gunicorn for your proxy:
+
+```bash
+export SYSTEMD_GUI_SKIP_NGINX=1
+export SYSTEMD_GUI_HOST=0.0.0.0
+export SYSTEMD_GUI_PORT=8851
+./scripts/install_debian.sh
+```
+
+Then point the existing reverse proxy to:
+
+```text
+http://SERVER-IP:8851
+```
+
+Use this mode when port 80 or 443 is already owned by another proxy.
+
 ## Updates And Backups
 
 The Settings page includes update actions and app update backups.
