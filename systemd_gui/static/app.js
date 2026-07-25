@@ -213,6 +213,28 @@
   });
   document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeQuickShellModals(); });
 
+  const closeNodeModals = () => {
+    document.querySelectorAll("[data-node-edit-modal]").forEach((modalNode) => { modalNode.hidden = true; });
+  };
+  document.addEventListener("click", (event) => {
+    const editButton = event.target.closest("[data-node-edit-open]");
+    if (editButton) {
+      const target = editButton.dataset.target ? document.querySelector(editButton.dataset.target) : null;
+      if (target) {
+        target.hidden = false;
+        target.querySelector("input[name='name']")?.focus();
+      }
+      return;
+    }
+    if (event.target.closest("[data-node-modal-close]")) {
+      closeNodeModals();
+      return;
+    }
+    const nodeModal = event.target.closest("[data-node-edit-modal]");
+    if (nodeModal && event.target === nodeModal) closeNodeModals();
+  });
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeNodeModals(); });
+
   document.addEventListener("click", (event) => {
     const link = event.target.closest("[data-log-window]");
     if (!link) return;

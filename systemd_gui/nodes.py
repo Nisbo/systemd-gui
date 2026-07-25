@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import ipaddress
 import secrets
 import shutil
 import socket
@@ -273,12 +274,17 @@ def _parse_avahi_output(output: str) -> list[dict[str, str]]:
         parts = line.split(";")
         if len(parts) < 9:
             continue
+        protocol = parts[2].strip()
+        if protocol != "IPv4":
+            continue
         name = parts[3].replace("\\032", " ").strip()
         host = parts[6].strip()
         address = parts[7].strip()
         port = parts[8].strip()
         txt = _parse_txt_records(parts[9:])
         display_host = address or host
+        if not _is_ipv4_address(display_host):
+            continue
         scheme = "https" if txt.get("https") == "1" else "http"
         url = f"{scheme}://{display_host}:{port}" if display_host and port else ""
         key = txt.get("node_id") or url or name
@@ -297,6 +303,13 @@ def _parse_avahi_output(output: str) -> list[dict[str, str]]:
             }
         )
     return nodes
+
+
+def _is_ipv4_address(value: str) -> bool:
+    try:
+        return ipaddress.ip_address(value).version == 4
+    except ValueError:
+        return False
 
 
 def _parse_txt_records(parts: list[str]) -> dict[str, str]:

@@ -83,17 +83,59 @@
     </div>
 
     {% if saved_nodes %}
-      <div class="node-grid">
-        {% for node in saved_nodes %}
-          <article class="node-card">
-            <div class="node-card-head">
-              <div>
-                <h3>{{ node.name }}</h3>
-                <p><code>{{ node.url }}</code></p>
-              </div>
-              <a class="ghost-button compact-button" href="{{ node.url }}" target="_blank" rel="noopener">Open GUI</a>
-            </div>
+      <div class="table-wrap compact-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>URL</th>
+              <th>SSH</th>
+              <th>Note</th>
+              <th class="actions-heading">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for node in saved_nodes %}
+              <tr>
+                <td>
+                  <strong>{{ node.name }}</strong>
+                  <span class="tag neutral">Saved</span>
+                </td>
+                <td><code>{{ node.url }}</code></td>
+                <td>
+                  {% if node.ssh_user or node.ssh_host %}
+                    <code>{% if node.ssh_user %}{{ node.ssh_user }}@{% endif %}{{ node.ssh_host or node.host }}{% if node.ssh_port %}:{{ node.ssh_port }}{% endif %}</code>
+                  {% else %}
+                    <span class="muted">-</span>
+                  {% endif %}
+                </td>
+                <td>{{ node.note or '-' }}</td>
+                <td>
+                  <div class="table-actions">
+                    <a class="ghost-button compact-button" href="{{ node.url }}" target="_blank" rel="noopener">Open</a>
+                    <button class="ghost-button compact-button" type="button" data-node-edit-open data-target="#node-edit-{{ loop.index0 }}">Edit</button>
+                    <form method="post" action="{{ url_for('delete_node', node_id=node.id) }}" data-confirm="Delete this saved node?">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                      <button class="danger-button compact-button" type="submit">Delete</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
 
+      {% for node in saved_nodes %}
+        <div class="confirm-modal" data-node-edit-modal id="node-edit-{{ loop.index0 }}" hidden>
+          <div class="confirm-dialog node-dialog" role="dialog" aria-modal="true" aria-labelledby="node-edit-title-{{ loop.index0 }}">
+            <div class="panel-head modal-head">
+              <div>
+                <strong id="node-edit-title-{{ loop.index0 }}">Edit {{ node.name }}</strong>
+                <p>Change the saved GUI and optional SSH settings for this node.</p>
+              </div>
+              <button class="ghost-button small-icon-button" type="button" data-node-modal-close aria-label="Close">×</button>
+            </div>
             <form class="form-grid" method="post" action="{{ url_for('update_node', node_id=node.id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
               <input type="hidden" name="keep_ssh_password" value="1">
@@ -131,17 +173,14 @@
                 Note
                 <input name="note" value="{{ node.note }}" placeholder="Purpose, location or owner">
               </label>
-              <div class="form-actions node-actions">
+              <div class="form-actions">
                 <button class="primary-button" type="submit">Save node</button>
+                <button class="ghost-button" type="button" data-node-modal-close>Cancel</button>
               </div>
             </form>
-            <form method="post" action="{{ url_for('delete_node', node_id=node.id) }}" data-confirm="Delete this saved node?">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-              <button class="danger-button" type="submit">Delete node</button>
-            </form>
-          </article>
-        {% endfor %}
-      </div>
+          </div>
+        </div>
+      {% endfor %}
     {% else %}
       <p class="empty-note">No saved nodes yet. Save a discovered node below or add one manually.</p>
     {% endif %}
@@ -151,7 +190,7 @@
     <div class="panel-head">
       <div>
         <h2>Discovered nodes</h2>
-        <p>These nodes currently announce Systemd Gui through Avahi/mDNS on your LAN.</p>
+        <p>These nodes currently announce Systemd Gui through Avahi/mDNS on your LAN. Only IPv4 addresses are shown.</p>
       </div>
       <span class="tag {% if discovery.available %}{% else %}danger{% endif %}">
         {% if discovery.available %}Discovery active{% else %}Discovery unavailable{% endif %}
