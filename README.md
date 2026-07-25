@@ -134,6 +134,9 @@ Press `N` inside the root `qs` menu to open **Remote nodes**. Saved nodes from
 opens SSH and starts `qs` on the remote server. SSH keys work with the normal
 SSH client. Saved SSH passwords require `sshpass`, which fresh Debian installs
 include and older installs can add from **Quick Shell > Shell setup**.
+Each saved node controls whether remote `qs` stays open after commands, closes
+after a command, or asks when connecting. Remote `qs` always uses the target
+server's own Quick Shell menu and data files.
 
 Sequences run multiple commands in a separate shell. Put one command on each
 line. Lines starting with `#` are comments that can be printed before the next

@@ -102,12 +102,24 @@ def _remote_context_label() -> str:
     return os.environ.get("SYSTEMD_GUI_REMOTE_NODE", "").strip()
 
 
+def _remote_keep_menu_enabled() -> bool:
+    return os.environ.get("SYSTEMD_GUI_REMOTE_KEEP_MENU", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _should_show_menu_after(item) -> bool:
+    return _remote_keep_menu_enabled() or bool(item.get("show_menu_after", False))
+
+
 def _print_menu_header(title: str) -> None:
     print(_heading(title, "green"))
     print(_style("=" * len(title), "green"))
     remote_label = _remote_context_label()
     if remote_label:
         print(f"{_style('REMOTE:', 'bold', 'red')} {remote_label}")
+
+
+def _quit_label() -> str:
+    return "Disconnect" if _remote_context_label() else "Quit"
 
 
 def _prompt_choice(max_number: int, can_go_back: bool, can_open_remote: bool = False) -> str:
@@ -284,7 +296,22 @@ def _remote_node_label(node: dict[str, object]) -> str:
     return f"{name} ({target})"
 
 
-def _ssh_base_command(node: dict[str, object], user: str) -> list[str]:
+def _remote_keep_menu_mode(node: dict[str, object]) -> str:
+    mode = str(node.get("remote_keep_menu") or "yes").strip().lower()
+    return mode if mode in {"yes", "no", "ask"} else "yes"
+
+
+def _ask_remote_keep_menu(node: dict[str, object]) -> bool:
+    mode = _remote_keep_menu_mode(node)
+    if mode == "yes":
+        return True
+    if mode == "no":
+        return False
+    answer = input("Keep remote qs open after commands? [Y/n] ").strip().lower()
+    return answer not in {"n", "no"}
+
+
+def _ssh_base_command(node: dict[str, object], user: str, keep_menu: bool) -> list[str]:
     host = _remote_node_host(node)
     port = _remote_node_port(node)
     key_path = str(node.get("ssh_key_path") or "").strip()
@@ -292,7 +319,8 @@ def _ssh_base_command(node: dict[str, object], user: str) -> list[str]:
     if key_path:
         command.extend(["-i", key_path])
     remote_label = _remote_node_label({**node, "ssh_user": user})
-    remote_command = f"SYSTEMD_GUI_REMOTE_NODE={shlex.quote(remote_label)} qs"
+    keep_value = "1" if keep_menu else "0"
+    remote_command = f"SYSTEMD_GUI_REMOTE_NODE={shlex.quote(remote_label)} SYSTEMD_GUI_REMOTE_KEEP_MENU={keep_value} qs"
     command.extend([f"{user}@{host}", remote_command])
     return command
 
@@ -313,7 +341,8 @@ def _run_remote_node(node: dict[str, object]) -> int:
     if not ssh:
         print(_error("ssh is not installed on this system."))
         return 1
-    command = _ssh_base_command(node, user)
+    keep_menu = _ask_remote_keep_menu(node)
+    command = _ssh_base_command(node, user, keep_menu)
     command[0] = ssh
     password = str(node.get("ssh_password") or "")
     env = os.environ.copy()
@@ -329,7 +358,10 @@ def _run_remote_node(node: dict[str, object]) -> int:
 
     print()
     print(_heading(f"Connecting to {_remote_node_label(node)}", "blue"))
-    print(_muted("The remote server will run qs over SSH. Close the SSH session to return here."))
+    if keep_menu:
+        print(_muted("The remote server will keep qs open after commands. Choose q to disconnect."))
+    else:
+        print(_muted("The remote server will close qs after a command. SSH then returns here."))
     return subprocess.run(command, env=env).returncode
 
 
@@ -788,7 +820,7 @@ def _show_history_menu(settings: dict | None = None, shell_action_file: Path | N
             toggle_label = "Hide repeated commands" if show_unfiltered else "Show unfiltered history"
             print(f"{_style('u', 'yellow')} {toggle_label}")
         print(f"{_style('b', 'yellow')} Back")
-        print(f"{_style('q', 'yellow')} Quit")
+        print(f"{_style('q', 'yellow')} {_quit_label()}")
         print(_muted("Tip: f nginx searches history. f without text clears the filter. p2 prints item 2; c2 copies it."))
 
         raw_choice = input("Choose (number/pN/cN/f/n/p/u/b/q): ").strip()
@@ -824,7 +856,7 @@ def _show_history_menu(settings: dict | None = None, shell_action_file: Path | N
                 continue
             _source, _command, _timestamp, item, _count = entries[selected_index]
             result_code = _print_command(item) if action == "print" else _copy_command(item)
-            if not item.get("show_menu_after", False):
+            if not _should_show_menu_after(item):
                 return result_code
             continue
         if not choice.isdigit():
@@ -1109,7 +1141,7 @@ def main() -> int:
                 print(f"{number} {label}")
         if len(menu_stack) > 1:
             print(f"{_style('b', 'yellow')} Back")
-        print(f"{_style('q', 'yellow')} Quit")
+        print(f"{_style('q', 'yellow')} {_quit_label()}")
         print(_muted("Tip: p2 means print item 2. c2 means copy item 2 when a clipboard tool is available."))
 
         choice = _prompt_choice(len(current_items), len(menu_stack) > 1, bool(remote_nodes))
@@ -1139,11 +1171,11 @@ def main() -> int:
                 continue
             item = current_items[selected_index]
             result_code = _print_command(item) if action == "print" else _copy_command(item)
-            if not item.get("show_menu_after", False):
+            if not _should_show_menu_after(item):
                 return result_code
             continue
         if not choice.isdigit():
-            print(_error("Please enter a number, pN, cN, S, b or q."))
+            print(_error(f"Please enter a number, pN, cN, S, b or q ({_quit_label().lower()})."))
             continue
         selected_index = int(choice) - 1
         if selected_index < 0 or selected_index >= len(current_items):
@@ -1157,7 +1189,7 @@ def main() -> int:
             path_stack.append([*path_stack[-1], selected_index + 1])
             continue
         result_code = _run_command(item, shell_action_file)
-        if not item.get("show_menu_after", False):
+        if not _should_show_menu_after(item):
             return result_code
 
 

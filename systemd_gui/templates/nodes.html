@@ -174,6 +174,15 @@
                 <span class="field-help">Optional and stored in <code>nodes.json</code>. Use only on trusted systems.</span>
               </label>
               <label>
+                Remote qs after command
+                <select name="remote_keep_menu">
+                  <option value="yes" {% if node.remote_keep_menu == "yes" or not node.remote_keep_menu %}selected{% endif %}>Yes, keep remote menu open</option>
+                  <option value="no" {% if node.remote_keep_menu == "no" %}selected{% endif %}>No, disconnect after command</option>
+                  <option value="ask" {% if node.remote_keep_menu == "ask" %}selected{% endif %}>Ask when connecting</option>
+                </select>
+                <span class="field-help">Controls what happens after a remote command finishes. The remote node still uses its own Quick Shell menu.</span>
+              </label>
+              <label>
                 Note
                 <input name="note" value="{{ node.note }}" placeholder="Purpose, location or owner">
               </label>

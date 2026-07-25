@@ -93,6 +93,9 @@ def normalize_node(node: dict[str, object]) -> dict[str, object]:
     host = _clean_text(node.get("host")) or (parsed.hostname if parsed else "")
     port = _clean_text(node.get("port")) or (str(parsed.port) if parsed and parsed.port else "")
     node_id = _clean_text(node.get("node_id")) or secrets.token_hex(8)
+    remote_keep_menu = _clean_text(node.get("remote_keep_menu"))
+    if remote_keep_menu not in {"yes", "no", "ask"}:
+        remote_keep_menu = "yes"
     return {
         "id": _clean_text(node.get("id")) or secrets.token_hex(8),
         "node_id": node_id,
@@ -106,6 +109,7 @@ def normalize_node(node: dict[str, object]) -> dict[str, object]:
         "ssh_port": _clean_text(node.get("ssh_port")) or "22",
         "ssh_key_path": _clean_text(node.get("ssh_key_path")),
         "ssh_password": str(node.get("ssh_password") or ""),
+        "remote_keep_menu": remote_keep_menu,
         "created_at": _clean_text(node.get("created_at")) or _now(),
         "updated_at": _clean_text(node.get("updated_at")) or _now(),
     }
@@ -128,6 +132,7 @@ def node_from_form(form, existing: dict[str, object] | None = None) -> dict[str,
         "ssh_port": form.get("ssh_port", "22"),
         "ssh_key_path": form.get("ssh_key_path", ""),
         "ssh_password": password,
+        "remote_keep_menu": form.get("remote_keep_menu", "yes"),
         "updated_at": _now(),
     }
     normalized = normalize_node(node)
