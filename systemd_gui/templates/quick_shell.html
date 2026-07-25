@@ -584,7 +584,7 @@
         <div class="quick-shell-history-card">
           <div>
             <h3>History menu</h3>
-            <p>Controls the <code>S Shell history</code> menu inside <code>qs</code>. Shell integration keeps the list current while you stay logged in.</p>
+            <p>Controls the <code>S Command history</code> menu inside <code>qs</code>. It can show shell commands, Quick Shell runs, or both together.</p>
             <p class="field-help">Use <code>n</code>/<code>p</code> to change pages. Numbers continue across pages.</p>
           </div>
           <form class="quick-shell-settings-form" method="post" action="{{ url_for('update_quick_shell_settings') }}">
@@ -593,6 +593,14 @@
               <label>
                 Entries per page
                 <input name="history_limit" type="number" min="10" max="500" step="10" value="{{ quick_shell_settings.history_limit or 80 }}">
+              </label>
+              <label>
+                History source
+                <select name="history_source">
+                  <option value="combined" {% if quick_shell_settings.history_source is not defined or quick_shell_settings.history_source == "combined" %}selected{% endif %}>Shell + Quick Shell</option>
+                  <option value="shell" {% if quick_shell_settings.history_source == "shell" %}selected{% endif %}>Shell only</option>
+                  <option value="quick-shell" {% if quick_shell_settings.history_source == "quick-shell" %}selected{% endif %}>Quick Shell only</option>
+                </select>
               </label>
               <label class="toggle-label">
                 <input type="checkbox" name="history_show_timestamps" value="1" {% if quick_shell_settings.history_show_timestamps is not defined or quick_shell_settings.history_show_timestamps %}checked{% endif %}>

@@ -117,6 +117,7 @@ def default_quick_shell_settings() -> dict[str, Any]:
     return {
         "history_limit": 80,
         "history_show_timestamps": True,
+        "history_source": "combined",
     }
 
 
@@ -510,9 +511,13 @@ def normalize_settings(settings: Any) -> dict[str, Any]:
     except (TypeError, ValueError):
         history_limit = int(defaults["history_limit"])
     history_limit = max(10, min(history_limit, 500))
+    history_source = str(settings.get("history_source") or defaults["history_source"])
+    if history_source not in {"shell", "quick-shell", "combined"}:
+        history_source = defaults["history_source"]
     return {
         "history_limit": history_limit,
         "history_show_timestamps": bool(settings.get("history_show_timestamps", defaults["history_show_timestamps"])),
+        "history_source": history_source,
     }
 
 

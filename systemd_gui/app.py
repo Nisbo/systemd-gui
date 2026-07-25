@@ -472,6 +472,7 @@ def create_app() -> Flask:
         data["settings"] = {
             "history_limit": history_limit,
             "history_show_timestamps": request.form.get("history_show_timestamps") == "1",
+            "history_source": request.form.get("history_source", "combined"),
         }
         write_quick_shell(_quick_shell_path(app), data)
         flash("Quick Shell settings saved.", "success")

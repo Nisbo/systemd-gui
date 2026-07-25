@@ -418,14 +418,40 @@ def _history_show_timestamps(settings: dict | None = None) -> bool:
     return True
 
 
+def _history_source_mode(settings: dict | None = None) -> str:
+    value = str((settings or {}).get("history_source") or "combined")
+    return value if value in {"shell", "quick-shell", "combined"} else "combined"
+
+
 def _parse_timestamp(value: str) -> int | None:
     if value.isdigit():
         return int(value)
     return None
 
 
-def _read_shell_history() -> list[tuple[Path, str, int | None]]:
-    entries: list[tuple[Path, str, int | None]] = []
+def _parse_iso_timestamp(value: str) -> int | None:
+    if not value:
+        return None
+    try:
+        return int(datetime.fromisoformat(value).timestamp())
+    except ValueError:
+        return None
+
+
+def _shell_history_item(source: Path, command: str) -> dict:
+    return {
+        "type": "command",
+        "name": command,
+        "command": command,
+        "shell": _history_shell(source),
+        "enabled": True,
+        "confirm": True,
+        "show_menu_after": False,
+    }
+
+
+def _read_shell_history() -> list[tuple[str, str, int | None, dict]]:
+    entries: list[tuple[str, str, int | None, dict]] = []
     for source in _history_candidates():
         try:
             lines = source.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -444,24 +470,83 @@ def _read_shell_history() -> list[tuple[Path, str, int | None]]:
                     timestamp = _parse_timestamp(parts[1].strip())
             command = _history_command_from_line(line, source)
             if command:
-                entries.append((source, command, timestamp))
+                entries.append((source.name, command, timestamp, _shell_history_item(source, command)))
             pending_timestamp = None
     return list(reversed(entries))
 
 
-def _compact_history(entries: list[tuple[Path, str, int | None]]) -> list[tuple[Path, str, int | None, int]]:
-    compacted: list[tuple[Path, str, int | None, int]] = []
-    for source, command, timestamp in entries:
-        if compacted and compacted[-1][1] == command:
-            previous_source, previous_command, previous_timestamp, previous_count = compacted[-1]
-            compacted[-1] = (previous_source, previous_command, previous_timestamp, previous_count + 1)
+def _read_quick_shell_history() -> list[tuple[str, str, int | None, dict]]:
+    try:
+        data = json.loads(_runs_path().read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    if not isinstance(data, list):
+        return []
+    entries: list[tuple[str, str, int | None, dict]] = []
+    for record in reversed(data):
+        if not isinstance(record, dict):
             continue
-        compacted.append((source, command, timestamp, 1))
+        record_type = str(record.get("type") or "command")
+        timestamp = _parse_iso_timestamp(str(record.get("started_at") or ""))
+        if record_type == "sequence":
+            lines = record.get("lines") if isinstance(record.get("lines"), list) else []
+            commands = "\n".join(str(line.get("command") or "") for line in lines if isinstance(line, dict) and str(line.get("command") or "").strip())
+            if not commands.strip():
+                continue
+            name = str(record.get("name") or "Sequence").strip()
+            item = {
+                "type": "sequence",
+                "name": name,
+                "commands": commands,
+                "shell": str(record.get("shell") or ""),
+                "enabled": True,
+                "confirm": True,
+                "confirm_each": bool(record.get("confirm_each", False)),
+                "print_comments": bool(record.get("print_comments", True)),
+                "stop_on_error": bool(record.get("stop_on_error", True)),
+                "show_menu_after": False,
+            }
+            entries.append(("quick-shell", f"{name} ({len(lines)} sequence lines)", timestamp, item))
+            continue
+        command = str(record.get("command") or "").strip()
+        if not command:
+            continue
+        item = {
+            "type": "command",
+            "name": str(record.get("name") or command).strip(),
+            "command": command,
+            "shell": str(record.get("shell") or ""),
+            "enabled": True,
+            "confirm": True,
+            "show_menu_after": False,
+        }
+        entries.append(("quick-shell", command, timestamp, item))
+    return entries
+
+
+def _read_history_entries(settings: dict | None = None) -> list[tuple[str, str, int | None, dict]]:
+    mode = _history_source_mode(settings)
+    entries: list[tuple[str, str, int | None, dict]] = []
+    if mode in {"shell", "combined"}:
+        entries.extend(_read_shell_history())
+    if mode in {"quick-shell", "combined"}:
+        entries.extend(_read_quick_shell_history())
+    return sorted(entries, key=lambda entry: entry[2] or 0, reverse=True)
+
+
+def _compact_history(entries: list[tuple[str, str, int | None, dict]]) -> list[tuple[str, str, int | None, dict, int]]:
+    compacted: list[tuple[str, str, int | None, dict, int]] = []
+    for source, command, timestamp, item in entries:
+        if compacted and compacted[-1][1] == command:
+            previous_source, previous_command, previous_timestamp, previous_item, previous_count = compacted[-1]
+            compacted[-1] = (previous_source, previous_command, previous_timestamp, previous_item, previous_count + 1)
+            continue
+        compacted.append((source, command, timestamp, item, 1))
     return compacted
 
 
-def _raw_history(entries: list[tuple[Path, str, int | None]]) -> list[tuple[Path, str, int | None, int]]:
-    return [(source, command, timestamp, 1) for source, command, timestamp in entries]
+def _raw_history(entries: list[tuple[str, str, int | None, dict]]) -> list[tuple[str, str, int | None, dict, int]]:
+    return [(source, command, timestamp, item, 1) for source, command, timestamp, item in entries]
 
 
 def _format_history_time(timestamp: int | None) -> str:
@@ -471,18 +556,6 @@ def _format_history_time(timestamp: int | None) -> str:
         return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
     except (OSError, OverflowError, ValueError):
         return "-"
-
-
-def _history_item(source: Path, command: str) -> dict:
-    return {
-        "type": "command",
-        "name": command,
-        "command": command,
-        "shell": _history_shell(source),
-        "enabled": True,
-        "confirm": True,
-        "show_menu_after": False,
-    }
 
 
 def _read_sequence_statuses(path: Path) -> dict[int, str]:
@@ -516,11 +589,26 @@ def _append_run_record(record: dict) -> None:
         pass
 
 
+def _record_command_run(item: dict, command: str, shell: str, started_at: str, ended_at: str, exit_code: int) -> None:
+    _append_run_record(
+        {
+            "type": "command",
+            "name": _item_name(item),
+            "command": command,
+            "started_at": started_at,
+            "ended_at": ended_at,
+            "exit_code": exit_code,
+            "shell": shell,
+        }
+    )
+
+
 def _show_history_menu(settings: dict | None = None, shell_action_file: Path | None = None) -> int | None:
-    raw_entries = _read_shell_history()
+    raw_entries = _read_history_entries(settings)
     show_unfiltered = False
     filter_query = ""
     page = 0
+    source_mode = _history_source_mode(settings)
     while True:
         entries = _raw_history(raw_entries) if show_unfiltered else _compact_history(raw_entries)
         if filter_query:
@@ -533,7 +621,7 @@ def _show_history_menu(settings: dict | None = None, shell_action_file: Path | N
         page_start = page * page_size
         page_entries = entries[page_start:page_start + page_size]
         print()
-        title = "Quick Shell / Shell history"
+        title = "Quick Shell / Command history"
         print(_heading(title, "blue"))
         print(_style("=" * len(title), "blue"))
         if filter_query:
@@ -541,22 +629,27 @@ def _show_history_menu(settings: dict | None = None, shell_action_file: Path | N
         if not entries and filter_query:
             print(_muted("No history entries match this filter."))
         elif not entries:
-            print(_muted("No readable shell history file was found for this user."))
-            print(_muted("Some shells write history only after logout or after running history -a."))
+            if source_mode == "quick-shell":
+                print(_muted("No Quick Shell commands have been recorded yet."))
+            elif source_mode == "shell":
+                print(_muted("No readable shell history file was found for this user."))
+                print(_muted("Some shells write history only after logout or after running history -a."))
+            else:
+                print(_muted("No readable shell or Quick Shell history was found for this user."))
         elif show_unfiltered:
-            timestamp_note = " Time is shown when the shell saved it." if show_timestamps else ""
-            print(_muted(f"Newest readable entries for the current server user, including repeated commands.{timestamp_note}"))
+            timestamp_note = " Time is shown when available." if show_timestamps else ""
+            print(_muted(f"Newest {source_mode} history entries for the current server user, including repeated commands.{timestamp_note}"))
         else:
-            timestamp_note = " Time is shown when the shell saved it." if show_timestamps else ""
-            print(_muted(f"Newest readable entries for the current server user. Consecutive duplicates are collapsed.{timestamp_note}"))
+            timestamp_note = " Time is shown when available." if show_timestamps else ""
+            print(_muted(f"Newest {source_mode} history entries for the current server user. Consecutive duplicates are collapsed.{timestamp_note}"))
         if entries:
             print(_muted(f"Page {page + 1}/{total_pages}. Showing {page_start + 1}-{page_start + len(page_entries)} of {len(entries)}."))
-        for offset, (source, command, timestamp, count) in enumerate(page_entries):
+        for offset, (source, command, timestamp, _item, count) in enumerate(page_entries):
             number_value = page_start + offset + 1
             number = _style(str(number_value), "bold")
             repeat = f" {_style(f'x{count}', 'yellow')}" if count > 1 else ""
             history_time = f"{_muted(_format_history_time(timestamp))} " if show_timestamps else ""
-            print(f"{number} {_muted(source.name)} {history_time}{command}{repeat}")
+            print(f"{number} {_muted(source)} {history_time}{command}{repeat}")
         if page > 0:
             print(f"{_style('p', 'yellow')} Previous page")
         if page + 1 < total_pages:
@@ -600,8 +693,7 @@ def _show_history_menu(settings: dict | None = None, shell_action_file: Path | N
             if selected_index < 0 or selected_index >= len(entries):
                 print(_error("That number is not in the history list."))
                 continue
-            source, command, _timestamp, _count = entries[selected_index]
-            item = _history_item(source, command)
+            _source, _command, _timestamp, item, _count = entries[selected_index]
             result_code = _print_command(item) if action == "print" else _copy_command(item)
             if not item.get("show_menu_after", False):
                 return result_code
@@ -613,8 +705,8 @@ def _show_history_menu(settings: dict | None = None, shell_action_file: Path | N
         if selected_index < 0 or selected_index >= len(entries):
             print(_error("That number is not in the history list."))
             continue
-        source, command, _timestamp, _count = entries[selected_index]
-        return _run_command(_history_item(source, command), shell_action_file)
+        _source, _command, _timestamp, item, _count = entries[selected_index]
+        return _run_command(item, shell_action_file)
 
 
 def _command_shell(item) -> str | None:
@@ -654,9 +746,15 @@ def _run_command(item, shell_action_file: Path | None = None) -> int:
             print(_error("This cd command needs Shell Integration. Install it from the Quick Shell page and open a new shell."))
             return 2
         _write_shell_action(shell_action_file, f"cd {shlex.quote(str(cd_target))}")
+        now = datetime.now().isoformat(timespec="seconds")
+        _record_command_run(item, command, "shell-integration", now, now, 0)
         return 0
     print()
-    result = subprocess.run(command, shell=True, executable=_command_shell(item))
+    started_at = datetime.now().isoformat(timespec="seconds")
+    shell = _command_shell(item)
+    result = subprocess.run(command, shell=True, executable=shell)
+    ended_at = datetime.now().isoformat(timespec="seconds")
+    _record_command_run(item, command, shell or "/bin/sh", started_at, ended_at, result.returncode)
     if result.returncode != 0:
         print()
         print(_error(f"Command finished with exit code {result.returncode}."))
@@ -870,7 +968,7 @@ def main() -> int:
         print(_style("=" * len(title), "green"))
         if not current_items:
             print(_muted("No active entries in this menu."))
-        print(f"{_style('S', 'yellow')} Shell history")
+        print(f"{_style('S', 'yellow')} Command history")
         for index, item in enumerate(current_items, start=1):
             label = entry_label(item)
             number = _style(str(index), "bold")

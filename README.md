@@ -64,6 +64,8 @@ Gunicorn.
 - Use placeholders such as `apt search {package}` and answer them in the shell.
 - Use readable step labels in sequences with `@ Friendly step name` on the line
   before a command.
+- Open command history from `qs` and choose between shell history, Quick Shell
+  run history or both combined.
 - Add optional shell integration for commands such as `cd /opt`.
 
 ### Nodes
@@ -98,6 +100,12 @@ Quick Shell entries are stored in:
 data/quick-shell.json
 ```
 
+Quick Shell run history is stored separately in:
+
+```text
+data/quick-shell-runs.json
+```
+
 Importable example command packs are stored in:
 
 ```text
@@ -116,6 +124,10 @@ apt search {package}
 ```
 
 When the command is selected in `qs`, the shell asks for the missing value.
+
+Press `S` inside `qs` to open command history. The history source can be changed
+in **Quick Shell > Shell setup**: shell history only, Quick Shell run history
+only, or both combined.
 
 Sequences run multiple commands in a separate shell. Put one command on each
 line. Lines starting with `#` are comments that can be printed before the next
