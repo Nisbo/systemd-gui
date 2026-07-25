@@ -93,11 +93,21 @@ def _enabled_items(items):
 
 
 def _menu_title(stack):
-    remote_label = os.environ.get("SYSTEMD_GUI_REMOTE_NODE", "").strip()
-    base_title = f"Quick Shell @ {remote_label}" if remote_label else "Quick Shell"
     if not stack:
-        return base_title
-    return base_title + " / " + " / ".join(stack)
+        return "Quick Shell"
+    return "Quick Shell / " + " / ".join(stack)
+
+
+def _remote_context_label() -> str:
+    return os.environ.get("SYSTEMD_GUI_REMOTE_NODE", "").strip()
+
+
+def _print_menu_header(title: str) -> None:
+    print(_heading(title, "green"))
+    print(_style("=" * len(title), "green"))
+    remote_label = _remote_context_label()
+    if remote_label:
+        print(f"{_style('Remote:', 'yellow')} {remote_label}")
 
 
 def _prompt_choice(max_number: int, can_go_back: bool, can_open_remote: bool = False) -> str:
@@ -1084,8 +1094,7 @@ def main() -> int:
         remote_nodes = _read_remote_nodes() if len(menu_stack) == 1 else []
         print()
         title = _menu_title(stack)
-        print(_heading(title, "green"))
-        print(_style("=" * len(title), "green"))
+        _print_menu_header(title)
         if not current_items:
             print(_muted("No active entries in this menu."))
         print(f"{_style('S', 'yellow')} Command history")
