@@ -71,6 +71,10 @@ def _runs_path() -> Path:
     return _data_dir() / "quick-shell-runs.json"
 
 
+def _nodes_path() -> Path:
+    return _data_dir() / "nodes.json"
+
+
 def _load_helpers():
     root = _app_root()
     module_path = root / "systemd_gui" / "quick_shell.py"
@@ -94,8 +98,10 @@ def _menu_title(stack):
     return "Quick Shell / " + " / ".join(stack)
 
 
-def _prompt_choice(max_number: int, can_go_back: bool) -> str:
+def _prompt_choice(max_number: int, can_go_back: bool, can_open_remote: bool = False) -> str:
     hints = ["number", "pN", "cN", "S"]
+    if can_open_remote:
+        hints.append("N")
     if can_go_back:
         hints.append("b")
     hints.append("q")
@@ -231,6 +237,113 @@ def _parse_cd_target(command: str) -> Path | None:
 
 def _write_shell_action(path: Path, action: str) -> None:
     path.write_text(action + "\n", encoding="utf-8")
+
+
+def _read_remote_nodes() -> list[dict[str, object]]:
+    try:
+        data = json.loads(_nodes_path().read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    nodes = data.get("nodes") if isinstance(data, dict) else []
+    if not isinstance(nodes, list):
+        return []
+    return [node for node in nodes if isinstance(node, dict) and _remote_node_host(node)]
+
+
+def _remote_node_host(node: dict[str, object]) -> str:
+    return str(node.get("ssh_host") or node.get("host") or "").strip()
+
+
+def _remote_node_port(node: dict[str, object]) -> str:
+    value = str(node.get("ssh_port") or "").strip()
+    return value if value.isdigit() else "22"
+
+
+def _remote_node_user(node: dict[str, object]) -> str:
+    return str(node.get("ssh_user") or "").strip()
+
+
+def _remote_node_label(node: dict[str, object]) -> str:
+    name = str(node.get("name") or "").strip() or _remote_node_host(node)
+    user = _remote_node_user(node)
+    host = _remote_node_host(node)
+    port = _remote_node_port(node)
+    target = f"{user + '@' if user else ''}{host}:{port}"
+    return f"{name} ({target})"
+
+
+def _ssh_base_command(node: dict[str, object], user: str) -> list[str]:
+    host = _remote_node_host(node)
+    port = _remote_node_port(node)
+    key_path = str(node.get("ssh_key_path") or "").strip()
+    command = ["ssh", "-t", "-p", port]
+    if key_path:
+        command.extend(["-i", key_path])
+    command.extend([f"{user}@{host}", "qs"])
+    return command
+
+
+def _run_remote_node(node: dict[str, object]) -> int:
+    host = _remote_node_host(node)
+    if not host:
+        print(_error("This saved node has no SSH host. Open Nodes in the GUI and edit the node."))
+        return 1
+    user = _remote_node_user(node)
+    if not user:
+        user = input(f"SSH user for {host}: ").strip()
+    if not user:
+        print(_error("SSH user is required."))
+        return 1
+
+    ssh = shutil.which("ssh")
+    if not ssh:
+        print(_error("ssh is not installed on this system."))
+        return 1
+    command = _ssh_base_command(node, user)
+    command[0] = ssh
+    password = str(node.get("ssh_password") or "")
+    env = os.environ.copy()
+    if password and not node.get("ssh_key_path"):
+        sshpass = shutil.which("sshpass")
+        if sshpass:
+            env["SSHPASS"] = password
+            command = [sshpass, "-e", *command]
+        else:
+            print(_style("Stored password found, but sshpass is not installed. ssh will ask normally if password login is allowed.", "yellow"))
+
+    print()
+    print(_heading(f"Connecting to {_remote_node_label(node)}", "blue"))
+    print(_muted("The remote server will run qs over SSH. Close the SSH session to return here."))
+    return subprocess.run(command, env=env).returncode
+
+
+def _show_remote_nodes_menu() -> int | None:
+    while True:
+        nodes = _read_remote_nodes()
+        print()
+        title = "Quick Shell / Remote nodes"
+        print(_heading(title, "blue"))
+        print(_style("=" * len(title), "blue"))
+        if not nodes:
+            print(_muted("No saved nodes with an SSH host are configured yet. Add or edit nodes in the GUI first."))
+        for index, node in enumerate(nodes, start=1):
+            print(f"{_style(str(index), 'bold')} {_remote_node_label(node)}")
+        print(f"{_style('b', 'yellow')} Back")
+        print(f"{_style('q', 'yellow')} Quit")
+        print(_muted("Tip: SSH keys are used automatically. Without a saved user, qs asks for one."))
+        choice = input("Choose (number/b/q): ").strip().lower()
+        if choice == "q":
+            return 0
+        if choice == "b":
+            return None
+        if not choice.isdigit():
+            print(_error("Please enter a number, b or q."))
+            continue
+        selected_index = int(choice) - 1
+        if selected_index < 0 or selected_index >= len(nodes):
+            print(_error("That number is not in the remote node list."))
+            continue
+        return _run_remote_node(nodes[selected_index])
 
 
 def _command_for_item(item) -> str:
@@ -962,6 +1075,7 @@ def main() -> int:
     while True:
         _write_resume_path(path_stack[-1])
         current_items = _enabled_items(menu_stack[-1])
+        remote_nodes = _read_remote_nodes() if len(menu_stack) == 1 else []
         print()
         title = _menu_title(stack)
         print(_heading(title, "green"))
@@ -969,6 +1083,8 @@ def main() -> int:
         if not current_items:
             print(_muted("No active entries in this menu."))
         print(f"{_style('S', 'yellow')} Command history")
+        if remote_nodes:
+            print(f"{_style('N', 'yellow')} Remote nodes")
         for index, item in enumerate(current_items, start=1):
             label = entry_label(item)
             number = _style(str(index), "bold")
@@ -981,11 +1097,16 @@ def main() -> int:
         print(f"{_style('q', 'yellow')} Quit")
         print(_muted("Tip: p2 means print item 2. c2 means copy item 2 when a clipboard tool is available."))
 
-        choice = _prompt_choice(len(current_items), len(menu_stack) > 1)
+        choice = _prompt_choice(len(current_items), len(menu_stack) > 1, bool(remote_nodes))
         if choice == "q":
             return 0
         if choice == "s":
             result_code = _show_history_menu(data.get("settings") or {}, shell_action_file)
+            if result_code is not None:
+                return result_code
+            continue
+        if choice == "n" and remote_nodes:
+            result_code = _show_remote_nodes_menu()
             if result_code is not None:
                 return result_code
             continue

@@ -72,6 +72,9 @@ th.actions-heading { text-align:right; }
 .tag.override { background:color-mix(in srgb, #2563eb 14%, transparent); color:#1d4ed8; }
 :root[data-theme="dark"] .tag.override { color:#93c5fd; }
 .status-pill.failed,.tag.danger { background:rgba(127,29,29,.12); color:var(--danger); } .tag.neutral { background:color-mix(in srgb, var(--muted) 11%, transparent); color:var(--muted); } .status-pill.inactive { background:color-mix(in srgb, var(--amber) 16%, transparent); color:#8a5a00; }
+.tag.node-status.online { background:color-mix(in srgb, var(--accent) 13%, transparent); color:var(--accent-strong); }
+.tag.node-status.offline { background:rgba(127,29,29,.12); color:var(--danger); }
+.tag.node-status.unknown { background:color-mix(in srgb, var(--amber) 16%, transparent); color:#8a5a00; }
 .status-pill.sub-state { background:color-mix(in srgb, var(--muted) 14%, transparent); color:var(--muted); }
 .state-text { border-bottom:1px dotted currentColor; cursor:help; }
 .failed-row { color:var(--muted); } .star-button { min-height:32px; padding:0 8px; background:transparent; color:var(--accent); }

@@ -21,6 +21,7 @@ from .nodes import (
     normalize_node,
     read_nodes,
     remove_announcement,
+    saved_nodes_with_status,
     write_nodes,
 )
 from .quick_shell import (
@@ -260,7 +261,7 @@ def create_app() -> Flask:
     def nodes():
         data = read_nodes(_nodes_path(app))
         settings = data.get("settings") or {}
-        saved_nodes = data.get("nodes") or []
+        saved_nodes = saved_nodes_with_status(list(data.get("nodes") or []))
         discovery = discover_nodes()
         discovered_raw = [node for node in discovery.nodes if node.get("node_id") != settings.get("node_id")]
         discovered_nodes = merge_discovered_with_saved(saved_nodes, discovered_raw)

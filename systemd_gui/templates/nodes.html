@@ -10,8 +10,8 @@
     </div>
 
     <div class="diagnostic warning">
-      <strong>Remote shell actions are not enabled here yet</strong>
-      <span>This page stores trusted node information first. Later, Quick Shell can use SSH to open <code>qs</code> on a saved node.</span>
+      <strong>Remote Quick Shell uses saved SSH settings</strong>
+      <span>In the local <code>qs</code> menu, choose <code>N</code> to open <code>qs</code> on a saved node over SSH. SSH keys are preferred; passwords are optional and should only be stored on trusted systems.</span>
     </div>
 
     <dl class="detail-grid three">
@@ -78,7 +78,7 @@
     <div class="panel-head">
       <div>
         <h2>Saved nodes</h2>
-        <p>Saved nodes stay here even when they are offline. SSH fields are optional and used later by Quick Shell.</p>
+        <p>Saved nodes stay here even when they are offline. The status checks the saved GUI URL; Quick Shell uses the optional SSH settings.</p>
       </div>
     </div>
 
@@ -88,6 +88,7 @@
           <thead>
             <tr>
               <th>Name</th>
+              <th>Status</th>
               <th>URL</th>
               <th>SSH</th>
               <th>Note</th>
@@ -100,6 +101,9 @@
                 <td>
                   <strong>{{ node.name }}</strong>
                   <span class="tag neutral">Saved</span>
+                </td>
+                <td>
+                  <span class="tag node-status {{ node.online_status.state }}" title="{{ node.online_status.message }}">{{ node.online_status.label }}</span>
                 </td>
                 <td><code>{{ node.url }}</code></td>
                 <td>

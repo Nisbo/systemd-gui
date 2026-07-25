@@ -6,11 +6,14 @@ import secrets
 import shutil
 import socket
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 from html import escape
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 
 from .version import APP_NAME, APP_VERSION
 
@@ -176,6 +179,30 @@ def merge_discovered_with_saved(saved_nodes: list[dict[str, object]], discovered
         node = {**node, "saved": str(node.get("node_id") or "") in saved_keys or _node_url_key(node.get("url", "")) in saved_keys}
         merged.append(node)
     return merged
+
+
+def saved_nodes_with_status(saved_nodes: list[dict[str, object]], timeout: float = 0.7) -> list[dict[str, object]]:
+    if not saved_nodes:
+        return []
+    with ThreadPoolExecutor(max_workers=min(8, len(saved_nodes))) as executor:
+        statuses = list(executor.map(lambda node: node_online_status(node, timeout), saved_nodes))
+    return [{**node, "online_status": status} for node, status in zip(saved_nodes, statuses)]
+
+
+def node_online_status(node: dict[str, object], timeout: float = 0.7) -> dict[str, str]:
+    url = str(node.get("url") or "").strip()
+    if not url:
+        return {"state": "unknown", "label": "Unknown", "message": "No GUI URL is configured for this node."}
+    try:
+        request = Request(url, method="HEAD")
+        with urlopen(request, timeout=timeout):
+            return {"state": "online", "label": "Online", "message": "The saved GUI URL answered."}
+    except HTTPError as exc:
+        if exc.code < 500:
+            return {"state": "online", "label": "Online", "message": f"The saved GUI URL answered with HTTP {exc.code}."}
+        return {"state": "offline", "label": "Offline", "message": f"The saved GUI URL returned HTTP {exc.code}."}
+    except (OSError, URLError, ValueError) as exc:
+        return {"state": "offline", "label": "Offline", "message": f"The saved GUI URL did not answer: {exc}"}
 
 
 def announcement_status(settings: dict[str, object], public_port: int) -> dict[str, object]:
