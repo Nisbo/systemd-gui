@@ -709,7 +709,6 @@
     const logControls = document.querySelector("[data-log-controls]");
     const linesSelect = logControls?.querySelector("[data-log-lines]");
     const prioritySelect = logControls?.querySelector("[data-log-priority]");
-    const refreshCheckbox = logControls?.querySelector("[data-log-refresh]");
     const wrapCheckbox = logControls?.querySelector("[data-log-wrap]");
     const intervalSelect = logControls?.querySelector("[data-log-interval]");
     const searchInput = logControls?.querySelector("[data-log-search]");
@@ -730,7 +729,7 @@
       const seconds = Number.parseInt(intervalSelect?.value || logPanel.dataset.refreshInterval || "5", 10);
       return Number.isFinite(seconds) && seconds > 0 ? seconds : 5;
     };
-    const refreshEnabled = () => Boolean(refreshCheckbox?.checked);
+    const refreshEnabled = () => intervalSelect ? intervalSelect.value !== "off" : logPanel.dataset.refreshEnabled === "true";
     const syncLogUrl = () => {
       const url = new URL(window.location.href);
       if (url.pathname.indexOf("/logs") === -1) url.searchParams.set("tab", "logs");
@@ -893,12 +892,11 @@
 
     linesSelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
     prioritySelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
-    refreshCheckbox?.addEventListener("change", () => applyLogControls({ refresh: refreshEnabled() }));
     wrapCheckbox?.addEventListener("change", () => {
       applyLogWrap();
       syncLogUrl();
     });
-    intervalSelect?.addEventListener("change", () => applyLogControls());
+    intervalSelect?.addEventListener("change", () => applyLogControls({ refresh: refreshEnabled() }));
     searchInput?.addEventListener("input", () => {
       window.clearTimeout(searchTimer);
       searchTimer = window.setTimeout(applyLogSearch, 120);

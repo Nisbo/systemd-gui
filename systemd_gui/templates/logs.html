@@ -24,25 +24,22 @@
           {% endfor %}
         </select>
       </label>
-      <label class="toggle-label">
-        <input name="refresh" type="checkbox" value="1" data-log-refresh {% if log_refresh %}checked{% endif %}>
-        Auto-refresh
-      </label>
-      <label class="toggle-label">
-        <input name="wrap" type="checkbox" value="1" data-log-wrap {% if log_wrap %}checked{% endif %}>
-        Wrap lines
-      </label>
       <label>
-        Interval
+        Auto-refresh
         <select name="interval" data-log-interval>
+          <option value="off" {% if not log_refresh %}selected{% endif %}>Off - manual</option>
           {% for option in [1, 2, 5, 10, 30] %}
-            <option value="{{ option }}" {% if log_refresh_interval == option %}selected{% endif %}>{{ option }}s</option>
+            <option value="{{ option }}" {% if log_refresh and log_refresh_interval == option %}selected{% endif %}>Every {{ option }}s</option>
           {% endfor %}
         </select>
       </label>
       <label>
         Search loaded logs
         <input name="log_q" value="{{ request.args.get('log_q', '') }}" placeholder="Filter visible log lines" autocomplete="off" data-log-search>
+      </label>
+      <label class="toggle-label">
+        <input name="wrap" type="checkbox" value="1" data-log-wrap {% if log_wrap %}checked{% endif %}>
+        Wrap lines
       </label>
       <button class="ghost-button" type="button" data-log-refresh-now>Refresh now</button>
       <a class="ghost-button" href="{{ url_for('logs_window', lines=log_lines, priority=log_priority if log_priority != 'all' else None, refresh='1' if log_refresh else None, interval=log_refresh_interval if log_refresh else None, log_q=request.args.get('log_q') or None, wrap='0' if not log_wrap else None) }}" target="_blank" rel="noopener noreferrer" data-log-window>Open window</a>

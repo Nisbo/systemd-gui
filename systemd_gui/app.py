@@ -108,7 +108,7 @@ ACTION_HELP = {
     "disable": "Disable autostart. This does not stop the currently running service.",
 }
 LOG_PRIORITY_OPTIONS = [
-    ("all", "All levels"),
+    ("all", "All (unfiltered)"),
     ("debug", "Debug and above"),
     ("info", "Info and above"),
     ("warning", "Warning and above"),
@@ -382,8 +382,8 @@ def create_app() -> Flask:
         log_lines = _log_line_count(request.args.get("lines", "200"))
         log_priority = _log_priority(request.args.get("priority", "all"))
         log_wrap = _log_wrap(request.args.get("wrap", "1"))
-        log_refresh = request.args.get("refresh") == "1"
         log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
+        log_refresh = _log_refresh_enabled(request.args.get("refresh"), request.args.get("interval"))
         journal_logs = run_journalctl("", log_lines, log_priority)
         return render_template(
             "logs.html",
@@ -411,8 +411,8 @@ def create_app() -> Flask:
         log_lines = _log_line_count(request.args.get("lines", "200"))
         log_priority = _log_priority(request.args.get("priority", "all"))
         log_wrap = _log_wrap(request.args.get("wrap", "1"))
-        log_refresh = request.args.get("refresh") == "1"
         log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
+        log_refresh = _log_refresh_enabled(request.args.get("refresh"), request.args.get("interval"))
         journal_logs = run_journalctl("", log_lines, log_priority)
         return render_template(
             "service_logs_window.html",
@@ -881,8 +881,8 @@ def create_app() -> Flask:
         log_lines = _log_line_count(request.args.get("lines", "200"))
         log_priority = _log_priority(request.args.get("priority", "all"))
         log_wrap = _log_wrap(request.args.get("wrap", "1"))
-        log_refresh = request.args.get("refresh") == "1"
         log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
+        log_refresh = _log_refresh_enabled(request.args.get("refresh"), request.args.get("interval"))
         info = service_info(name)
         content = unit_content(name)
         original_content = unit_fragment_content(str(info.get("fragment_path") or ""))
@@ -961,8 +961,8 @@ def create_app() -> Flask:
         log_lines = _log_line_count(request.args.get("lines", "200"))
         log_priority = _log_priority(request.args.get("priority", "all"))
         log_wrap = _log_wrap(request.args.get("wrap", "1"))
-        log_refresh = request.args.get("refresh") == "1"
         log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
+        log_refresh = _log_refresh_enabled(request.args.get("refresh"), request.args.get("interval"))
         info = service_info(name)
         logs = run_journalctl(name, log_lines, log_priority)
         return render_template(
@@ -1565,6 +1565,17 @@ def _journalctl_label(service: str = "", priority: str = "all") -> str:
     if priority and priority != "all":
         parts.extend(["-p", priority])
     return " ".join(parts)
+
+
+def _log_refresh_enabled(refresh_value: str | None, interval_value: str | None) -> bool:
+    if refresh_value == "1":
+        return True
+    if refresh_value == "0" or interval_value in {"", "off", "0", None}:
+        return False
+    try:
+        return int(str(interval_value)) in {1, 2, 5, 10, 30}
+    except (TypeError, ValueError):
+        return False
 
 
 def _log_refresh_interval(value: str) -> int:

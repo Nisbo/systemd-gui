@@ -200,7 +200,7 @@ th.actions-heading { text-align:right; }
 .coming-soon { display:grid; gap:8px; border:1px dashed var(--line); border-radius:8px; color:var(--muted); margin-top:14px; padding:14px; }
 .coming-soon strong { color:var(--ink); }
 .restart-card { display:flex; align-items:center; justify-content:space-between; gap:14px; border-style:solid; border-left:7px solid color-mix(in srgb, var(--amber) 78%, var(--line)); }
-.log-controls { display:grid; grid-template-columns:minmax(100px, 150px) auto auto auto minmax(100px, 140px) minmax(170px, 1fr) auto auto; gap:10px; align-items:end; margin-bottom:10px; }
+.log-controls { display:grid; grid-template-columns:minmax(100px, 150px) auto minmax(130px, 170px) minmax(170px, 1fr) auto auto auto; gap:10px; align-items:end; margin-bottom:10px; }
 .log-controls.refresh-paused .toggle-label { color:var(--danger); }
 .log-refresh-paused { color:var(--danger); font-size:.82rem; font-weight:900; letter-spacing:0; text-transform:uppercase; margin:0 0 10px; }
 .log-refresh-paused[hidden] { display:none; }
