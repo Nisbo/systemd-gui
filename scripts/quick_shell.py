@@ -320,7 +320,12 @@ def _ssh_base_command(node: dict[str, object], user: str, keep_menu: bool) -> li
         command.extend(["-i", key_path])
     remote_label = _remote_node_label({**node, "ssh_user": user})
     keep_value = "1" if keep_menu else "0"
-    remote_command = f"SYSTEMD_GUI_REMOTE_NODE={shlex.quote(remote_label)} SYSTEMD_GUI_REMOTE_KEEP_MENU={keep_value} qs"
+    remote_command = (
+        "if [ -x /usr/local/bin/qs ]; then __systemd_gui_qs=/usr/local/bin/qs; "
+        "elif command -v qs >/dev/null 2>&1; then __systemd_gui_qs=$(command -v qs); "
+        "else printf '%s\\n' 'Remote qs helper not found. Install or update the Quick Shell helper on the target node first.' >&2; exit 127; fi; "
+        f"SYSTEMD_GUI_REMOTE_NODE={shlex.quote(remote_label)} SYSTEMD_GUI_REMOTE_KEEP_MENU={keep_value} \"$__systemd_gui_qs\""
+    )
     command.extend([f"{user}@{host}", remote_command])
     return command
 
@@ -362,7 +367,10 @@ def _run_remote_node(node: dict[str, object]) -> int:
         print(_muted("The remote server will keep qs open after commands. Choose q to disconnect."))
     else:
         print(_muted("The remote server will close qs after a command. SSH then returns here."))
-    return subprocess.run(command, env=env).returncode
+    result = subprocess.run(command, env=env)
+    if result.returncode != 0:
+        print(_error(f"Remote SSH session ended with exit code {result.returncode}."))
+    return result.returncode
 
 
 def _show_remote_nodes_menu() -> int | None:
