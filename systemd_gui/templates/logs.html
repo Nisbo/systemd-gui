@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="panel" data-log-panel data-log-url="{{ url_for('logs_fragment') }}" data-refresh-enabled="{{ 'true' if log_refresh else 'false' }}" data-refresh-interval="{{ log_refresh_interval }}">
+    <div class="panel-head">
+      <div>
+        <h2>Logs</h2>
+        <p>Showing up to <span data-log-line-count>{{ log_lines }}</span> loaded lines from <code>{{ log_command_label }}</code>.</p>
+      </div>
+    </div>
+    <form class="log-controls" method="get" action="{{ url_for('logs') }}" data-log-controls>
+      <label>
+        Lines
+        <select name="lines" data-log-lines>
+          {% for option in [50, 100, 200, 500, 1000] %}
+            <option value="{{ option }}" {% if log_lines == option %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Level
+        <select name="priority" data-log-priority>
+          {% for value, label in log_priority_options %}
+            <option value="{{ value }}" {% if log_priority == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="toggle-label">
+        <input name="refresh" type="checkbox" value="1" data-log-refresh {% if log_refresh %}checked{% endif %}>
+        Auto-refresh
+      </label>
+      <label>
+        Interval
+        <select name="interval" data-log-interval>
+          {% for option in [1, 2, 5, 10, 30] %}
+            <option value="{{ option }}" {% if log_refresh_interval == option %}selected{% endif %}>{{ option }}s</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Search loaded logs
+        <input name="log_q" value="{{ request.args.get('log_q', '') }}" placeholder="Filter visible log lines" autocomplete="off" data-log-search>
+      </label>
+      <button class="ghost-button" type="button" data-log-refresh-now>Refresh now</button>
+      <a class="ghost-button" href="{{ url_for('logs_window', lines=log_lines, priority=log_priority if log_priority != 'all' else None, refresh='1' if log_refresh else None, interval=log_refresh_interval if log_refresh else None, log_q=request.args.get('log_q') or None) }}" target="_blank" rel="noopener noreferrer" data-log-window>Open window</a>
+    </form>
+    <div class="log-refresh-paused" data-log-refresh-paused hidden>Auto-refresh paused while text is selected.</div>
+    <div class="log-search-status" data-log-search-status hidden></div>
+    {% include "_service_logs.html" %}
+  </section>
+{% endblock %}

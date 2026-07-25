@@ -708,10 +708,12 @@
   if (logPanel) {
     const logControls = document.querySelector("[data-log-controls]");
     const linesSelect = logControls?.querySelector("[data-log-lines]");
+    const prioritySelect = logControls?.querySelector("[data-log-priority]");
     const refreshCheckbox = logControls?.querySelector("[data-log-refresh]");
     const intervalSelect = logControls?.querySelector("[data-log-interval]");
     const searchInput = logControls?.querySelector("[data-log-search]");
     const refreshNow = logControls?.querySelector("[data-log-refresh-now]");
+    const logWindowLink = logControls?.querySelector("[data-log-window]");
     const searchStatus = document.querySelector("[data-log-search-status]");
     const refreshPaused = document.querySelector("[data-log-refresh-paused]");
     const lineCountLabel = document.querySelector("[data-log-line-count]");
@@ -720,6 +722,7 @@
     let searchTimer = null;
 
     const selectedLines = () => linesSelect?.value || "200";
+    const selectedPriority = () => prioritySelect?.value || "all";
     const selectedSearch = () => searchInput?.value.trim() || "";
     const selectedInterval = () => {
       const seconds = Number.parseInt(intervalSelect?.value || logPanel.dataset.refreshInterval || "5", 10);
@@ -730,6 +733,8 @@
       const url = new URL(window.location.href);
       if (url.pathname.indexOf("/logs") === -1) url.searchParams.set("tab", "logs");
       url.searchParams.set("lines", selectedLines());
+      if (selectedPriority() && selectedPriority() !== "all") url.searchParams.set("priority", selectedPriority());
+      else url.searchParams.delete("priority");
       if (refreshEnabled()) {
         url.searchParams.set("refresh", "1");
         url.searchParams.set("interval", String(selectedInterval()));
@@ -740,6 +745,22 @@
       if (selectedSearch()) url.searchParams.set("log_q", selectedSearch());
       else url.searchParams.delete("log_q");
       window.history.replaceState({}, "", url);
+      if (logWindowLink) {
+        const windowUrl = new URL(logWindowLink.href, window.location.href);
+        windowUrl.searchParams.set("lines", selectedLines());
+        if (selectedPriority() && selectedPriority() !== "all") windowUrl.searchParams.set("priority", selectedPriority());
+        else windowUrl.searchParams.delete("priority");
+        if (refreshEnabled()) {
+          windowUrl.searchParams.set("refresh", "1");
+          windowUrl.searchParams.set("interval", String(selectedInterval()));
+        } else {
+          windowUrl.searchParams.delete("refresh");
+          windowUrl.searchParams.delete("interval");
+        }
+        if (selectedSearch()) windowUrl.searchParams.set("log_q", selectedSearch());
+        else windowUrl.searchParams.delete("log_q");
+        logWindowLink.href = windowUrl.toString();
+      }
     };
     const updateLineCountLabel = () => {
       if (lineCountLabel) lineCountLabel.textContent = selectedLines();
@@ -814,7 +835,10 @@
       loading = true;
       refreshNow?.setAttribute("aria-busy", "true");
       try {
-        const target = `${logPanel.dataset.logUrl}?lines=${encodeURIComponent(selectedLines())}`;
+        const params = new URLSearchParams();
+        params.set("lines", selectedLines());
+        if (selectedPriority() && selectedPriority() !== "all") params.set("priority", selectedPriority());
+        const target = `${logPanel.dataset.logUrl}?${params.toString()}`;
         const response = await fetch(target, { headers: { "X-Requested-With": "fetch" } });
         if (!response.ok) return;
         const doc = new DOMParser().parseFromString(await response.text(), "text/html");
@@ -850,6 +874,7 @@
     };
 
     linesSelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
+    prioritySelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
     refreshCheckbox?.addEventListener("change", () => applyLogControls({ refresh: refreshEnabled() }));
     intervalSelect?.addEventListener("change", () => applyLogControls());
     searchInput?.addEventListener("input", () => {

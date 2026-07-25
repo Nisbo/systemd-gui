@@ -3,24 +3,32 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ info.name }} logs - {{ app_name }}</title>
+    <title>{{ info.name }} - {{ app_name }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   </head>
   <body class="log-window-body">
     <main class="log-window-shell">
-      <section class="panel log-window-panel" data-log-panel data-log-url="{{ url_for('service_logs_fragment', name=info.name) }}" data-refresh-enabled="{{ 'true' if log_refresh else 'false' }}" data-refresh-interval="{{ log_refresh_interval }}">
+      <section class="panel log-window-panel" data-log-panel data-log-url="{{ log_fragment_url or url_for('service_logs_fragment', name=info.name) }}" data-refresh-enabled="{{ 'true' if log_refresh else 'false' }}" data-refresh-interval="{{ log_refresh_interval }}">
         <div class="panel-head">
           <div>
             <p class="eyebrow">journalctl</p>
             <h1>{{ info.name }}</h1>
           </div>
         </div>
-        <form class="log-controls" method="get" action="{{ url_for('service_logs_window', name=info.name) }}" data-log-controls>
+        <form class="log-controls" method="get" action="{{ log_window_action or url_for('service_logs_window', name=info.name) }}" data-log-controls>
           <label>
             Lines
             <select name="lines" data-log-lines>
               {% for option in [50, 100, 200, 500, 1000] %}
                 <option value="{{ option }}" {% if log_lines == option %}selected{% endif %}>{{ option }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Level
+            <select name="priority" data-log-priority>
+              {% for value, label in log_priority_options %}
+                <option value="{{ value }}" {% if log_priority == value %}selected{% endif %}>{{ label }}</option>
               {% endfor %}
             </select>
           </label>

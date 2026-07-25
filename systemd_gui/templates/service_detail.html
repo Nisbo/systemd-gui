@@ -121,7 +121,7 @@
   <section class="panel service-tabs-panel">
     <nav class="settings-tabs" aria-label="Service sections">
       {% for tab_key, tab_label in service_tabs %}
-        <a class="settings-tab {% if active_tab == tab_key %}active{% endif %}" href="{{ url_for('service_detail', name=info.name, tab=tab_key, lines=log_lines, refresh='1' if log_refresh else None, interval=log_refresh_interval if log_refresh else None) }}" {% if active_tab == tab_key %}aria-current="page"{% endif %}>
+        <a class="settings-tab {% if active_tab == tab_key %}active{% endif %}" href="{{ url_for('service_detail', name=info.name, tab=tab_key, lines=log_lines, priority=log_priority if log_priority != 'all' else None, refresh='1' if log_refresh else None, interval=log_refresh_interval if log_refresh else None) }}" {% if active_tab == tab_key %}aria-current="page"{% endif %}>
           {{ tab_label }}
         </a>
       {% endfor %}
@@ -330,7 +330,7 @@
       <div class="panel-head">
         <div>
           <h2>Logs</h2>
-          <p>Showing up to <span data-log-line-count>{{ log_lines }}</span> loaded lines from <code>journalctl -u {{ info.name }}</code>.</p>
+          <p>Showing up to <span data-log-line-count>{{ log_lines }}</span> loaded lines from <code>{{ log_command_label }}</code>.</p>
         </div>
       </div>
       <form class="log-controls" method="get" action="{{ url_for('service_detail', name=info.name) }}" data-log-controls>
@@ -340,6 +340,14 @@
           <select name="lines" data-log-lines>
             {% for option in [50, 100, 200, 500, 1000] %}
               <option value="{{ option }}" {% if log_lines == option %}selected{% endif %}>{{ option }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Level
+          <select name="priority" data-log-priority>
+            {% for value, label in log_priority_options %}
+              <option value="{{ value }}" {% if log_priority == value %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
           </select>
         </label>
@@ -360,7 +368,7 @@
           <input name="log_q" value="{{ request.args.get('log_q', '') }}" placeholder="Filter visible log lines" autocomplete="off" data-log-search>
         </label>
         <button class="ghost-button" type="button" data-log-refresh-now>Refresh now</button>
-        <a class="ghost-button" href="{{ url_for('service_logs_window', name=info.name, lines=log_lines, refresh='1' if log_refresh else None, interval=log_refresh_interval if log_refresh else None, log_q=request.args.get('log_q') or None) }}" target="_blank" rel="noopener noreferrer" data-log-window>Open window</a>
+        <a class="ghost-button" href="{{ url_for('service_logs_window', name=info.name, lines=log_lines, priority=log_priority if log_priority != 'all' else None, refresh='1' if log_refresh else None, interval=log_refresh_interval if log_refresh else None, log_q=request.args.get('log_q') or None) }}" target="_blank" rel="noopener noreferrer" data-log-window>Open window</a>
       </form>
       <div class="log-refresh-paused" data-log-refresh-paused hidden>Auto-refresh paused while text is selected.</div>
       <div class="log-search-status" data-log-search-status hidden></div>

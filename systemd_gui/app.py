@@ -107,6 +107,13 @@ ACTION_HELP = {
     "enable": "Enable autostart so systemd starts this service automatically during boot.",
     "disable": "Disable autostart. This does not stop the currently running service.",
 }
+LOG_PRIORITY_OPTIONS = [
+    ("all", "All levels"),
+    ("debug", "Debug and above"),
+    ("info", "Info and above"),
+    ("warning", "Warning and above"),
+    ("err", "Error and above"),
+]
 NO_AUTOSTART_STATES = {"static", "alias", "unknown", "generated", "transient"}
 BLOCKED_UNIT_FILE_STATES = {"bad", "masked"}
 
@@ -369,6 +376,54 @@ def create_app() -> Flask:
             write_nodes(_nodes_path(app), data)
             flash("Node deleted.", "success")
         return redirect(url_for("nodes"))
+
+    @app.get("/logs")
+    def logs():
+        log_lines = _log_line_count(request.args.get("lines", "200"))
+        log_priority = _log_priority(request.args.get("priority", "all"))
+        log_refresh = request.args.get("refresh") == "1"
+        log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
+        journal_logs = run_journalctl("", log_lines, log_priority)
+        return render_template(
+            "logs.html",
+            log_lines=log_lines,
+            log_priority=log_priority,
+            log_priority_options=LOG_PRIORITY_OPTIONS,
+            log_refresh=log_refresh,
+            log_refresh_interval=log_refresh_interval,
+            logs=journal_logs,
+            log_source_label="All journal logs",
+            log_command_label=_journalctl_label("", log_priority),
+        )
+
+    @app.get("/logs/fragment")
+    def logs_fragment():
+        log_lines = _log_line_count(request.args.get("lines", "200"))
+        log_priority = _log_priority(request.args.get("priority", "all"))
+        journal_logs = run_journalctl("", log_lines, log_priority)
+        return render_template("_service_logs.html", logs=journal_logs)
+
+    @app.get("/logs/window")
+    def logs_window():
+        log_lines = _log_line_count(request.args.get("lines", "200"))
+        log_priority = _log_priority(request.args.get("priority", "all"))
+        log_refresh = request.args.get("refresh") == "1"
+        log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
+        journal_logs = run_journalctl("", log_lines, log_priority)
+        return render_template(
+            "service_logs_window.html",
+            info={"name": "All journal logs"},
+            log_lines=log_lines,
+            log_priority=log_priority,
+            log_priority_options=LOG_PRIORITY_OPTIONS,
+            log_command_label=_journalctl_label("", log_priority),
+            log_refresh=log_refresh,
+            log_refresh_interval=log_refresh_interval,
+            logs=journal_logs,
+            log_fragment_url=url_for("logs_fragment"),
+            log_window_action=url_for("logs_window"),
+            log_source_label="All journal logs",
+        )
 
     @app.get("/quick-shell")
     def quick_shell():
@@ -819,6 +874,7 @@ def create_app() -> Flask:
         if active_tab not in {"unit", "override", "logs", "backups", "info"}:
             active_tab = "unit"
         log_lines = _log_line_count(request.args.get("lines", "200"))
+        log_priority = _log_priority(request.args.get("priority", "all"))
         log_refresh = request.args.get("refresh") == "1"
         log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
         info = service_info(name)
@@ -829,7 +885,7 @@ def create_app() -> Flask:
             *list(info.get("local_drop_in_paths") or []),
         ]))
         flattened_unit = flattened_unit_preview(original_content, drop_in_paths) if original_content else {"lines": [], "text": ""}
-        logs = run_journalctl(name, log_lines)
+        logs = run_journalctl(name, log_lines, log_priority)
         editable = _editable(name)
         backups = list_unit_backups(name, _backup_dir(app))
         override_path, override_content, override_exists = read_drop_in_override(name)
@@ -843,6 +899,9 @@ def create_app() -> Flask:
             "service_detail.html",
             active_tab=active_tab,
             log_lines=log_lines,
+            log_priority=log_priority,
+            log_priority_options=LOG_PRIORITY_OPTIONS,
+            log_command_label=_journalctl_label(name, log_priority),
             log_refresh=log_refresh,
             log_refresh_interval=log_refresh_interval,
             info=info,
@@ -883,7 +942,8 @@ def create_app() -> Flask:
         if not valid_service_name(name):
             return "Only .service units are supported.", 400
         log_lines = _log_line_count(request.args.get("lines", "200"))
-        logs = run_journalctl(name, log_lines)
+        log_priority = _log_priority(request.args.get("priority", "all"))
+        logs = run_journalctl(name, log_lines, log_priority)
         return render_template("_service_logs.html", logs=logs)
 
     @app.get("/service/<name>/logs")
@@ -891,17 +951,23 @@ def create_app() -> Flask:
         if not _valid_or_flash(name):
             return redirect(url_for("index"))
         log_lines = _log_line_count(request.args.get("lines", "200"))
+        log_priority = _log_priority(request.args.get("priority", "all"))
         log_refresh = request.args.get("refresh") == "1"
         log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
         info = service_info(name)
-        logs = run_journalctl(name, log_lines)
+        logs = run_journalctl(name, log_lines, log_priority)
         return render_template(
             "service_logs_window.html",
             info=info,
             log_lines=log_lines,
+            log_priority=log_priority,
+            log_priority_options=LOG_PRIORITY_OPTIONS,
             log_refresh=log_refresh,
             log_refresh_interval=log_refresh_interval,
             logs=logs,
+            log_fragment_url=url_for("service_logs_fragment", name=name),
+            log_window_action=url_for("service_logs_window", name=name),
+            log_source_label=f"{name} logs",
         )
 
     @app.post("/service/<name>/backup/create")
@@ -1470,6 +1536,21 @@ def _log_line_count(value: str) -> int:
     except (TypeError, ValueError):
         return 200
     return lines if lines in {50, 100, 200, 500, 1000} else 200
+
+
+def _log_priority(value: str) -> str:
+    value = (value or "all").strip()
+    allowed = {option[0] for option in LOG_PRIORITY_OPTIONS}
+    return value if value in allowed else "all"
+
+
+def _journalctl_label(service: str = "", priority: str = "all") -> str:
+    parts = ["journalctl"]
+    if service:
+        parts.extend(["-u", service])
+    if priority and priority != "all":
+        parts.extend(["-p", priority])
+    return " ".join(parts)
 
 
 def _log_refresh_interval(value: str) -> int:

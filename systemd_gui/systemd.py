@@ -111,13 +111,19 @@ def run_systemctl(args: list[str], timeout: int = 12) -> CommandResult:
     return CommandResult(result.returncode == 0, output, result.returncode)
 
 
-def run_journalctl(service: str, lines: int = 200) -> CommandResult:
+def run_journalctl(service: str = "", lines: int = 200, priority: str = "") -> CommandResult:
     journalctl = shutil.which("journalctl")
     if not journalctl:
         return CommandResult(False, "journalctl is not available in this environment.", 127)
+    command = [journalctl]
+    if service:
+        command.extend(["-u", service])
+    if priority and priority != "all":
+        command.extend(["-p", priority])
+    command.extend(["-n", str(lines), "--no-pager", "--output=short-iso"])
     try:
         result = subprocess.run(
-            [journalctl, "-u", service, "-n", str(lines), "--no-pager", "--output=short-iso"],
+            command,
             check=False,
             capture_output=True,
             text=True,
