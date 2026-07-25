@@ -315,7 +315,7 @@ def _ssh_base_command(node: dict[str, object], user: str, keep_menu: bool) -> li
     host = _remote_node_host(node)
     port = _remote_node_port(node)
     key_path = str(node.get("ssh_key_path") or "").strip()
-    command = ["ssh", "-t", "-p", port]
+    command = ["ssh", "-t", "-o", "StrictHostKeyChecking=accept-new", "-p", port]
     if key_path:
         command.extend(["-i", key_path])
     remote_label = _remote_node_label({**node, "ssh_user": user})
@@ -369,6 +369,9 @@ def _run_remote_node(node: dict[str, object]) -> int:
         print(_muted("The remote server will close qs after a command. SSH then returns here."))
     result = subprocess.run(command, env=env)
     if result.returncode != 0:
+        if password and result.returncode == 6:
+            print(_error("sshpass could not verify or accept the SSH host key."))
+            print(_muted("Try a normal SSH login once from this server, or check whether the target host key changed."))
         print(_error(f"Remote SSH session ended with exit code {result.returncode}."))
     return result.returncode
 
