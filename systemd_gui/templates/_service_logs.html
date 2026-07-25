@@ -1,1 +1,1 @@
-<pre class="config-preview log-preview" data-log-output><code>{{ logs.output or 'No logs available.' }}</code></pre>
+<pre class="config-preview log-preview {% if log_wrap is defined and not log_wrap %}no-wrap{% endif %}" data-log-output><code>{{ logs.output or 'No logs available.' }}</code></pre>

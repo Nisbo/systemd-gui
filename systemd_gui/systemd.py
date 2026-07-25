@@ -68,6 +68,16 @@ UNIT_FILE_STATE_HELP = {
     "unknown": "systemd did not report an autostart state. This is common for template instances, generated units or units that only exist at runtime.",
     "not-found": "No autostart state is available because systemd did not find this service.",
 }
+JOURNAL_PRIORITY_LABELS = {
+    "0": "EMERGENCY",
+    "1": "ALERT",
+    "2": "CRITICAL",
+    "3": "ERROR",
+    "4": "WARNING",
+    "5": "NOTICE",
+    "6": "INFO",
+    "7": "DEBUG",
+}
 
 
 @dataclass
@@ -120,7 +130,7 @@ def run_journalctl(service: str = "", lines: int = 200, priority: str = "") -> C
         command.extend(["-u", service])
     if priority and priority != "all":
         command.extend(["-p", priority])
-    command.extend(["-n", str(lines), "--no-pager", "--output=short-iso"])
+    command.extend(["-n", str(lines), "--no-pager", "--output=json"])
     try:
         result = subprocess.run(
             command,
@@ -131,8 +141,47 @@ def run_journalctl(service: str = "", lines: int = 200, priority: str = "") -> C
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         return CommandResult(False, str(exc), 1)
-    output = (result.stdout + "\n" + result.stderr).strip()
+    output = _format_journal_output(result.stdout) or result.stdout.strip()
+    if result.stderr.strip():
+        output = (output + "\n" + result.stderr.strip()).strip()
     return CommandResult(result.returncode == 0, output, result.returncode)
+
+
+def _format_journal_output(raw_output: str) -> str:
+    lines = []
+    for raw_line in raw_output.splitlines():
+        raw_line = raw_line.strip()
+        if not raw_line:
+            continue
+        try:
+            entry = json.loads(raw_line)
+        except json.JSONDecodeError:
+            return ""
+        lines.append(_format_journal_entry(entry))
+    return "\n".join(lines)
+
+
+def _format_journal_entry(entry: dict[str, object]) -> str:
+    timestamp = _journal_timestamp(str(entry.get("__REALTIME_TIMESTAMP") or ""))
+    host = str(entry.get("_HOSTNAME") or "-")
+    process = _journal_process(entry)
+    priority = JOURNAL_PRIORITY_LABELS.get(str(entry.get("PRIORITY", "")), "UNKNOWN")
+    message = str(entry.get("MESSAGE") or "").replace("\n", "\\n")
+    return f"{timestamp} {host} {process}: [{priority}] {message}".strip()
+
+
+def _journal_timestamp(value: str) -> str:
+    try:
+        seconds = int(value) / 1_000_000
+    except (TypeError, ValueError):
+        return "-"
+    return datetime.fromtimestamp(seconds).astimezone().isoformat(timespec="seconds")
+
+
+def _journal_process(entry: dict[str, object]) -> str:
+    name = str(entry.get("SYSLOG_IDENTIFIER") or entry.get("_COMM") or entry.get("_SYSTEMD_UNIT") or "journal")
+    pid = str(entry.get("_PID") or "")
+    return f"{name}[{pid}]" if pid else name
 
 
 def list_services(query: str = "", favorites: set[str] | None = None, state_filter: str = "", sub_filter: str = "", autostart_filter: str = "") -> list[dict[str, str | bool]]:

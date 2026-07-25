@@ -47,9 +47,11 @@ Gunicorn.
 - View service logs from `journalctl`.
 - View all journal logs from one page.
 - Filter logs by minimum priority such as debug, info, warning or error.
+- Show explicit priority labels in each loaded log line, with color hints for warning and error levels.
 - Open logs in a separate live-view window.
 - Search loaded log lines.
 - Choose how many log lines are loaded.
+- Toggle line wrapping for long log output.
 - Store per-service notes.
 - Show curated beginner-friendly service information.
 

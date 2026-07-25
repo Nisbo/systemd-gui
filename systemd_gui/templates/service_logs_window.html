@@ -36,6 +36,10 @@
             <input name="refresh" type="checkbox" value="1" data-log-refresh {% if log_refresh %}checked{% endif %}>
             Auto-refresh
           </label>
+          <label class="toggle-label">
+            <input name="wrap" type="checkbox" value="1" data-log-wrap {% if log_wrap %}checked{% endif %}>
+            Wrap lines
+          </label>
           <label>
             Interval
             <select name="interval" data-log-interval>

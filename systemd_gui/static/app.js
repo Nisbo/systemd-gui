@@ -710,6 +710,7 @@
     const linesSelect = logControls?.querySelector("[data-log-lines]");
     const prioritySelect = logControls?.querySelector("[data-log-priority]");
     const refreshCheckbox = logControls?.querySelector("[data-log-refresh]");
+    const wrapCheckbox = logControls?.querySelector("[data-log-wrap]");
     const intervalSelect = logControls?.querySelector("[data-log-interval]");
     const searchInput = logControls?.querySelector("[data-log-search]");
     const refreshNow = logControls?.querySelector("[data-log-refresh-now]");
@@ -724,6 +725,7 @@
     const selectedLines = () => linesSelect?.value || "200";
     const selectedPriority = () => prioritySelect?.value || "all";
     const selectedSearch = () => searchInput?.value.trim() || "";
+    const wrapEnabled = () => !wrapCheckbox || Boolean(wrapCheckbox.checked);
     const selectedInterval = () => {
       const seconds = Number.parseInt(intervalSelect?.value || logPanel.dataset.refreshInterval || "5", 10);
       return Number.isFinite(seconds) && seconds > 0 ? seconds : 5;
@@ -744,6 +746,8 @@
       }
       if (selectedSearch()) url.searchParams.set("log_q", selectedSearch());
       else url.searchParams.delete("log_q");
+      if (wrapEnabled()) url.searchParams.delete("wrap");
+      else url.searchParams.set("wrap", "0");
       window.history.replaceState({}, "", url);
       if (logWindowLink) {
         const windowUrl = new URL(logWindowLink.href, window.location.href);
@@ -759,6 +763,8 @@
         }
         if (selectedSearch()) windowUrl.searchParams.set("log_q", selectedSearch());
         else windowUrl.searchParams.delete("log_q");
+        if (wrapEnabled()) windowUrl.searchParams.delete("wrap");
+        else windowUrl.searchParams.set("wrap", "0");
         logWindowLink.href = windowUrl.toString();
       }
     };
@@ -782,10 +788,18 @@
       }
       if (cursor < text.length) fragment.appendChild(document.createTextNode(text.slice(cursor)));
     };
+    const logLevelClass = (line) => {
+      const match = line.match(/\[(EMERGENCY|ALERT|CRITICAL|ERROR|WARNING|NOTICE|INFO|DEBUG|UNKNOWN)\]/);
+      return match ? `log-level-${match[1].toLowerCase()}` : "";
+    };
+    const applyLogWrap = () => {
+      document.querySelector("[data-log-output]")?.classList.toggle("no-wrap", !wrapEnabled());
+    };
     const renderLogText = (rawText) => {
       const output = document.querySelector("[data-log-output]");
       const code = output?.querySelector("code");
       if (!output || !code) return;
+      applyLogWrap();
       const query = selectedSearch();
       output.dataset.rawLog = rawText;
       code.textContent = "";
@@ -797,7 +811,10 @@
       } else {
         matchingLines.forEach((line, index) => {
           if (index > 0) fragment.appendChild(document.createTextNode("\n"));
-          appendHighlightedText(fragment, line, query);
+          const lineNode = document.createElement("span");
+          lineNode.className = ["log-line", logLevelClass(line)].filter(Boolean).join(" ");
+          appendHighlightedText(lineNode, line, query);
+          fragment.appendChild(lineNode);
         });
       }
       code.appendChild(fragment);
@@ -838,6 +855,7 @@
         const params = new URLSearchParams();
         params.set("lines", selectedLines());
         if (selectedPriority() && selectedPriority() !== "all") params.set("priority", selectedPriority());
+        if (!wrapEnabled()) params.set("wrap", "0");
         const target = `${logPanel.dataset.logUrl}?${params.toString()}`;
         const response = await fetch(target, { headers: { "X-Requested-With": "fetch" } });
         if (!response.ok) return;
@@ -876,6 +894,10 @@
     linesSelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
     prioritySelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
     refreshCheckbox?.addEventListener("change", () => applyLogControls({ refresh: refreshEnabled() }));
+    wrapCheckbox?.addEventListener("change", () => {
+      applyLogWrap();
+      syncLogUrl();
+    });
     intervalSelect?.addEventListener("change", () => applyLogControls());
     searchInput?.addEventListener("input", () => {
       window.clearTimeout(searchTimer);

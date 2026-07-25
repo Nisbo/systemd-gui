@@ -121,7 +121,7 @@
   <section class="panel service-tabs-panel">
     <nav class="settings-tabs" aria-label="Service sections">
       {% for tab_key, tab_label in service_tabs %}
-        <a class="settings-tab {% if active_tab == tab_key %}active{% endif %}" href="{{ url_for('service_detail', name=info.name, tab=tab_key, lines=log_lines, priority=log_priority if log_priority != 'all' else None, refresh='1' if log_refresh else None, interval=log_refresh_interval if log_refresh else None) }}" {% if active_tab == tab_key %}aria-current="page"{% endif %}>
+        <a class="settings-tab {% if active_tab == tab_key %}active{% endif %}" href="{{ url_for('service_detail', name=info.name, tab=tab_key, lines=log_lines, priority=log_priority if log_priority != 'all' else None, refresh='1' if log_refresh else None, interval=log_refresh_interval if log_refresh else None, wrap='0' if not log_wrap else None) }}" {% if active_tab == tab_key %}aria-current="page"{% endif %}>
           {{ tab_label }}
         </a>
       {% endfor %}
@@ -355,6 +355,10 @@
           <input name="refresh" type="checkbox" value="1" data-log-refresh {% if log_refresh %}checked{% endif %}>
           Auto-refresh
         </label>
+        <label class="toggle-label">
+          <input name="wrap" type="checkbox" value="1" data-log-wrap {% if log_wrap %}checked{% endif %}>
+          Wrap lines
+        </label>
         <label>
           Interval
           <select name="interval" data-log-interval>
@@ -368,7 +372,7 @@
           <input name="log_q" value="{{ request.args.get('log_q', '') }}" placeholder="Filter visible log lines" autocomplete="off" data-log-search>
         </label>
         <button class="ghost-button" type="button" data-log-refresh-now>Refresh now</button>
-        <a class="ghost-button" href="{{ url_for('service_logs_window', name=info.name, lines=log_lines, priority=log_priority if log_priority != 'all' else None, refresh='1' if log_refresh else None, interval=log_refresh_interval if log_refresh else None, log_q=request.args.get('log_q') or None) }}" target="_blank" rel="noopener noreferrer" data-log-window>Open window</a>
+        <a class="ghost-button" href="{{ url_for('service_logs_window', name=info.name, lines=log_lines, priority=log_priority if log_priority != 'all' else None, refresh='1' if log_refresh else None, interval=log_refresh_interval if log_refresh else None, log_q=request.args.get('log_q') or None, wrap='0' if not log_wrap else None) }}" target="_blank" rel="noopener noreferrer" data-log-window>Open window</a>
       </form>
       <div class="log-refresh-paused" data-log-refresh-paused hidden>Auto-refresh paused while text is selected.</div>
       <div class="log-search-status" data-log-search-status hidden></div>

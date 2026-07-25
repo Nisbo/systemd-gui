@@ -381,6 +381,7 @@ def create_app() -> Flask:
     def logs():
         log_lines = _log_line_count(request.args.get("lines", "200"))
         log_priority = _log_priority(request.args.get("priority", "all"))
+        log_wrap = _log_wrap(request.args.get("wrap", "1"))
         log_refresh = request.args.get("refresh") == "1"
         log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
         journal_logs = run_journalctl("", log_lines, log_priority)
@@ -391,6 +392,7 @@ def create_app() -> Flask:
             log_priority_options=LOG_PRIORITY_OPTIONS,
             log_refresh=log_refresh,
             log_refresh_interval=log_refresh_interval,
+            log_wrap=log_wrap,
             logs=journal_logs,
             log_source_label="All journal logs",
             log_command_label=_journalctl_label("", log_priority),
@@ -400,13 +402,15 @@ def create_app() -> Flask:
     def logs_fragment():
         log_lines = _log_line_count(request.args.get("lines", "200"))
         log_priority = _log_priority(request.args.get("priority", "all"))
+        log_wrap = _log_wrap(request.args.get("wrap", "1"))
         journal_logs = run_journalctl("", log_lines, log_priority)
-        return render_template("_service_logs.html", logs=journal_logs)
+        return render_template("_service_logs.html", logs=journal_logs, log_wrap=log_wrap)
 
     @app.get("/logs/window")
     def logs_window():
         log_lines = _log_line_count(request.args.get("lines", "200"))
         log_priority = _log_priority(request.args.get("priority", "all"))
+        log_wrap = _log_wrap(request.args.get("wrap", "1"))
         log_refresh = request.args.get("refresh") == "1"
         log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
         journal_logs = run_journalctl("", log_lines, log_priority)
@@ -419,6 +423,7 @@ def create_app() -> Flask:
             log_command_label=_journalctl_label("", log_priority),
             log_refresh=log_refresh,
             log_refresh_interval=log_refresh_interval,
+            log_wrap=log_wrap,
             logs=journal_logs,
             log_fragment_url=url_for("logs_fragment"),
             log_window_action=url_for("logs_window"),
@@ -875,6 +880,7 @@ def create_app() -> Flask:
             active_tab = "unit"
         log_lines = _log_line_count(request.args.get("lines", "200"))
         log_priority = _log_priority(request.args.get("priority", "all"))
+        log_wrap = _log_wrap(request.args.get("wrap", "1"))
         log_refresh = request.args.get("refresh") == "1"
         log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
         info = service_info(name)
@@ -904,6 +910,7 @@ def create_app() -> Flask:
             log_command_label=_journalctl_label(name, log_priority),
             log_refresh=log_refresh,
             log_refresh_interval=log_refresh_interval,
+            log_wrap=log_wrap,
             info=info,
             content=content,
             original_content=original_content,
@@ -943,8 +950,9 @@ def create_app() -> Flask:
             return "Only .service units are supported.", 400
         log_lines = _log_line_count(request.args.get("lines", "200"))
         log_priority = _log_priority(request.args.get("priority", "all"))
+        log_wrap = _log_wrap(request.args.get("wrap", "1"))
         logs = run_journalctl(name, log_lines, log_priority)
-        return render_template("_service_logs.html", logs=logs)
+        return render_template("_service_logs.html", logs=logs, log_wrap=log_wrap)
 
     @app.get("/service/<name>/logs")
     def service_logs_window(name: str):
@@ -952,6 +960,7 @@ def create_app() -> Flask:
             return redirect(url_for("index"))
         log_lines = _log_line_count(request.args.get("lines", "200"))
         log_priority = _log_priority(request.args.get("priority", "all"))
+        log_wrap = _log_wrap(request.args.get("wrap", "1"))
         log_refresh = request.args.get("refresh") == "1"
         log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
         info = service_info(name)
@@ -964,6 +973,7 @@ def create_app() -> Flask:
             log_priority_options=LOG_PRIORITY_OPTIONS,
             log_refresh=log_refresh,
             log_refresh_interval=log_refresh_interval,
+            log_wrap=log_wrap,
             logs=logs,
             log_fragment_url=url_for("service_logs_fragment", name=name),
             log_window_action=url_for("service_logs_window", name=name),
@@ -1542,6 +1552,10 @@ def _log_priority(value: str) -> str:
     value = (value or "all").strip()
     allowed = {option[0] for option in LOG_PRIORITY_OPTIONS}
     return value if value in allowed else "all"
+
+
+def _log_wrap(value: str) -> bool:
+    return value != "0"
 
 
 def _journalctl_label(service: str = "", priority: str = "all") -> str:
