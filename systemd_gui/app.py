@@ -12,6 +12,21 @@ from pathlib import Path
 
 from flask import Flask, Response, flash, jsonify, redirect, render_template, request, session, url_for
 
+from .api_access import (
+    API_SCOPES,
+    api_scope_options,
+    api_scopes_from_form,
+    bearer_token_from_header,
+    check_remote_api_access,
+    client_ip_allowed,
+    create_api_token,
+    delete_token,
+    read_api_access,
+    set_token_enabled,
+    update_api_settings,
+    verify_bearer_token,
+    write_api_access,
+)
 from .nodes import (
     announcement_status,
     discover_nodes,
@@ -140,7 +155,7 @@ def create_app() -> Flask:
 
     @app.before_request
     def require_login_and_csrf():
-        if request.endpoint in {"login", "login_post", "node_info", "static"}:
+        if request.endpoint in {"login", "login_post", "node_info", "api_ping", "static"}:
             return None
         if app.config["ADMIN_PASSWORD"] and not session.get("logged_in"):
             return redirect(url_for("login"))
@@ -207,6 +222,21 @@ def create_app() -> Flask:
             "version": APP_VERSION,
             "node_id": settings.get("node_id", ""),
             "node_name": settings.get("node_name", APP_NAME),
+        })
+
+    @app.get("/api/v1/ping")
+    def api_ping():
+        access = _require_remote_api_access(app, "node:read")
+        if access:
+            return access
+        data = read_nodes(_nodes_path(app))
+        settings = data.get("settings") or {}
+        return jsonify({
+            "app": "systemd-gui",
+            "version": APP_VERSION,
+            "node_id": settings.get("node_id", ""),
+            "node_name": settings.get("node_name", APP_NAME),
+            "scopes": list(API_SCOPES),
         })
 
     @app.post("/logout")
@@ -278,9 +308,18 @@ def create_app() -> Flask:
     @app.get("/nodes")
     def nodes():
         data = read_nodes(_nodes_path(app))
+        api_access = read_api_access(_api_access_path(app))
+        for token in api_access.get("tokens") if isinstance(api_access.get("tokens"), list) else []:
+            token["scope_labels"] = [API_SCOPES.get(scope, scope) for scope in token.get("scopes", [])]
         settings = data.get("settings") or {}
+        node_check_results = session.pop("node_api_check_results", {})
         saved_nodes = [
-            {**node, "ssh_indicators": _node_ssh_indicators(node)}
+            {
+                **node,
+                "ssh_indicators": _node_ssh_indicators(node),
+                "api_indicators": _node_api_indicators(node),
+                "api_check": node_check_results.get(str(node.get("id") or "")),
+            }
             for node in saved_nodes_with_status(list(data.get("nodes") or []))
         ]
         discovery = discover_nodes()
@@ -294,10 +333,53 @@ def create_app() -> Flask:
             discovery=discovery,
             discovered_nodes=discovered_nodes,
             announcement=announcement_status(settings, app.config["SYSTEMD_GUI_PUBLIC_PORT"]),
+            api_access=api_access,
+            api_scope_options=api_scope_options(),
+            new_api_token=session.pop("new_api_token", None),
+            new_api_token_name=session.pop("new_api_token_name", None),
             nodes_install_result=session.pop("nodes_install_result", None),
             nodes_path=_nodes_path(app),
+            api_access_path=_api_access_path(app),
             public_port=app.config["SYSTEMD_GUI_PUBLIC_PORT"],
         )
+
+    @app.post("/nodes/api-access/settings")
+    def update_nodes_api_access_settings():
+        data = update_api_settings(read_api_access(_api_access_path(app)), request.form)
+        write_api_access(_api_access_path(app), data)
+        flash("Remote API access settings saved.", "success")
+        return redirect(url_for("nodes"))
+
+    @app.post("/nodes/api-access/tokens")
+    def create_nodes_api_token():
+        data = read_api_access(_api_access_path(app))
+        token, token_value = create_api_token(data, request.form.get("name", ""), api_scopes_from_form(request.form))
+        write_api_access(_api_access_path(app), data)
+        session["new_api_token"] = token_value
+        session["new_api_token_name"] = token["name"]
+        flash("Remote API token created. Copy it now; it will not be shown again.", "success")
+        return redirect(url_for("nodes"))
+
+    @app.post("/nodes/api-access/tokens/<token_id>/toggle")
+    def toggle_nodes_api_token(token_id: str):
+        data = read_api_access(_api_access_path(app))
+        enabled = request.form.get("enabled") == "1"
+        if set_token_enabled(data, token_id, enabled):
+            write_api_access(_api_access_path(app), data)
+            flash("Remote API token updated.", "success")
+        else:
+            flash("Remote API token not found.", "error")
+        return redirect(url_for("nodes"))
+
+    @app.post("/nodes/api-access/tokens/<token_id>/delete")
+    def delete_nodes_api_token(token_id: str):
+        data = read_api_access(_api_access_path(app))
+        if delete_token(data, token_id):
+            write_api_access(_api_access_path(app), data)
+            flash("Remote API token deleted.", "success")
+        else:
+            flash("Remote API token not found.", "error")
+        return redirect(url_for("nodes"))
 
     @app.post("/nodes/settings")
     def update_nodes_settings():
@@ -397,6 +479,26 @@ def create_app() -> Flask:
             data["nodes"] = kept_nodes
             write_nodes(_nodes_path(app), data)
             flash("Node deleted.", "success")
+        return redirect(url_for("nodes"))
+
+    @app.post("/nodes/<node_id>/check-api")
+    def check_node_api(node_id: str):
+        data = read_nodes(_nodes_path(app))
+        for node in data.get("nodes") if isinstance(data.get("nodes"), list) else []:
+            if str(node.get("id")) != node_id:
+                continue
+            result = check_remote_api_access(node)
+            session["node_api_check_results"] = {
+                node_id: {
+                    "ok": result.ok,
+                    "message": result.message,
+                    "status": result.status,
+                    "details": result.details or {},
+                }
+            }
+            flash(result.message, "success" if result.ok else "error")
+            return redirect(url_for("nodes"))
+        flash("Node not found.", "error")
         return redirect(url_for("nodes"))
 
     @app.get("/logs")
@@ -1276,6 +1378,28 @@ def _nodes_path(app: Flask) -> Path:
     return _data_dir(app) / "nodes.json"
 
 
+def _api_access_path(app: Flask) -> Path:
+    return _data_dir(app) / "api-access.json"
+
+
+def _require_remote_api_access(app: Flask, scope: str) -> tuple[Response, int] | None:
+    access_data = read_api_access(_api_access_path(app))
+    settings = access_data.get("settings") if isinstance(access_data.get("settings"), dict) else {}
+    if not settings.get("enabled"):
+        return jsonify({"error": "Remote API access is disabled."}), 403
+    nodes_data = read_nodes(_nodes_path(app))
+    allowed, ip_message = client_ip_allowed(settings, request.remote_addr or "", list(nodes_data.get("nodes") or []))
+    if not allowed:
+        return jsonify({"error": ip_message}), 403
+    token_value = bearer_token_from_header(request.headers.get("Authorization", ""))
+    ok, token_message, _token = verify_bearer_token(access_data, token_value, scope)
+    if not ok:
+        status = 403 if "scope" in token_message.lower() or "category" in token_message.lower() else 401
+        return jsonify({"error": token_message}), status
+    write_api_access(_api_access_path(app), access_data)
+    return None
+
+
 def _node_navigation(app: Flask) -> dict[str, object]:
     try:
         data = read_nodes(_nodes_path(app))
@@ -1347,6 +1471,13 @@ def _node_ssh_indicators(node: dict[str, object]) -> list[dict[str, str]]:
         indicators.append({"label": "P", "title": "SSH password is saved"})
     if str(node.get("ssh_key_path") or "").strip():
         indicators.append({"label": "K", "title": "SSH key path is saved"})
+    return indicators
+
+
+def _node_api_indicators(node: dict[str, object]) -> list[dict[str, str]]:
+    indicators = []
+    if str(node.get("api_token") or "").strip():
+        indicators.append({"label": "T", "title": "Remote API token is saved"})
     return indicators
 
 

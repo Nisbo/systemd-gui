@@ -73,6 +73,8 @@ Gunicorn.
 - Discover other Systemd Gui installations on the local network with Avahi/mDNS.
 - Save discovered nodes so they remain visible even when offline.
 - Store optional SSH connection details for future Quick Shell remote access.
+- Create Remote API tokens with access categories for later cross-node features.
+- Restrict Remote API tokens by fixed IP addresses, CIDR ranges or saved node IPs.
 - Open saved or discovered node GUIs directly from the browser.
 - Announce the local node on the LAN with an on/off setting.
 
@@ -174,6 +176,36 @@ optional SSH user, host, port and key-path fields. SSH passwords can also be
 stored, but SSH keys are recommended because local password storage only protects
 against casual exposure, not a compromised server.
 
+The Nodes page also contains the Remote API access foundation. This is used for
+future cross-node features such as reading logs from another Systemd Gui node or
+copying Quick Shell command sets between nodes. Access is disabled by default.
+When enabled, every request needs a token. Tokens are only shown once when they
+are created; the local node stores only a hash.
+
+Remote API tokens can be limited by access category:
+
+- Node info
+- Service list and details
+- Journal logs
+- Quick Shell exports
+
+You can also restrict which client IPs may use a valid token. Exact IP addresses
+and CIDR ranges are supported, for example:
+
+```text
+192.168.178.89
+192.168.178.0/24
+```
+
+Fixed IP addresses or static DHCP leases are easiest to maintain. If your router
+assigns dynamic IPs, a node's address can change later and an IP allowlist entry
+may stop matching. The optional **Allow IPs from saved nodes** setting can use
+saved node addresses as an allowlist, but a valid token is still required.
+
+Saved nodes can store a Remote API token from the target node. Use **Check API**
+on the Nodes page to verify that the saved token, the selected access category
+and the IP rules work.
+
 If the app was updated from an older version and Avahi is missing, the Nodes
 page offers **Install/repair LAN discovery**. On Debian-style systems this
 installs `avahi-daemon` and `avahi-utils`, starts Avahi and writes the local
@@ -268,9 +300,9 @@ data/app-updates/backups
 ```
 
 App backups include the application files plus selected runtime data such as
-favorites, service notes, Quick Shell entries, saved nodes, unit backups and
-environment-file backups. The app backup directory itself is not copied
-recursively.
+favorites, service notes, Quick Shell entries, saved nodes, Remote API access
+tokens, unit backups and environment-file backups. The app backup directory
+itself is not copied recursively.
 
 ## License
 

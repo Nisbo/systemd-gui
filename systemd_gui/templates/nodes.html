@@ -14,6 +14,11 @@
       <span>In the local <code>qs</code> menu, choose <code>N</code> to open <code>qs</code> on a saved node over SSH. SSH keys are preferred; passwords are optional and should only be stored on trusted systems.</span>
     </div>
 
+    <div class="diagnostic warning">
+      <strong>Remote API access is token based</strong>
+      <span>Use tokens when another Systemd Gui installation should read data from this node later. IP allowlists add protection, but static IPs are easier to maintain. If your router gives devices dynamic IPs, a saved allowlist entry can stop working after DHCP changes.</span>
+    </div>
+
     <dl class="detail-grid three">
       <div><dt>This node</dt><dd>{{ node_settings.node_name }}</dd></div>
       <div><dt>Node ID</dt><dd><code>{{ node_settings.node_id }}</code></dd></div>
@@ -77,8 +82,133 @@
   <section class="panel">
     <div class="panel-head">
       <div>
+        <h2>Remote API access</h2>
+        <p>Allow other Systemd Gui nodes to connect to this installation with a token. Later features will use these access categories for logs, service data and Quick Shell sharing.</p>
+      </div>
+      <span class="tag {% if api_access.settings.enabled %}{% else %}neutral{% endif %}">
+        {% if api_access.settings.enabled %}API enabled{% else %}API disabled{% endif %}
+      </span>
+    </div>
+
+    {% if new_api_token %}
+      <div class="update-result ok">
+        <strong>Copy this token now</strong>
+        <span>The token for {{ new_api_token_name }} is shown only once. Store it in the saved node entry on another Systemd Gui installation.</span>
+        <div class="token-copy-row">
+          <code>{{ new_api_token }}</code>
+          <button class="ghost-button icon-button" type="button" title="Copy token" aria-label="Copy token" data-copy-text="{{ new_api_token }}">⧉</button>
+        </div>
+      </div>
+    {% endif %}
+
+    <form class="form-grid" method="post" action="{{ url_for('update_nodes_api_access_settings') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label class="toggle-label">
+        <input type="checkbox" name="enabled" value="1" {% if api_access.settings.enabled %}checked{% endif %}>
+        <span>Enable Remote API access on this node</span>
+      </label>
+      <label class="toggle-label">
+        <input type="checkbox" name="allow_saved_nodes" value="1" {% if api_access.settings.allow_saved_nodes %}checked{% endif %}>
+        <span>Allow IPs from saved nodes</span>
+      </label>
+      <label>
+        Allow only these IPs
+        <textarea name="allowed_ips" rows="4" placeholder="192.168.178.89&#10;192.168.178.0/24">{{ api_access.settings.allowed_ips }}</textarea>
+        <span class="field-help">Optional. One IP or CIDR range per line. Leave empty to accept any IP with a valid token. Static DHCP leases are recommended; dynamic IPs can change and block access later.</span>
+      </label>
+      <div class="diagnostic warning">
+        <strong>HTTP warning</strong>
+        <span>Tokens sent over plain HTTP can be read by other devices on the same network. Use this on a trusted LAN or behind HTTPS.</span>
+        <span>Settings file: <code>{{ api_access_path }}</code></span>
+      </div>
+      <div class="form-actions">
+        <button class="primary-button" type="submit">Save API settings</button>
+      </div>
+    </form>
+
+    <div class="inline-section">
+      <div class="panel-head">
+        <div>
+          <h3>Access tokens</h3>
+          <p>Create separate tokens for different nodes or purposes. Stored tokens are hashed locally and cannot be shown again.</p>
+        </div>
+      </div>
+      <form class="form-grid api-token-form" method="post" action="{{ url_for('create_nodes_api_token') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label>
+          Token name
+          <input name="name" placeholder="Living room Pi">
+        </label>
+        <div class="scope-list">
+          {% for scope in api_scope_options %}
+            <label class="toggle-label">
+              <input type="checkbox" name="scopes" value="{{ scope.id }}" {% if scope.id == 'node:read' %}checked{% endif %}>
+              <span>{{ scope.label }}</span>
+            </label>
+          {% endfor %}
+        </div>
+        <div class="form-actions">
+          <button class="primary-button" type="submit">Create token</button>
+        </div>
+      </form>
+
+      {% if api_access.tokens %}
+        <div class="table-wrap compact-table api-token-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Prefix</th>
+                <th>Access categories</th>
+                <th>Last used</th>
+                <th class="actions-heading">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for token in api_access.tokens %}
+                <tr>
+                  <td>
+                    <strong>{{ token.name }}</strong>
+                    <span class="tag {% if token.enabled %}{% else %}neutral{% endif %}">{{ 'Enabled' if token.enabled else 'Disabled' }}</span>
+                  </td>
+                  <td><code>{{ token.prefix }}...</code></td>
+                  <td>
+                    <div class="scope-chip-row">
+                      {% for scope_label in token.scope_labels %}
+                        <span class="tag neutral">{{ scope_label }}</span>
+                      {% endfor %}
+                    </div>
+                  </td>
+                  <td>{{ token.last_used_at or '-' }}</td>
+                  <td>
+                    <div class="table-actions">
+                      <form method="post" action="{{ url_for('toggle_nodes_api_token', token_id=token.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <input type="hidden" name="enabled" value="{{ '0' if token.enabled else '1' }}">
+                        <button class="ghost-button compact-button" type="submit">{{ 'Disable' if token.enabled else 'Enable' }}</button>
+                      </form>
+                      <form method="post" action="{{ url_for('delete_nodes_api_token', token_id=token.id) }}" data-confirm="Delete this Remote API token? Nodes using it will no longer connect.">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button class="danger-button compact-button" type="submit">Delete</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="empty-note">No Remote API tokens have been created yet.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
         <h2>Saved nodes</h2>
-        <p>Saved nodes stay here even when they are offline. The status checks the saved GUI URL; Quick Shell uses the optional SSH settings.</p>
+        <p>Saved nodes stay here even when they are offline. The status checks the saved GUI URL; Quick Shell uses SSH settings; later Remote API features use saved tokens.</p>
       </div>
     </div>
 
@@ -91,6 +221,7 @@
               <th>Status</th>
               <th>URL</th>
               <th>SSH</th>
+              <th>API</th>
               <th>Note</th>
               <th class="actions-heading">Actions</th>
             </tr>
@@ -122,10 +253,30 @@
                     <span class="muted">-</span>
                   {% endif %}
                 </td>
+                <td>
+                  <div class="ssh-cell">
+                    {% if node.api_indicators %}
+                      <span class="ssh-indicators" aria-label="Saved Remote API settings">
+                        {% for indicator in node.api_indicators %}
+                          <span class="ssh-indicator token-indicator" title="{{ indicator.title }}">{{ indicator.label }}</span>
+                        {% endfor %}
+                      </span>
+                    {% else %}
+                      <span class="muted">-</span>
+                    {% endif %}
+                    {% if node.api_check %}
+                      <span class="tag node-status {{ 'online' if node.api_check.ok else 'offline' }}" title="{{ node.api_check.message }}">{{ 'Works' if node.api_check.ok else 'Failed' }}</span>
+                    {% endif %}
+                  </div>
+                </td>
                 <td>{{ node.note or '-' }}</td>
                 <td>
                   <div class="table-actions">
                     <a class="ghost-button compact-button" href="{{ node.url }}" target="_blank" rel="noopener">Open</a>
+                    <form method="post" action="{{ url_for('check_node_api', node_id=node.id) }}">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                      <button class="ghost-button compact-button" type="submit" title="Check whether this node accepts the saved Remote API token.">Check API</button>
+                    </form>
                     <button class="ghost-button compact-button" type="button" data-node-edit-open data-target="#node-edit-{{ loop.index0 }}">Edit</button>
                     <form method="post" action="{{ url_for('delete_node', node_id=node.id) }}" data-confirm="Delete this saved node?">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -152,6 +303,7 @@
             <form class="form-grid" method="post" action="{{ url_for('update_node', node_id=node.id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
               <input type="hidden" name="keep_ssh_password" value="1">
+              <input type="hidden" name="keep_api_token" value="1">
               <label>
                 Name
                 <input name="name" value="{{ node.name }}" required>
@@ -181,6 +333,11 @@
                 SSH password
                 <input name="ssh_password" type="password" placeholder="{% if node.ssh_password %}Stored; leave empty to keep{% else %}Optional, not recommended{% endif %}">
                 <span class="field-help">Optional and stored in <code>nodes.json</code>. Use only on trusted systems.</span>
+              </label>
+              <label>
+                Remote API token
+                <input name="api_token" type="password" placeholder="{% if node.api_token %}Stored; leave empty to keep{% else %}Token from the remote node{% endif %}">
+                <span class="field-help">Optional and stored in <code>nodes.json</code>. Needed later when this installation should read data from that node through the Remote API.</span>
               </label>
               <label>
                 Remote qs after command
@@ -307,6 +464,11 @@
         SSH password
         <input name="ssh_password" type="password" placeholder="Optional, not recommended">
         <span class="field-help">Stored in <code>nodes.json</code> if entered. Prefer SSH keys where possible.</span>
+      </label>
+      <label>
+        Remote API token
+        <input name="api_token" type="password" placeholder="Optional token from this node">
+        <span class="field-help">Used later for Remote API features such as reading logs or importing Quick Shell entries from this node.</span>
       </label>
       <label>
         Note

@@ -109,6 +109,7 @@ def normalize_node(node: dict[str, object]) -> dict[str, object]:
         "ssh_port": _clean_text(node.get("ssh_port")) or "22",
         "ssh_key_path": _clean_text(node.get("ssh_key_path")),
         "ssh_password": str(node.get("ssh_password") or ""),
+        "api_token": str(node.get("api_token") or ""),
         "remote_keep_menu": remote_keep_menu,
         "created_at": _clean_text(node.get("created_at")) or _now(),
         "updated_at": _clean_text(node.get("updated_at")) or _now(),
@@ -120,6 +121,9 @@ def node_from_form(form, existing: dict[str, object] | None = None) -> dict[str,
     password = form.get("ssh_password", "")
     if not password and form.get("keep_ssh_password") == "1":
         password = str(existing.get("ssh_password") or "")
+    api_token = form.get("api_token", "")
+    if not api_token and form.get("keep_api_token") == "1":
+        api_token = str(existing.get("api_token") or "")
     node = {
         **existing,
         "name": form.get("name", ""),
@@ -132,6 +136,7 @@ def node_from_form(form, existing: dict[str, object] | None = None) -> dict[str,
         "ssh_port": form.get("ssh_port", "22"),
         "ssh_key_path": form.get("ssh_key_path", ""),
         "ssh_password": password,
+        "api_token": api_token,
         "remote_keep_menu": form.get("remote_keep_menu", "yes"),
         "updated_at": _now(),
     }
