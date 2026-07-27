@@ -11,7 +11,37 @@
       <section class="panel log-window-panel" data-log-panel data-log-url="{{ log_fragment_url or url_for('service_logs_fragment', name=info.name) }}" data-refresh-enabled="{{ 'true' if log_refresh else 'false' }}" data-refresh-interval="{{ log_refresh_interval }}">
         <div class="panel-head">
           <div>
-            <p class="eyebrow">journalctl</p>
+            {% set log_window_path = request.full_path.rstrip('?') %}
+            <div class="eyebrow node-eyebrow">
+              <span>journalctl</span>
+              <span>@</span>
+              <details class="node-switcher">
+                <summary title="Switch this log window to another saved Systemd Gui node">
+                  <span>{{ current_node.name }}</span>
+                  {% if current_node.version %}<span class="node-version">({{ current_node.version }})</span>{% endif %}
+                </summary>
+                <div class="node-switcher-menu">
+                  {% for node in node_navigation %}
+                    <a class="{% if node.current %}current{% endif %}" href="{% if node.current %}{{ log_window_path }}{% elif node.absolute_url %}{{ node.absolute_url }}{{ log_window_path }}{% else %}{{ url_for('index') }}{% endif %}">
+                      <span class="node-switcher-main">
+                        <span class="node-switcher-text">
+                          <strong>{{ node.name }}</strong>
+                          {% if node.version %}<span class="node-version">({{ node.version }})</span>{% endif %}
+                        </span>
+                        {% if node.ssh_indicators %}
+                          <span class="ssh-indicators" aria-label="Saved SSH settings">
+                            {% for indicator in node.ssh_indicators %}
+                              <span class="ssh-indicator" title="{{ indicator.title }}">{{ indicator.label }}</span>
+                            {% endfor %}
+                          </span>
+                        {% endif %}
+                      </span>
+                      <span>{% if node.current %}Current node{% elif node.absolute_url %}{{ node.absolute_url }}{% endif %}</span>
+                    </a>
+                  {% endfor %}
+                </div>
+              </details>
+            </div>
             <h1>{{ info.name }}</h1>
           </div>
         </div>
