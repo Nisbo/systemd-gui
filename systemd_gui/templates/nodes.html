@@ -108,7 +108,16 @@
                 <td><code>{{ node.url }}</code></td>
                 <td>
                   {% if node.ssh_user or node.ssh_host %}
-                    <code>{% if node.ssh_user %}{{ node.ssh_user }}@{% endif %}{{ node.ssh_host or node.host }}{% if node.ssh_port %}:{{ node.ssh_port }}{% endif %}</code>
+                    <div class="ssh-cell">
+                      <code>{% if node.ssh_user %}{{ node.ssh_user }}@{% endif %}{{ node.ssh_host or node.host }}{% if node.ssh_port %}:{{ node.ssh_port }}{% endif %}</code>
+                      {% if node.ssh_indicators %}
+                        <span class="ssh-indicators" aria-label="Saved SSH settings">
+                          {% for indicator in node.ssh_indicators %}
+                            <span class="ssh-indicator" title="{{ indicator.title }}">{{ indicator.label }}</span>
+                          {% endfor %}
+                        </span>
+                      {% endif %}
+                    </div>
                   {% else %}
                     <span class="muted">-</span>
                   {% endif %}

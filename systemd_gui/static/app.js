@@ -15,6 +15,17 @@
   });
   updateTheme();
 
+  const closeNodeSwitchers = () => {
+    document.querySelectorAll(".node-switcher[open]").forEach((details) => { details.open = false; });
+  };
+  document.addEventListener("click", (event) => {
+    if (event.target.closest(".node-switcher")) return;
+    closeNodeSwitchers();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeNodeSwitchers();
+  });
+
   const modal = document.querySelector("[data-confirm-modal]");
   const message = document.querySelector("[data-confirm-message]");
   const extra = document.querySelector("[data-confirm-extra]");

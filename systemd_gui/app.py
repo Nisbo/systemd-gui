@@ -6,6 +6,7 @@ import secrets
 import shlex
 import shutil
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from .nodes import (
     install_discovery_support,
     merge_discovered_with_saved,
     node_from_form,
+    node_runtime_metadata,
     normalize_node,
     read_nodes,
     remove_announcement,
@@ -277,7 +279,10 @@ def create_app() -> Flask:
     def nodes():
         data = read_nodes(_nodes_path(app))
         settings = data.get("settings") or {}
-        saved_nodes = saved_nodes_with_status(list(data.get("nodes") or []))
+        saved_nodes = [
+            {**node, "ssh_indicators": _node_ssh_indicators(node)}
+            for node in saved_nodes_with_status(list(data.get("nodes") or []))
+        ]
         discovery = discover_nodes()
         discovered_raw = [node for node in discovery.nodes if node.get("node_id") != settings.get("node_id")]
         discovered_nodes = merge_discovered_with_saved(saved_nodes, discovered_raw)
@@ -1285,11 +1290,14 @@ def _node_navigation(app: Flask) -> dict[str, object]:
         "url": url_for("index"),
         "absolute_url": local_url,
         "node_id": local_id,
+        "version": APP_VERSION,
+        "ssh_indicators": [],
         "current": True,
     }
     nodes: list[dict[str, object]] = [current]
     seen_ids = {local_id} if local_id else set()
     seen_urls = {_nav_node_url_key(local_url)} if local_url else set()
+    saved_navigation_nodes = []
     for node in data.get("nodes") if isinstance(data.get("nodes"), list) else []:
         if not isinstance(node, dict):
             continue
@@ -1302,11 +1310,20 @@ def _node_navigation(app: Flask) -> dict[str, object]:
             seen_ids.add(node_id)
         if url_key:
             seen_urls.add(url_key)
+        saved_navigation_nodes.append(node)
+    with ThreadPoolExecutor(max_workers=min(6, len(saved_navigation_nodes) or 1)) as executor:
+        metadata_list = list(executor.map(lambda node: node_runtime_metadata(node, timeout=0.35), saved_navigation_nodes))
+    for node, metadata in zip(saved_navigation_nodes, metadata_list):
+        node_url = str(node.get("url") or "").strip()
+        node_id = str(node.get("node_id") or "").strip()
+        version = str(metadata.get("version") or node.get("version") or "").strip()
         nodes.append({
             "name": str(node.get("name") or node_url or "Systemd Gui node").strip(),
             "url": node_url,
             "absolute_url": node_url,
             "node_id": node_id,
+            "version": version,
+            "ssh_indicators": _node_ssh_indicators(node),
             "current": False,
         })
     nodes = sorted(nodes, key=lambda item: str(item.get("name") or "").lower())
@@ -1320,6 +1337,17 @@ def _nav_node_url_key(url: str) -> str:
     if "://" not in value:
         value = f"http://{value}"
     return value
+
+
+def _node_ssh_indicators(node: dict[str, object]) -> list[dict[str, str]]:
+    indicators = []
+    if str(node.get("ssh_user") or "").strip():
+        indicators.append({"label": "U", "title": "SSH user is saved"})
+    if str(node.get("ssh_password") or ""):
+        indicators.append({"label": "P", "title": "SSH password is saved"})
+    if str(node.get("ssh_key_path") or "").strip():
+        indicators.append({"label": "K", "title": "SSH key path is saved"})
+    return indicators
 
 
 def _upsert_node(nodes: list[dict[str, object]], node: dict[str, object]) -> list[dict[str, object]]:
