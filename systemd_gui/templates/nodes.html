@@ -1,14 +1,30 @@
 {% extends "base.html" %}
 {% block content %}
-  <section class="panel">
+  <section class="panel settings-tabs-panel">
     <div class="panel-head">
       <div>
         <h2>Nodes</h2>
-        <p>Find other Systemd Gui installations on your LAN and save the ones you want to manage.</p>
+        <p>Find, save and connect Systemd Gui installations on your LAN.</p>
       </div>
-      <a class="ghost-button" href="{{ url_for('nodes') }}" title="Reload this page and run LAN discovery again.">Refresh discovery</a>
+      {% if active_tab == "nodes" %}
+        <a class="ghost-button" href="{{ url_for('nodes', tab='nodes') }}" title="Reload this page and run LAN discovery again.">Refresh discovery</a>
+      {% endif %}
     </div>
+    <nav class="settings-tabs" aria-label="Node sections">
+      <a class="settings-tab {% if active_tab == 'nodes' %}active{% endif %}" href="{{ url_for('nodes', tab='nodes') }}" {% if active_tab == 'nodes' %}aria-current="page"{% endif %}>Nodes</a>
+      <a class="settings-tab {% if active_tab == 'local' %}active{% endif %}" href="{{ url_for('nodes', tab='local') }}" {% if active_tab == 'local' %}aria-current="page"{% endif %}>This node</a>
+      <a class="settings-tab {% if active_tab == 'api' %}active{% endif %}" href="{{ url_for('nodes', tab='api') }}" {% if active_tab == 'api' %}aria-current="page"{% endif %}>API keys</a>
+    </nav>
+  </section>
 
+  {% if active_tab == "local" %}
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>This node</h2>
+        <p>Local identity and discovery information for this Systemd Gui installation.</p>
+      </div>
+    </div>
     <div class="diagnostic warning">
       <strong>Remote Quick Shell uses saved SSH settings</strong>
       <span>In the local <code>qs</code> menu, choose <code>N</code> to open <code>qs</code> on a saved node over SSH. SSH keys are preferred; passwords are optional and should only be stored on trusted systems.</span>
@@ -79,6 +95,7 @@
     </form>
   </section>
 
+  {% elif active_tab == "api" %}
   <section class="panel">
     <div class="panel-head">
       <div>
@@ -91,7 +108,7 @@
     </div>
 
     {% if new_api_token %}
-      <div class="update-result ok">
+      <div class="update-result ok new-token-card" id="new-api-token">
         <strong>Copy this token now</strong>
         <span>The token for {{ new_api_token_name }} is shown only once. Store it in the saved node entry on another Systemd Gui installation.</span>
         <div class="token-copy-row">
@@ -204,6 +221,7 @@
     </div>
   </section>
 
+  {% else %}
   <section class="panel">
     <div class="panel-head">
       <div>
@@ -479,4 +497,5 @@
       </div>
     </form>
   </section>
+  {% endif %}
 {% endblock %}

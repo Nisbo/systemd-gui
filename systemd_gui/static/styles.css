@@ -125,10 +125,17 @@ th.actions-heading { text-align:right; }
 .update-output { max-height:280px; font-size:.88rem; }
 .token-copy-row { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:10px; align-items:center; }
 .token-copy-row code { overflow-wrap:anywhere; border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+.new-token-card { scroll-margin-top:18px; }
 .api-token-form { align-items:end; }
 .scope-list,.scope-chip-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .scope-list { align-self:end; min-height:44px; }
 .api-token-table { margin-top:12px; }
+.api-token-table table { min-width:920px; }
+.api-token-table th:nth-child(1),.api-token-table td:nth-child(1) { width:20%; }
+.api-token-table th:nth-child(2),.api-token-table td:nth-child(2) { width:16%; }
+.api-token-table th:nth-child(3),.api-token-table td:nth-child(3) { width:36%; }
+.api-token-table th:nth-child(4),.api-token-table td:nth-child(4) { width:16%; }
+.api-token-table th:nth-child(5),.api-token-table td:nth-child(5) { width:12%; }
 .info-layout { display:grid; grid-template-columns:minmax(0, 1.1fr) minmax(0, .9fr); gap:14px; }
 .info-card { display:grid; gap:10px; align-content:start; border:1px solid var(--line); border-radius:8px; padding:14px; }
 .info-card h3 { margin:0; font-size:1rem; }

@@ -307,6 +307,9 @@ def create_app() -> Flask:
 
     @app.get("/nodes")
     def nodes():
+        active_tab = request.args.get("tab", "nodes")
+        if active_tab not in {"nodes", "local", "api"}:
+            active_tab = "nodes"
         data = read_nodes(_nodes_path(app))
         api_access = read_api_access(_api_access_path(app))
         for token in api_access.get("tokens") if isinstance(api_access.get("tokens"), list) else []:
@@ -327,6 +330,7 @@ def create_app() -> Flask:
         discovered_nodes = merge_discovered_with_saved(saved_nodes, discovered_raw)
         return render_template(
             "nodes.html",
+            active_tab=active_tab,
             nodes_data=data,
             node_settings=settings,
             saved_nodes=saved_nodes,
@@ -348,7 +352,7 @@ def create_app() -> Flask:
         data = update_api_settings(read_api_access(_api_access_path(app)), request.form)
         write_api_access(_api_access_path(app), data)
         flash("Remote API access settings saved.", "success")
-        return redirect(url_for("nodes"))
+        return redirect(url_for("nodes", tab="api"))
 
     @app.post("/nodes/api-access/tokens")
     def create_nodes_api_token():
@@ -358,7 +362,7 @@ def create_app() -> Flask:
         session["new_api_token"] = token_value
         session["new_api_token_name"] = token["name"]
         flash("Remote API token created. Copy it now; it will not be shown again.", "success")
-        return redirect(url_for("nodes"))
+        return redirect(url_for("nodes", tab="api", _anchor="new-api-token"))
 
     @app.post("/nodes/api-access/tokens/<token_id>/toggle")
     def toggle_nodes_api_token(token_id: str):
@@ -369,7 +373,7 @@ def create_app() -> Flask:
             flash("Remote API token updated.", "success")
         else:
             flash("Remote API token not found.", "error")
-        return redirect(url_for("nodes"))
+        return redirect(url_for("nodes", tab="api"))
 
     @app.post("/nodes/api-access/tokens/<token_id>/delete")
     def delete_nodes_api_token(token_id: str):
@@ -379,7 +383,7 @@ def create_app() -> Flask:
             flash("Remote API token deleted.", "success")
         else:
             flash("Remote API token not found.", "error")
-        return redirect(url_for("nodes"))
+        return redirect(url_for("nodes", tab="api"))
 
     @app.post("/nodes/settings")
     def update_nodes_settings():
@@ -401,7 +405,7 @@ def create_app() -> Flask:
                 flash("LAN announcement is disabled for this node.", "success")
             except OSError as exc:
                 flash(f"LAN announcement could not be disabled: {exc}", "error")
-        return redirect(url_for("nodes"))
+        return redirect(url_for("nodes", tab="local"))
 
     @app.post("/nodes/install-discovery")
     def install_nodes_discovery():
@@ -417,7 +421,7 @@ def create_app() -> Flask:
             "output": result.output[-1600:],
         }
         flash(result.message, "success" if result.ok else "error")
-        return redirect(url_for("nodes"))
+        return redirect(url_for("nodes", tab="local"))
 
     @app.post("/nodes")
     def create_node():
