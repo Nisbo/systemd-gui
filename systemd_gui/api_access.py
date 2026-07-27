@@ -120,12 +120,18 @@ def update_api_settings(data: dict[str, object], form) -> dict[str, object]:
     return normalize_api_access_data(data)
 
 
-def set_token_enabled(data: dict[str, object], token_id: str, enabled: bool) -> bool:
+def update_api_token(data: dict[str, object], token_id: str, name: str, scopes: list[str], enabled: bool) -> bool:
     changed = False
+    clean_scopes = sorted({"node:read", *[scope for scope in scopes if scope in API_SCOPES]}, key=list(API_SCOPES).index)
     tokens = []
     for token in data.get("tokens") if isinstance(data.get("tokens"), list) else []:
         if str(token.get("id")) == token_id:
-            token = {**token, "enabled": enabled}
+            token = {
+                **token,
+                "name": name.strip() or str(token.get("name") or "Remote API token"),
+                "scopes": clean_scopes,
+                "enabled": enabled,
+            }
             changed = True
         tokens.append(token)
     data["tokens"] = tokens

@@ -125,10 +125,16 @@ th.actions-heading { text-align:right; }
 .update-output { max-height:280px; font-size:.88rem; }
 .token-copy-row { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:10px; align-items:center; }
 .token-copy-row code { overflow-wrap:anywhere; border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
-.new-token-card { scroll-margin-top:18px; }
+.new-token-card { display:grid; gap:10px; align-content:start; border:2px solid color-mix(in srgb, var(--amber) 88%, var(--line)); border-left-width:8px; border-radius:8px; background:color-mix(in srgb, var(--amber) 18%, var(--panel)); margin:0 0 18px; padding:14px; scroll-margin-top:18px; }
+.new-token-card strong { font-size:1.08rem; }
+.new-token-card span { color:var(--muted); }
 .api-token-form { align-items:end; }
 .scope-list,.scope-chip-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .scope-list { align-self:end; min-height:44px; }
+.scope-checkbox { display:inline-flex; align-items:center; gap:6px; min-height:30px; border-radius:999px; background:color-mix(in srgb, var(--muted) 10%, transparent); color:var(--muted); font-size:.78rem; font-weight:900; padding:4px 9px; }
+.scope-checkbox input { width:auto; height:auto; }
+.scope-checkbox:has(input:checked) { background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent-strong); }
+.compact-toggle { min-height:34px; font-size:.9rem; white-space:nowrap; }
 .api-token-table { margin-top:12px; }
 .api-token-table table { min-width:920px; }
 .api-token-table th:nth-child(1),.api-token-table td:nth-child(1) { width:20%; }

@@ -22,8 +22,8 @@ from .api_access import (
     create_api_token,
     delete_token,
     read_api_access,
-    set_token_enabled,
     update_api_settings,
+    update_api_token,
     verify_bearer_token,
     write_api_access,
 )
@@ -364,11 +364,11 @@ def create_app() -> Flask:
         flash("Remote API token created. Copy it now; it will not be shown again.", "success")
         return redirect(url_for("nodes", tab="api", _anchor="new-api-token"))
 
-    @app.post("/nodes/api-access/tokens/<token_id>/toggle")
-    def toggle_nodes_api_token(token_id: str):
+    @app.post("/nodes/api-access/tokens/<token_id>/update")
+    def update_nodes_api_token(token_id: str):
         data = read_api_access(_api_access_path(app))
         enabled = request.form.get("enabled") == "1"
-        if set_token_enabled(data, token_id, enabled):
+        if update_api_token(data, token_id, request.form.get("name", ""), api_scopes_from_form(request.form), enabled):
             write_api_access(_api_access_path(app), data)
             flash("Remote API token updated.", "success")
         else:
