@@ -9,7 +9,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-from flask import Flask, Response, flash, redirect, render_template, request, session, url_for
+from flask import Flask, Response, flash, jsonify, redirect, render_template, request, session, url_for
 
 from .nodes import (
     announcement_status,
@@ -138,7 +138,7 @@ def create_app() -> Flask:
 
     @app.before_request
     def require_login_and_csrf():
-        if request.endpoint in {"login", "login_post", "static"}:
+        if request.endpoint in {"login", "login_post", "node_info", "static"}:
             return None
         if app.config["ADMIN_PASSWORD"] and not session.get("logged_in"):
             return redirect(url_for("login"))
@@ -154,11 +154,14 @@ def create_app() -> Flask:
     def inject_globals():
         if "csrf_token" not in session:
             session["csrf_token"] = secrets.token_urlsafe(32)
+        node_navigation = _node_navigation(app)
         return {
             "app_name": APP_NAME,
             "app_version": APP_VERSION,
             "repo_url": REPO_URL,
             "csrf_token": session["csrf_token"],
+            "current_node": node_navigation["current"],
+            "node_navigation": node_navigation["nodes"],
             "systemctl_available": systemctl_available(),
             "journalctl_available": journalctl_available(),
             "app_update_pending_restart": session.get("app_update_pending_restart", False),
@@ -192,6 +195,17 @@ def create_app() -> Flask:
             return redirect(url_for("index"))
         flash("Password is incorrect.", "error")
         return render_template("login.html"), 401
+
+    @app.get("/node-info.json")
+    def node_info():
+        data = read_nodes(_nodes_path(app))
+        settings = data.get("settings") or {}
+        return jsonify({
+            "app": "systemd-gui",
+            "version": APP_VERSION,
+            "node_id": settings.get("node_id", ""),
+            "node_name": settings.get("node_name", APP_NAME),
+        })
 
     @app.post("/logout")
     def logout():
@@ -1255,6 +1269,57 @@ def _quick_shell_backup_dir(app: Flask) -> Path:
 
 def _nodes_path(app: Flask) -> Path:
     return _data_dir(app) / "nodes.json"
+
+
+def _node_navigation(app: Flask) -> dict[str, object]:
+    try:
+        data = read_nodes(_nodes_path(app))
+    except OSError:
+        data = {"settings": {}, "nodes": []}
+    settings = data.get("settings") if isinstance(data.get("settings"), dict) else {}
+    local_name = str(settings.get("node_name") or APP_NAME).strip() or APP_NAME
+    local_id = str(settings.get("node_id") or "").strip()
+    local_url = request.host_url.rstrip("/") if request else ""
+    current = {
+        "name": local_name,
+        "url": url_for("index"),
+        "absolute_url": local_url,
+        "node_id": local_id,
+        "current": True,
+    }
+    nodes: list[dict[str, object]] = [current]
+    seen_ids = {local_id} if local_id else set()
+    seen_urls = {_nav_node_url_key(local_url)} if local_url else set()
+    for node in data.get("nodes") if isinstance(data.get("nodes"), list) else []:
+        if not isinstance(node, dict):
+            continue
+        node_url = str(node.get("url") or "").strip()
+        node_id = str(node.get("node_id") or "").strip()
+        url_key = _nav_node_url_key(node_url)
+        if (node_id and node_id in seen_ids) or (url_key and url_key in seen_urls):
+            continue
+        if node_id:
+            seen_ids.add(node_id)
+        if url_key:
+            seen_urls.add(url_key)
+        nodes.append({
+            "name": str(node.get("name") or node_url or "Systemd Gui node").strip(),
+            "url": node_url,
+            "absolute_url": node_url,
+            "node_id": node_id,
+            "current": False,
+        })
+    nodes = sorted(nodes, key=lambda item: str(item.get("name") or "").lower())
+    return {"current": current, "nodes": nodes}
+
+
+def _nav_node_url_key(url: str) -> str:
+    value = url.strip().rstrip("/").lower()
+    if not value:
+        return ""
+    if "://" not in value:
+        value = f"http://{value}"
+    return value
 
 
 def _upsert_node(nodes: list[dict[str, object]], node: dict[str, object]) -> list[dict[str, object]]:

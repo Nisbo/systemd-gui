@@ -10,7 +10,25 @@
     <main class="app-shell">
       <header class="topbar">
         <div>
-          <p class="eyebrow">systemd services</p>
+          <div class="eyebrow node-eyebrow">
+            <span>systemd services</span>
+            <span>@</span>
+            <details class="node-switcher">
+              <summary title="Switch to another saved Systemd Gui node">{{ current_node.name }}</summary>
+              <div class="node-switcher-menu">
+                {% for node in node_navigation %}
+                  <a class="{% if node.current %}current{% endif %}" href="{{ node.url or url_for('index') }}">
+                    <strong>{{ node.name }}</strong>
+                    {% if node.current %}
+                      <span>Current node</span>
+                    {% elif node.absolute_url %}
+                      <span>{{ node.absolute_url }}</span>
+                    {% endif %}
+                  </a>
+                {% endfor %}
+              </div>
+            </details>
+          </div>
           <h1>Systemd Gui</h1>
         </div>
         <div class="top-actions">

@@ -6,7 +6,7 @@
         <h2>Nodes</h2>
         <p>Find other Systemd Gui installations on your LAN and save the ones you want to manage.</p>
       </div>
-      <a class="ghost-button" href="{{ url_for('nodes') }}">Refresh</a>
+      <a class="ghost-button" href="{{ url_for('nodes') }}" title="Reload this page and run LAN discovery again.">Refresh discovery</a>
     </div>
 
     <div class="diagnostic warning">
@@ -203,7 +203,7 @@
     <div class="panel-head">
       <div>
         <h2>Discovered nodes</h2>
-        <p>These nodes currently announce Systemd Gui through Avahi/mDNS on your LAN. Only IPv4 addresses are shown.</p>
+        <p>These nodes currently announce Systemd Gui through Avahi/mDNS on your LAN. Only IPv4 addresses are shown; versions are refreshed from the running node when available.</p>
       </div>
       <span class="tag {% if discovery.available %}{% else %}danger{% endif %}">
         {% if discovery.available %}Discovery active{% else %}Discovery unavailable{% endif %}

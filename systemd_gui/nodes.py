@@ -12,7 +12,7 @@ from datetime import datetime
 from html import escape
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 from urllib.request import Request, urlopen
 
 from .version import APP_NAME, APP_VERSION
@@ -170,7 +170,7 @@ def discover_nodes(timeout: int = 4) -> DiscoveryResult:
     if result.returncode not in {0, 1}:
         message = (result.stderr or result.stdout or "LAN discovery did not return usable data.").strip()
         return DiscoveryResult(False, message, [])
-    nodes = _parse_avahi_output(result.stdout)
+    nodes = enrich_discovered_nodes(_parse_avahi_output(result.stdout))
     return DiscoveryResult(True, "LAN discovery uses Avahi/mDNS service type _systemd-gui._tcp.local.", nodes)
 
 
@@ -192,6 +192,43 @@ def saved_nodes_with_status(saved_nodes: list[dict[str, object]], timeout: float
     with ThreadPoolExecutor(max_workers=min(8, len(saved_nodes))) as executor:
         statuses = list(executor.map(lambda node: node_online_status(node, timeout), saved_nodes))
     return [{**node, "online_status": status} for node, status in zip(saved_nodes, statuses)]
+
+
+def enrich_discovered_nodes(nodes: list[dict[str, str]], timeout: float = 0.7) -> list[dict[str, str]]:
+    if not nodes:
+        return []
+    with ThreadPoolExecutor(max_workers=min(8, len(nodes))) as executor:
+        metadata = list(executor.map(lambda node: node_runtime_metadata(node, timeout), nodes))
+    enriched = []
+    for node, meta in zip(nodes, metadata):
+        if not meta:
+            enriched.append(node)
+            continue
+        next_node = {**node}
+        for key in ("node_id", "name", "version"):
+            value = _clean_text(meta.get(key))
+            if value:
+                next_node[key] = value
+        enriched.append(next_node)
+    return enriched
+
+
+def node_runtime_metadata(node: dict[str, object], timeout: float = 0.7) -> dict[str, str]:
+    url = str(node.get("url") or "").strip()
+    if not url:
+        return {}
+    try:
+        with urlopen(Request(urljoin(f"{url.rstrip('/')}/", "node-info.json")), timeout=timeout) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except (OSError, URLError, HTTPError, ValueError, json.JSONDecodeError):
+        return {}
+    if not isinstance(data, dict) or data.get("app") != "systemd-gui":
+        return {}
+    return {
+        "node_id": _clean_text(data.get("node_id")),
+        "name": _clean_text(data.get("node_name")),
+        "version": _clean_text(data.get("version")),
+    }
 
 
 def node_online_status(node: dict[str, object], timeout: float = 0.7) -> dict[str, str]:
