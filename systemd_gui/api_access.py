@@ -18,6 +18,7 @@ API_SCOPES = {
     "services:read": "Service list and details",
     "logs:read": "Journal logs",
     "quick-shell:read": "Quick Shell exports",
+    "updates:write": "Remote updates",
 }
 
 
@@ -36,6 +37,15 @@ class RemoteLogsResult:
     node: dict[str, object]
     entries: list[dict[str, object]]
     status: str = "unknown"
+
+
+@dataclass(frozen=True)
+class RemoteUpdateResult:
+    ok: bool
+    message: str
+    node: dict[str, object]
+    status: str = "unknown"
+    details: dict[str, object] | None = None
 
 
 def default_api_access_data() -> dict[str, object]:
@@ -269,6 +279,55 @@ def fetch_remote_logs(
         {**node_info, **remote_node, "remote": True, "url": url},
         [entry for entry in entries if isinstance(entry, dict)],
         "ok",
+    )
+
+
+def trigger_remote_git_update(node: dict[str, object], timeout: float = 90.0) -> RemoteUpdateResult:
+    url = str(node.get("url") or "").strip()
+    token = str(node.get("api_token") or "").strip()
+    node_info = {
+        "id": str(node.get("node_id") or node.get("id") or ""),
+        "name": str(node.get("name") or "Remote node"),
+        "url": url,
+        "version": str(node.get("version") or ""),
+        "remote": True,
+    }
+    if not url:
+        return RemoteUpdateResult(False, "No GUI URL is configured for this node.", node_info, "missing")
+    if not token:
+        return RemoteUpdateResult(False, "No Remote API token is saved for this node.", node_info, "missing")
+    try:
+        request = Request(
+            urljoin(f"{url.rstrip('/')}/", "api/v1/update/git"),
+            data=b"",
+            headers={"Authorization": f"Bearer {token}"},
+            method="POST",
+        )
+        with urlopen(request, timeout=timeout) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        try:
+            payload = json.loads(exc.read().decode("utf-8"))
+            error_message = str(payload.get("error") or payload.get("message") or "")
+        except (ValueError, json.JSONDecodeError, OSError):
+            error_message = ""
+        if exc.code == 401:
+            return RemoteUpdateResult(False, error_message or "Token was rejected by the remote node.", node_info, "denied")
+        if exc.code == 403:
+            return RemoteUpdateResult(False, error_message or "Remote node denied this IP address or update access.", node_info, "denied")
+        return RemoteUpdateResult(False, error_message or f"Remote node returned HTTP {exc.code}.", node_info, "error")
+    except (OSError, URLError, ValueError, json.JSONDecodeError) as exc:
+        return RemoteUpdateResult(False, f"Remote update request failed: {exc}", node_info, "error")
+    if not isinstance(payload, dict) or payload.get("app") != "systemd-gui":
+        return RemoteUpdateResult(False, "Remote answer was not a Systemd Gui API response.", node_info, "error")
+    remote_node = payload.get("node") if isinstance(payload.get("node"), dict) else {}
+    ok = bool(payload.get("ok"))
+    return RemoteUpdateResult(
+        ok,
+        str(payload.get("message") or ("Remote update accepted." if ok else "Remote update failed.")),
+        {**node_info, **remote_node, "remote": True, "url": url},
+        "ok" if ok else "error",
+        payload,
     )
 
 

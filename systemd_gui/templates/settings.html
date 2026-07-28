@@ -249,10 +249,18 @@
       </dl>
 
       <div class="update-actions compact-actions">
-        <form class="update-card" method="post" action="{{ url_for('apply_git_update') }}" data-confirm="Update from git branch? Systemd Gui will create an app backup, fetch origin, then reset local app files to the configured remote branch.">
+        <form
+          class="update-card"
+          method="post"
+          action="{{ url_for('apply_git_update') }}"
+          data-confirm="Update from git branch? Systemd Gui will create an app backup, fetch origin, then reset local app files to the configured remote branch."
+          data-confirm-checkbox-name="remote_update"
+          data-confirm-checkbox-label="Update and restart all connected nodes"
+          data-confirm-checkbox-value="1"
+        >
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <strong>Update from git branch</strong>
-          <span>Creates an app backup, fetches <code>origin</code>, then resets local app files to the configured remote branch, normally <code>origin/main</code>. This can overwrite local app code changes and is intended for testing.</span>
+          <span>Creates an app backup, fetches <code>origin</code>, then resets local app files to the configured remote branch, normally <code>origin/main</code>. The optional remote update uses saved nodes with Remote API tokens that allow remote updates.</span>
           <button class="ghost-button" type="submit" {% if not git_state.available or not git_state.remote %}disabled{% endif %}>Update from git</button>
         </form>
       </div>

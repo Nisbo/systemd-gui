@@ -23,6 +23,7 @@ from .api_access import (
     delete_token,
     fetch_remote_logs,
     read_api_access,
+    trigger_remote_git_update,
     update_api_settings,
     update_api_token,
     verify_bearer_token,
@@ -267,6 +268,36 @@ def create_app() -> Flask:
             "entries": [_decorate_log_entry(entry, node) for entry in logs.entries],
             "output": logs.output,
         })
+
+    @app.post("/api/v1/update/git")
+    def api_update_git():
+        access = _require_remote_api_access(app, "updates:write")
+        if access:
+            return access
+        result = update_from_git(_app_root(app))
+        data = read_nodes(_nodes_path(app))
+        settings = data.get("settings") or {}
+        node = {
+            "id": settings.get("node_id", ""),
+            "name": settings.get("node_name", APP_NAME),
+            "version": APP_VERSION,
+            "remote": False,
+        }
+        restart_message = ""
+        if result.ok:
+            restart_ok, restart_message = _request_systemd_gui_restart(app)
+            if not restart_ok:
+                result.ok = False
+                result.message = f"{result.message} Restart failed: {restart_message}"
+        return jsonify({
+            "app": "systemd-gui",
+            "node": node,
+            "ok": result.ok,
+            "message": result.message,
+            "details": result.details,
+            "backup_path": str(result.backup_path or ""),
+            "restart": restart_message,
+        }), 200 if result.ok else 500
 
     @app.post("/logout")
     def logout():
@@ -926,6 +957,8 @@ def create_app() -> Flask:
         if result.ok:
             session["app_update_pending_restart"] = True
         flash(result.message, "success" if result.ok else "error")
+        if result.ok and request.form.get("remote_update") == "1":
+            _flash_remote_git_update_results(app)
         return redirect(url_for("settings", tab="updates"))
 
     @app.post("/settings/update/release")
@@ -1397,14 +1430,8 @@ def create_app() -> Flask:
 
     @app.post("/restart-app")
     def restart_app():
-        systemctl = shutil.which("systemctl")
-        if not systemctl:
-            flash("systemctl is not available in this environment.", "error")
-            return redirect(request.referrer or url_for("index"))
-        service = app.config["SYSTEMD_GUI_SERVICE"]
-        command = f"sleep 1; exec {shlex.quote(systemctl)} restart {shlex.quote(service)}"
-        subprocess.Popen(["/bin/sh", "-c", command], start_new_session=True)
-        flash("Systemd Gui restart requested. Reload the page in a few seconds.", "success")
+        ok, message = _request_systemd_gui_restart(app)
+        flash(message, "success" if ok else "error")
         return redirect(request.referrer or url_for("index"))
 
     return app
@@ -1457,6 +1484,55 @@ def _require_remote_api_access(app: Flask, scope: str) -> tuple[Response, int] |
         return jsonify({"error": token_message}), status
     write_api_access(_api_access_path(app), access_data)
     return None
+
+
+def _request_systemd_gui_restart(app: Flask) -> tuple[bool, str]:
+    systemctl = shutil.which("systemctl")
+    if not systemctl:
+        return False, "systemctl is not available in this environment."
+    service = app.config["SYSTEMD_GUI_SERVICE"]
+    command = f"sleep 1; exec {shlex.quote(systemctl)} restart {shlex.quote(service)}"
+    try:
+        subprocess.Popen(["/bin/sh", "-c", command], start_new_session=True)
+    except OSError as exc:
+        return False, f"Systemd Gui restart could not be requested: {exc}"
+    return True, "Systemd Gui restart requested. Reload the page in a few seconds."
+
+
+def _flash_remote_git_update_results(app: Flask) -> None:
+    data = read_nodes(_nodes_path(app))
+    settings = data.get("settings") if isinstance(data.get("settings"), dict) else {}
+    local_node_id = str(settings.get("node_id") or "").strip()
+    candidates = []
+    for node in data.get("nodes") if isinstance(data.get("nodes"), list) else []:
+        if not isinstance(node, dict):
+            continue
+        if local_node_id and str(node.get("node_id") or "").strip() == local_node_id:
+            continue
+        if not str(node.get("api_token") or "").strip():
+            continue
+        candidates.append(node)
+
+    if not candidates:
+        flash("Remote update skipped: no saved remote nodes with an API token were found.", "warning")
+        return
+
+    with ThreadPoolExecutor(max_workers=min(6, len(candidates))) as executor:
+        results = list(executor.map(trigger_remote_git_update, candidates))
+
+    ok_results = [result for result in results if result.ok]
+    failed = [result for result in results if not result.ok]
+    if ok_results:
+        names = ", ".join(str(result.node.get("name") or "Remote node") for result in ok_results)
+        flash(f"Remote git update requested for {len(ok_results)} node(s): {names}.", "success")
+    if failed:
+        parts = [
+            f"{result.node.get('name') or 'Remote node'}: {result.message}"
+            for result in failed[:4]
+        ]
+        if len(failed) > 4:
+            parts.append(f"{len(failed) - 4} more failed")
+        flash(f"Remote git update failed for {len(failed)} node(s): {'; '.join(parts)}.", "error")
 
 
 def _node_navigation(app: Flask) -> dict[str, object]:
