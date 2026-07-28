@@ -971,7 +971,7 @@
       if (refresh) refreshLogs({ followBottom: false });
     };
 
-    captureNodeColors(output);
+    captureNodeColors(document.querySelector("[data-log-output]"));
     linesSelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
     perNodeSelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
     prioritySelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
