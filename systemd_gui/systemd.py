@@ -87,6 +87,14 @@ class CommandResult:
     returncode: int
 
 
+@dataclass
+class JournalResult:
+    ok: bool
+    output: str
+    returncode: int
+    entries: list[dict[str, object]]
+
+
 def systemctl_available() -> bool:
     return bool(shutil.which("systemctl"))
 
@@ -122,9 +130,14 @@ def run_systemctl(args: list[str], timeout: int = 12) -> CommandResult:
 
 
 def run_journalctl(service: str = "", lines: int = 200, priority: str = "") -> CommandResult:
+    result = run_journalctl_entries(service, lines, priority)
+    return CommandResult(result.ok, result.output, result.returncode)
+
+
+def run_journalctl_entries(service: str = "", lines: int = 200, priority: str = "") -> JournalResult:
     journalctl = shutil.which("journalctl")
     if not journalctl:
-        return CommandResult(False, "journalctl is not available in this environment.", 127)
+        return JournalResult(False, "journalctl is not available in this environment.", 127, [])
     command = [journalctl]
     if service:
         command.extend(["-u", service])
@@ -140,15 +153,23 @@ def run_journalctl(service: str = "", lines: int = 200, priority: str = "") -> C
             timeout=12,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
-        return CommandResult(False, str(exc), 1)
-    output = _format_journal_output(result.stdout) or result.stdout.strip()
+        return JournalResult(False, str(exc), 1, [])
+    entries = _parse_journal_entries(result.stdout)
+    output = "\n".join(str(entry.get("formatted") or "") for entry in entries).strip() if entries else result.stdout.strip()
     if result.stderr.strip():
         output = (output + "\n" + result.stderr.strip()).strip()
-    return CommandResult(result.returncode == 0, output, result.returncode)
+    return JournalResult(result.returncode == 0, output, result.returncode, entries)
 
 
 def _format_journal_output(raw_output: str) -> str:
-    lines = []
+    entries = _parse_journal_entries(raw_output)
+    if not entries:
+        return ""
+    return "\n".join(str(entry.get("formatted") or "") for entry in entries)
+
+
+def _parse_journal_entries(raw_output: str) -> list[dict[str, object]]:
+    entries = []
     for raw_line in raw_output.splitlines():
         raw_line = raw_line.strip()
         if not raw_line:
@@ -156,9 +177,34 @@ def _format_journal_output(raw_output: str) -> str:
         try:
             entry = json.loads(raw_line)
         except json.JSONDecodeError:
-            return ""
-        lines.append(_format_journal_entry(entry))
-    return "\n".join(lines)
+            return []
+        entries.append(_journal_entry_dict(entry))
+    return entries
+
+
+def _journal_entry_dict(entry: dict[str, object]) -> dict[str, object]:
+    timestamp_raw = str(entry.get("__REALTIME_TIMESTAMP") or "")
+    priority_raw = str(entry.get("PRIORITY", ""))
+    priority = JOURNAL_PRIORITY_LABELS.get(priority_raw, "UNKNOWN")
+    host = str(entry.get("_HOSTNAME") or "-")
+    process = _journal_process(entry)
+    message = str(entry.get("MESSAGE") or "").replace("\n", "\\n")
+    timestamp = _journal_timestamp(timestamp_raw)
+    unit = str(entry.get("_SYSTEMD_UNIT") or entry.get("UNIT") or "")
+    cursor = str(entry.get("__CURSOR") or "")
+    formatted = f"{timestamp} {host} {process}: [{priority}] {message}".strip()
+    return {
+        "cursor": cursor,
+        "timestamp": timestamp,
+        "timestamp_sort": _journal_timestamp_sort(timestamp_raw),
+        "host": host,
+        "process": process,
+        "unit": unit,
+        "priority": priority,
+        "priority_raw": priority_raw,
+        "message": message,
+        "formatted": formatted,
+    }
 
 
 def _format_journal_entry(entry: dict[str, object]) -> str:
@@ -176,6 +222,13 @@ def _journal_timestamp(value: str) -> str:
     except (TypeError, ValueError):
         return "-"
     return datetime.fromtimestamp(seconds).astimezone().isoformat(timespec="seconds")
+
+
+def _journal_timestamp_sort(value: str) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _journal_process(entry: dict[str, object]) -> str:

@@ -9,10 +9,18 @@
     </div>
     <form class="log-controls" method="get" action="{{ url_for('logs') }}" data-log-controls>
       <label>
-        Lines
+        Show newest
         <select name="lines" data-log-lines>
           {% for option in [50, 100, 200, 500, 1000] %}
             <option value="{{ option }}" {% if log_lines == option %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Read from each node
+        <select name="per_node" data-log-per-node>
+          {% for option in [50, 100, 200, 500, 1000] %}
+            <option value="{{ option }}" {% if log_per_node == option %}selected{% endif %}>{{ option }}</option>
           {% endfor %}
         </select>
       </label>
@@ -41,8 +49,17 @@
         <input name="wrap" type="checkbox" value="1" data-log-wrap {% if log_wrap %}checked{% endif %}>
         Wrap lines
       </label>
+      <div class="log-node-select">
+        <span class="log-node-select-title">Nodes</span>
+        {% for node in log_node_options %}
+          <label class="log-node-choice {% if node.disabled %}disabled{% endif %}" title="{% if node.local %}Local node{% elif node.disabled %}No Remote API token saved{% else %}Remote API token saved{% endif %}">
+            <input type="checkbox" name="node" value="{{ node.id }}" {% if node.selected %}checked{% endif %} {% if node.disabled %}disabled{% endif %}>
+            <span>{{ node.label }}</span>
+          </label>
+        {% endfor %}
+      </div>
       <button class="ghost-button" type="button" data-log-refresh-now>Refresh now</button>
-      <a class="ghost-button" href="{{ url_for('logs_window', lines=log_lines, priority=log_priority if log_priority != 'all' else None, refresh='1' if log_refresh else None, interval=log_refresh_interval if log_refresh else None, log_q=request.args.get('log_q') or None, wrap='0' if not log_wrap else None) }}" target="_blank" rel="noopener noreferrer" data-log-window>Open window</a>
+      <a class="ghost-button" href="{{ url_for('logs_window', lines=log_lines, per_node=log_per_node, priority=log_priority if log_priority != 'all' else None, refresh='1' if log_refresh else None, interval=log_refresh_interval if log_refresh else None, log_q=request.args.get('log_q') or None, wrap='0' if not log_wrap else None) }}" target="_blank" rel="noopener noreferrer" data-log-window>Open window</a>
     </form>
     <div class="log-refresh-paused" data-log-refresh-paused hidden>Auto-refresh paused while text is selected.</div>
     <div class="log-search-status" data-log-search-status hidden></div>

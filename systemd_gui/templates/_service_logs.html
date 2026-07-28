@@ -1,1 +1,3 @@
-<pre class="config-preview log-preview {% if log_wrap is defined and not log_wrap %}no-wrap{% endif %}" data-log-output><code>{{ logs.output or 'No logs available.' }}</code></pre>
+<pre class="config-preview log-preview {% if log_wrap is defined and not log_wrap %}no-wrap{% endif %}" data-log-output data-raw-log="{{ logs.output or '' }}"><code>{% if log_entries is defined and log_entries %}
+{% for entry in log_entries %}<span class="log-line" data-log-node="{{ entry.node_label }}" data-log-level="{{ entry.priority }}"><span class="log-node-chip" title="{{ 'Remote node' if entry.node.remote else 'Local node' }}">{{ entry.node_label }}</span> <span class="log-level log-level-{{ entry.level_class|lower }}">{{ entry.priority }}</span> <span>{{ entry.timestamp }} {{ entry.host }} {{ entry.process }}: {{ entry.message }}</span></span>
+{% endfor %}{% else %}{{ logs.output or 'No logs available.' }}{% endif %}</code></pre>

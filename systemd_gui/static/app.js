@@ -741,6 +741,7 @@
   if (logPanel) {
     const logControls = document.querySelector("[data-log-controls]");
     const linesSelect = logControls?.querySelector("[data-log-lines]");
+    const perNodeSelect = logControls?.querySelector("[data-log-per-node]");
     const prioritySelect = logControls?.querySelector("[data-log-priority]");
     const wrapCheckbox = logControls?.querySelector("[data-log-wrap]");
     const intervalSelect = logControls?.querySelector("[data-log-interval]");
@@ -755,7 +756,13 @@
     let searchTimer = null;
 
     const selectedLines = () => linesSelect?.value || "200";
+    const selectedPerNode = () => perNodeSelect?.value || selectedLines();
     const selectedPriority = () => prioritySelect?.value || "all";
+    const selectedNodes = () => {
+      const values = [];
+      logControls?.querySelectorAll("input[name='node']:checked").forEach((input) => values.push(input.value));
+      return values.length ? values : ["local"];
+    };
     const selectedSearch = () => searchInput?.value.trim() || "";
     const wrapEnabled = () => !wrapCheckbox || Boolean(wrapCheckbox.checked);
     const selectedInterval = () => {
@@ -767,6 +774,9 @@
       const url = new URL(window.location.href);
       if (url.pathname.indexOf("/logs") === -1) url.searchParams.set("tab", "logs");
       url.searchParams.set("lines", selectedLines());
+      url.searchParams.set("per_node", selectedPerNode());
+      url.searchParams.delete("node");
+      selectedNodes().forEach((node) => url.searchParams.append("node", node));
       if (selectedPriority() && selectedPriority() !== "all") url.searchParams.set("priority", selectedPriority());
       else url.searchParams.delete("priority");
       if (refreshEnabled()) {
@@ -784,6 +794,9 @@
       if (logWindowLink) {
         const windowUrl = new URL(logWindowLink.href, window.location.href);
         windowUrl.searchParams.set("lines", selectedLines());
+        windowUrl.searchParams.set("per_node", selectedPerNode());
+        windowUrl.searchParams.delete("node");
+        selectedNodes().forEach((node) => windowUrl.searchParams.append("node", node));
         if (selectedPriority() && selectedPriority() !== "all") windowUrl.searchParams.set("priority", selectedPriority());
         else windowUrl.searchParams.delete("priority");
         if (refreshEnabled()) {
@@ -824,6 +837,30 @@
       const match = line.match(/\[(EMERGENCY|ALERT|CRITICAL|ERROR|WARNING|NOTICE|INFO|DEBUG|UNKNOWN)\]/);
       return match ? `log-level-${match[1].toLowerCase()}` : "";
     };
+    const renderLogLine = (lineNode, line, query) => {
+      const nodeMatch = line.match(/^\[([^\]]+)\]\s+(.*)$/);
+      const content = nodeMatch ? nodeMatch[2] : line;
+      if (nodeMatch) {
+        const chip = document.createElement("span");
+        chip.className = "log-node-chip";
+        chip.title = "Log source node";
+        chip.textContent = nodeMatch[1];
+        lineNode.append(chip, document.createTextNode(" "));
+      }
+      const levelMatch = content.match(/\[(EMERGENCY|ALERT|CRITICAL|ERROR|WARNING|NOTICE|INFO|DEBUG|UNKNOWN)\]/);
+      if (!levelMatch) {
+        appendHighlightedText(lineNode, content, query);
+        return;
+      }
+      const before = content.slice(0, levelMatch.index);
+      const after = content.slice(levelMatch.index + levelMatch[0].length);
+      appendHighlightedText(lineNode, before, query);
+      const level = document.createElement("span");
+      level.className = `log-level log-level-${levelMatch[1].toLowerCase()}`;
+      level.textContent = levelMatch[1];
+      lineNode.append(level);
+      appendHighlightedText(lineNode, after, query);
+    };
     const applyLogWrap = () => {
       document.querySelector("[data-log-output]")?.classList.toggle("no-wrap", !wrapEnabled());
     };
@@ -845,7 +882,7 @@
           if (index > 0) fragment.appendChild(document.createTextNode("\n"));
           const lineNode = document.createElement("span");
           lineNode.className = ["log-line", logLevelClass(line)].filter(Boolean).join(" ");
-          appendHighlightedText(lineNode, line, query);
+          renderLogLine(lineNode, line, query);
           fragment.appendChild(lineNode);
         });
       }
@@ -886,6 +923,8 @@
       try {
         const params = new URLSearchParams();
         params.set("lines", selectedLines());
+        params.set("per_node", selectedPerNode());
+        selectedNodes().forEach((node) => params.append("node", node));
         if (selectedPriority() && selectedPriority() !== "all") params.set("priority", selectedPriority());
         if (!wrapEnabled()) params.set("wrap", "0");
         const target = `${logPanel.dataset.logUrl}?${params.toString()}`;
@@ -895,7 +934,7 @@
         const nextLog = doc.querySelector("[data-log-output]");
         if (!nextLog || !currentLog) return;
         const nextCode = nextLog.querySelector("code");
-        renderLogText(nextCode?.textContent || "");
+        renderLogText(nextLog.dataset.rawLog || nextCode?.textContent || "");
         if (followBottom && wasNearBottom) {
           currentLog.scrollTop = currentLog.scrollHeight;
         } else {
@@ -924,7 +963,11 @@
     };
 
     linesSelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
+    perNodeSelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
     prioritySelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
+    logControls?.querySelectorAll("input[name='node']").forEach((checkbox) => {
+      checkbox.addEventListener("change", () => applyLogControls({ refresh: true }));
+    });
     wrapCheckbox?.addEventListener("change", () => {
       applyLogWrap();
       syncLogUrl();

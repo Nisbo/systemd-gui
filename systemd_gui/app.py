@@ -21,6 +21,7 @@ from .api_access import (
     client_ip_allowed,
     create_api_token,
     delete_token,
+    fetch_remote_logs,
     read_api_access,
     update_api_settings,
     update_api_token,
@@ -75,6 +76,7 @@ from .quick_shell import (
     write_quick_shell,
 )
 from .systemd import (
+    CommandResult,
     analyze_drop_in_content,
     create_unit_backup,
     delete_drop_in_override,
@@ -91,7 +93,7 @@ from .systemd import (
     read_favorites,
     read_unit_backup,
     restore_unit_backup,
-    run_journalctl,
+    run_journalctl_entries,
     run_systemctl,
     service_info,
     systemctl_available,
@@ -155,7 +157,7 @@ def create_app() -> Flask:
 
     @app.before_request
     def require_login_and_csrf():
-        if request.endpoint in {"login", "login_post", "node_info", "api_ping", "static"}:
+        if request.endpoint in {"login", "login_post", "node_info", "api_ping", "api_logs", "static"}:
             return None
         if app.config["ADMIN_PASSWORD"] and not session.get("logged_in"):
             return redirect(url_for("login"))
@@ -237,6 +239,33 @@ def create_app() -> Flask:
             "node_id": settings.get("node_id", ""),
             "node_name": settings.get("node_name", APP_NAME),
             "scopes": list(API_SCOPES),
+        })
+
+    @app.get("/api/v1/logs")
+    def api_logs():
+        access = _require_remote_api_access(app, "logs:read")
+        if access:
+            return access
+        unit = request.args.get("unit", "").strip()
+        if unit and not valid_service_name(unit):
+            return jsonify({"error": "Only .service units are supported."}), 400
+        lines = _log_line_count(request.args.get("lines", "200"))
+        priority = _log_priority(request.args.get("priority", "all"))
+        logs = run_journalctl_entries(unit, lines, priority)
+        data = read_nodes(_nodes_path(app))
+        settings = data.get("settings") or {}
+        node = {
+            "id": settings.get("node_id", ""),
+            "name": settings.get("node_name", APP_NAME),
+            "version": APP_VERSION,
+            "remote": False,
+        }
+        return jsonify({
+            "app": "systemd-gui",
+            "node": node,
+            "ok": logs.ok,
+            "entries": [_decorate_log_entry(entry, node) for entry in logs.entries],
+            "output": logs.output,
         })
 
     @app.post("/logout")
@@ -508,20 +537,26 @@ def create_app() -> Flask:
     @app.get("/logs")
     def logs():
         log_lines = _log_line_count(request.args.get("lines", "200"))
+        log_per_node = _log_line_count(request.args.get("per_node", str(log_lines)))
         log_priority = _log_priority(request.args.get("priority", "all"))
         log_wrap = _log_wrap(request.args.get("wrap", "1"))
         log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
         log_refresh = _log_refresh_enabled(request.args.get("refresh"), request.args.get("interval"))
-        journal_logs = run_journalctl("", log_lines, log_priority)
+        selected_nodes = _selected_log_nodes()
+        journal_logs, log_entries, log_node_options = _combined_journal_logs(app, "", log_lines, log_per_node, log_priority, selected_nodes)
         return render_template(
             "logs.html",
             log_lines=log_lines,
+            log_per_node=log_per_node,
             log_priority=log_priority,
             log_priority_options=LOG_PRIORITY_OPTIONS,
             log_refresh=log_refresh,
             log_refresh_interval=log_refresh_interval,
             log_wrap=log_wrap,
             logs=journal_logs,
+            log_entries=log_entries,
+            log_node_options=log_node_options,
+            selected_log_nodes=selected_nodes,
             log_source_label="All journal logs",
             log_command_label=_journalctl_label("", log_priority),
         )
@@ -529,23 +564,27 @@ def create_app() -> Flask:
     @app.get("/logs/fragment")
     def logs_fragment():
         log_lines = _log_line_count(request.args.get("lines", "200"))
+        log_per_node = _log_line_count(request.args.get("per_node", str(log_lines)))
         log_priority = _log_priority(request.args.get("priority", "all"))
         log_wrap = _log_wrap(request.args.get("wrap", "1"))
-        journal_logs = run_journalctl("", log_lines, log_priority)
-        return render_template("_service_logs.html", logs=journal_logs, log_wrap=log_wrap)
+        journal_logs, log_entries, _node_options = _combined_journal_logs(app, "", log_lines, log_per_node, log_priority, _selected_log_nodes())
+        return render_template("_service_logs.html", logs=journal_logs, log_entries=log_entries, log_wrap=log_wrap)
 
     @app.get("/logs/window")
     def logs_window():
         log_lines = _log_line_count(request.args.get("lines", "200"))
+        log_per_node = _log_line_count(request.args.get("per_node", str(log_lines)))
         log_priority = _log_priority(request.args.get("priority", "all"))
         log_wrap = _log_wrap(request.args.get("wrap", "1"))
         log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
         log_refresh = _log_refresh_enabled(request.args.get("refresh"), request.args.get("interval"))
-        journal_logs = run_journalctl("", log_lines, log_priority)
+        selected_nodes = _selected_log_nodes()
+        journal_logs, log_entries, log_node_options = _combined_journal_logs(app, "", log_lines, log_per_node, log_priority, selected_nodes)
         return render_template(
             "service_logs_window.html",
             info={"name": "All journal logs"},
             log_lines=log_lines,
+            log_per_node=log_per_node,
             log_priority=log_priority,
             log_priority_options=LOG_PRIORITY_OPTIONS,
             log_command_label=_journalctl_label("", log_priority),
@@ -553,6 +592,9 @@ def create_app() -> Flask:
             log_refresh_interval=log_refresh_interval,
             log_wrap=log_wrap,
             logs=journal_logs,
+            log_entries=log_entries,
+            log_node_options=log_node_options,
+            selected_log_nodes=selected_nodes,
             log_fragment_url=url_for("logs_fragment"),
             log_window_action=url_for("logs_window"),
             log_source_label="All journal logs",
@@ -1019,10 +1061,12 @@ def create_app() -> Flask:
         if active_tab not in {"unit", "override", "logs", "backups", "info"}:
             active_tab = "unit"
         log_lines = _log_line_count(request.args.get("lines", "200"))
+        log_per_node = _log_line_count(request.args.get("per_node", str(log_lines)))
         log_priority = _log_priority(request.args.get("priority", "all"))
         log_wrap = _log_wrap(request.args.get("wrap", "1"))
         log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
         log_refresh = _log_refresh_enabled(request.args.get("refresh"), request.args.get("interval"))
+        selected_nodes = _selected_log_nodes()
         info = service_info(name)
         content = unit_content(name)
         original_content = unit_fragment_content(str(info.get("fragment_path") or ""))
@@ -1031,7 +1075,7 @@ def create_app() -> Flask:
             *list(info.get("local_drop_in_paths") or []),
         ]))
         flattened_unit = flattened_unit_preview(original_content, drop_in_paths) if original_content else {"lines": [], "text": ""}
-        logs = run_journalctl(name, log_lines, log_priority)
+        logs, log_entries, log_node_options = _combined_journal_logs(app, name, log_lines, log_per_node, log_priority, selected_nodes)
         editable = _editable(name)
         backups = list_unit_backups(name, _backup_dir(app))
         override_path, override_content, override_exists = read_drop_in_override(name)
@@ -1045,12 +1089,16 @@ def create_app() -> Flask:
             "service_detail.html",
             active_tab=active_tab,
             log_lines=log_lines,
+            log_per_node=log_per_node,
             log_priority=log_priority,
             log_priority_options=LOG_PRIORITY_OPTIONS,
             log_command_label=_journalctl_label(name, log_priority),
             log_refresh=log_refresh,
             log_refresh_interval=log_refresh_interval,
             log_wrap=log_wrap,
+            log_entries=log_entries,
+            log_node_options=log_node_options,
+            selected_log_nodes=selected_nodes,
             info=info,
             content=content,
             original_content=original_content,
@@ -1089,32 +1137,39 @@ def create_app() -> Flask:
         if not valid_service_name(name):
             return "Only .service units are supported.", 400
         log_lines = _log_line_count(request.args.get("lines", "200"))
+        log_per_node = _log_line_count(request.args.get("per_node", str(log_lines)))
         log_priority = _log_priority(request.args.get("priority", "all"))
         log_wrap = _log_wrap(request.args.get("wrap", "1"))
-        logs = run_journalctl(name, log_lines, log_priority)
-        return render_template("_service_logs.html", logs=logs, log_wrap=log_wrap)
+        logs, log_entries, _node_options = _combined_journal_logs(app, name, log_lines, log_per_node, log_priority, _selected_log_nodes())
+        return render_template("_service_logs.html", logs=logs, log_entries=log_entries, log_wrap=log_wrap)
 
     @app.get("/service/<name>/logs")
     def service_logs_window(name: str):
         if not _valid_or_flash(name):
             return redirect(url_for("index"))
         log_lines = _log_line_count(request.args.get("lines", "200"))
+        log_per_node = _log_line_count(request.args.get("per_node", str(log_lines)))
         log_priority = _log_priority(request.args.get("priority", "all"))
         log_wrap = _log_wrap(request.args.get("wrap", "1"))
         log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
         log_refresh = _log_refresh_enabled(request.args.get("refresh"), request.args.get("interval"))
+        selected_nodes = _selected_log_nodes()
         info = service_info(name)
-        logs = run_journalctl(name, log_lines, log_priority)
+        logs, log_entries, log_node_options = _combined_journal_logs(app, name, log_lines, log_per_node, log_priority, selected_nodes)
         return render_template(
             "service_logs_window.html",
             info=info,
             log_lines=log_lines,
+            log_per_node=log_per_node,
             log_priority=log_priority,
             log_priority_options=LOG_PRIORITY_OPTIONS,
             log_refresh=log_refresh,
             log_refresh_interval=log_refresh_interval,
             log_wrap=log_wrap,
             logs=logs,
+            log_entries=log_entries,
+            log_node_options=log_node_options,
+            selected_log_nodes=selected_nodes,
             log_fragment_url=url_for("service_logs_fragment", name=name),
             log_window_action=url_for("service_logs_window", name=name),
             log_source_label=f"{name} logs",
@@ -1799,6 +1854,122 @@ def _log_priority(value: str) -> str:
 
 def _log_wrap(value: str) -> bool:
     return value != "0"
+
+
+def _selected_log_nodes() -> list[str]:
+    selected = [value for value in request.args.getlist("node") if value]
+    return selected or ["local"]
+
+
+def _log_node_options(app: Flask, selected: list[str]) -> list[dict[str, object]]:
+    data = read_nodes(_nodes_path(app))
+    options = [{"id": "local", "name": "Local", "label": "This node", "selected": "local" in selected, "api_ok": True, "local": True}]
+    for node in data.get("nodes") if isinstance(data.get("nodes"), list) else []:
+        if not isinstance(node, dict):
+            continue
+        token_saved = bool(str(node.get("api_token") or "").strip())
+        options.append({
+            "id": str(node.get("id") or ""),
+            "name": str(node.get("name") or "Remote node"),
+            "label": str(node.get("name") or "Remote node"),
+            "url": str(node.get("url") or ""),
+            "version": str(node.get("version") or ""),
+            "selected": str(node.get("id") or "") in selected,
+            "api_ok": token_saved,
+            "disabled": not token_saved,
+            "local": False,
+        })
+    return options
+
+
+def _combined_journal_logs(
+    app: Flask,
+    service: str,
+    display_lines: int,
+    per_node_lines: int,
+    priority: str,
+    selected_nodes: list[str],
+) -> tuple[CommandResult, list[dict[str, object]], list[dict[str, object]]]:
+    options = _log_node_options(app, selected_nodes)
+    selected_set = set(selected_nodes)
+    entries: list[dict[str, object]] = []
+    ok = True
+
+    if "local" in selected_set:
+        data = read_nodes(_nodes_path(app))
+        settings = data.get("settings") or {}
+        local_node = {
+            "id": settings.get("node_id", "local") or "local",
+            "name": settings.get("node_name", APP_NAME) or APP_NAME,
+            "version": APP_VERSION,
+            "remote": False,
+        }
+        local_logs = run_journalctl_entries(service, per_node_lines, priority)
+        ok = ok and local_logs.ok
+        entries.extend(_decorate_log_entry(entry, local_node) for entry in local_logs.entries)
+        if not local_logs.ok and not local_logs.entries:
+            entries.append(_log_error_entry(local_node, local_logs.output or "Local journalctl failed."))
+
+    data = read_nodes(_nodes_path(app))
+    for node in data.get("nodes") if isinstance(data.get("nodes"), list) else []:
+        if not isinstance(node, dict) or str(node.get("id") or "") not in selected_set:
+            continue
+        result = fetch_remote_logs(node, service, per_node_lines, priority)
+        ok = ok and result.ok
+        if result.entries:
+            entries.extend(_decorate_log_entry(entry, result.node) for entry in result.entries)
+        if not result.ok:
+            entries.append(_log_error_entry(result.node, result.message))
+
+    newest = sorted(entries, key=lambda entry: int(entry.get("timestamp_sort") or 0), reverse=True)[:display_lines]
+    visible_entries = sorted(newest, key=lambda entry: int(entry.get("timestamp_sort") or 0))
+    output = "\n".join(str(entry.get("text") or entry.get("formatted") or entry.get("message") or "") for entry in visible_entries)
+    return CommandResult(ok, output, 0 if ok else 1), visible_entries, options
+
+
+def _decorate_log_entry(entry: dict[str, object], node: dict[str, object]) -> dict[str, object]:
+    node_name = str(node.get("name") or "Node")
+    priority = str(entry.get("priority") or "UNKNOWN").upper()
+    formatted = str(entry.get("formatted") or entry.get("message") or "")
+    return {
+        **entry,
+        "node": {
+            "id": str(node.get("id") or ""),
+            "name": node_name,
+            "version": str(node.get("version") or ""),
+            "remote": bool(node.get("remote")),
+        },
+        "node_label": node_name,
+        "level_class": _log_level_class(priority),
+        "text": f"[{node_name}] {formatted}",
+    }
+
+
+def _log_error_entry(node: dict[str, object], message: str) -> dict[str, object]:
+    node_name = str(node.get("name") or "Node")
+    return {
+        "timestamp": "-",
+        "timestamp_sort": 0,
+        "host": "-",
+        "process": "systemd-gui",
+        "unit": "",
+        "priority": "ERROR",
+        "message": message,
+        "formatted": f"- - systemd-gui: [ERROR] {message}",
+        "node": {"id": str(node.get("id") or ""), "name": node_name, "remote": bool(node.get("remote"))},
+        "node_label": node_name,
+        "level_class": "error",
+        "text": f"[{node_name}] - - systemd-gui: [ERROR] {message}",
+    }
+
+
+def _log_level_class(priority: str) -> str:
+    value = priority.lower()
+    if value == "critical":
+        return "critical"
+    if value == "error":
+        return "error"
+    return value
 
 
 def _journalctl_label(service: str = "", priority: str = "all") -> str:

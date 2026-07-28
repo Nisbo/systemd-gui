@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urlencode, urljoin, urlparse
 from urllib.request import Request, urlopen
 
 API_SCOPES = {
@@ -27,6 +27,15 @@ class ApiTokenCheckResult:
     message: str
     status: str = "unknown"
     details: dict[str, object] | None = None
+
+
+@dataclass(frozen=True)
+class RemoteLogsResult:
+    ok: bool
+    message: str
+    node: dict[str, object]
+    entries: list[dict[str, object]]
+    status: str = "unknown"
 
 
 def default_api_access_data() -> dict[str, object]:
@@ -212,6 +221,55 @@ def check_remote_api_access(node: dict[str, object], timeout: float = 4.0) -> Ap
     if not isinstance(payload, dict) or payload.get("app") != "systemd-gui":
         return ApiTokenCheckResult(False, "Remote answer was not a Systemd Gui API response.", "error")
     return ApiTokenCheckResult(True, "Remote API token works.", "ok", payload)
+
+
+def fetch_remote_logs(
+    node: dict[str, object],
+    service: str = "",
+    lines: int = 200,
+    priority: str = "all",
+    timeout: float = 5.0,
+) -> RemoteLogsResult:
+    url = str(node.get("url") or "").strip()
+    token = str(node.get("api_token") or "").strip()
+    node_info = {
+        "id": str(node.get("node_id") or node.get("id") or ""),
+        "name": str(node.get("name") or "Remote node"),
+        "url": url,
+        "version": str(node.get("version") or ""),
+        "remote": True,
+    }
+    if not url:
+        return RemoteLogsResult(False, "No GUI URL is configured for this node.", node_info, [], "missing")
+    if not token:
+        return RemoteLogsResult(False, "No Remote API token is saved for this node.", node_info, [], "missing")
+    query = urlencode({"lines": int(lines), "priority": priority or "all", "unit": service})
+    try:
+        request = Request(
+            urljoin(f"{url.rstrip('/')}/", f"api/v1/logs?{query}"),
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        with urlopen(request, timeout=timeout) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        if exc.code == 401:
+            return RemoteLogsResult(False, "Token was rejected by the remote node.", node_info, [], "denied")
+        if exc.code == 403:
+            return RemoteLogsResult(False, "Remote node denied this IP address or log access.", node_info, [], "denied")
+        return RemoteLogsResult(False, f"Remote node returned HTTP {exc.code}.", node_info, [], "error")
+    except (OSError, URLError, ValueError, json.JSONDecodeError) as exc:
+        return RemoteLogsResult(False, f"Remote log fetch failed: {exc}", node_info, [], "error")
+    if not isinstance(payload, dict) or payload.get("app") != "systemd-gui":
+        return RemoteLogsResult(False, "Remote answer was not a Systemd Gui API response.", node_info, [], "error")
+    remote_node = payload.get("node") if isinstance(payload.get("node"), dict) else {}
+    entries = payload.get("entries") if isinstance(payload.get("entries"), list) else []
+    return RemoteLogsResult(
+        True,
+        "Remote logs loaded.",
+        {**node_info, **remote_node, "remote": True, "url": url},
+        [entry for entry in entries if isinstance(entry, dict)],
+        "ok",
+    )
 
 
 def api_scopes_from_form(form) -> list[str]:
