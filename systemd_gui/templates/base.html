@@ -43,21 +43,21 @@
           <h1>Systemd Gui</h1>
         </div>
         <div class="top-actions">
-          <a class="ghost-button" href="{{ url_for('index') }}">Home</a>
-          <a class="ghost-button" href="{{ url_for('logs') }}">Logs</a>
-          <a class="ghost-button" href="{{ url_for('quick_shell') }}">Quick Shell</a>
-          <a class="ghost-button" href="{{ url_for('nodes') }}">Nodes</a>
-          <div class="theme-switch" aria-label="Theme">
-            <button class="ghost-button theme-option" type="button" data-theme-choice="light" title="Use light theme" aria-label="Use light theme">
-              <span aria-hidden="true">☀</span>
-              Light
-            </button>
-            <button class="ghost-button theme-option" type="button" data-theme-choice="dark" title="Use dark theme" aria-label="Use dark theme">
-              <span aria-hidden="true">◐</span>
-              Dark
-            </button>
-          </div>
-          <a class="ghost-button" href="{{ url_for('settings') }}">Settings</a>
+          {% set endpoint = request.endpoint or '' %}
+          {% set home_active = endpoint in ['index', 'service_detail', 'edit_service', 'view_service_backup'] %}
+          {% set logs_active = endpoint in ['logs', 'logs_window'] %}
+          {% set quick_shell_active = 'quick_shell' in endpoint %}
+          {% set nodes_active = endpoint == 'nodes' %}
+          {% set settings_active = endpoint == 'settings' %}
+          <a class="ghost-button nav-button {% if home_active %}active{% endif %}" href="{{ url_for('index') }}" {% if home_active %}aria-current="page"{% endif %}>Home</a>
+          <a class="ghost-button nav-button {% if logs_active %}active{% endif %}" href="{{ url_for('logs') }}" {% if logs_active %}aria-current="page"{% endif %}>Logs</a>
+          <a class="ghost-button nav-button {% if quick_shell_active %}active{% endif %}" href="{{ url_for('quick_shell') }}" {% if quick_shell_active %}aria-current="page"{% endif %}>Quick Shell</a>
+          <a class="ghost-button nav-button {% if nodes_active %}active{% endif %}" href="{{ url_for('nodes') }}" {% if nodes_active %}aria-current="page"{% endif %}>Nodes</a>
+          <button class="ghost-button theme-toggle" type="button" data-theme-toggle title="Toggle dark and light theme" aria-label="Switch to dark theme">
+            <span data-theme-toggle-icon aria-hidden="true">◐</span>
+            <span data-theme-toggle-text>Dark</span>
+          </button>
+          <a class="ghost-button nav-button {% if settings_active %}active{% endif %}" href="{{ url_for('settings') }}" {% if settings_active %}aria-current="page"{% endif %}>Settings</a>
           {% if session.get("logged_in") %}
             <form method="post" action="{{ url_for('logout') }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

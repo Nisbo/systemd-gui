@@ -3,15 +3,18 @@
   const root = document.documentElement;
   if (localStorage.getItem(key) === "dark") root.dataset.theme = "dark";
   const updateTheme = () => {
-    const active = root.dataset.theme === "dark" ? "dark" : "light";
-    document.querySelectorAll(".theme-option").forEach((button) => button.classList.toggle("active", button.dataset.themeChoice === active));
+    const isDark = root.dataset.theme === "dark";
+    const toggle = document.querySelector("[data-theme-toggle]");
+    const icon = document.querySelector("[data-theme-toggle-icon]");
+    const text = document.querySelector("[data-theme-toggle-text]");
+    if (toggle) toggle.setAttribute("aria-label", isDark ? "Switch to light theme" : "Switch to dark theme");
+    if (icon) icon.textContent = isDark ? "☀" : "◐";
+    if (text) text.textContent = isDark ? "Light" : "Dark";
   };
-  document.querySelectorAll(".theme-option").forEach((button) => {
-    button.addEventListener("click", () => {
-      if (button.dataset.themeChoice === "dark") { root.dataset.theme = "dark"; localStorage.setItem(key, "dark"); }
-      else { delete root.dataset.theme; localStorage.setItem(key, "light"); }
-      updateTheme();
-    });
+  document.querySelector("[data-theme-toggle]")?.addEventListener("click", () => {
+    if (root.dataset.theme === "dark") { delete root.dataset.theme; localStorage.setItem(key, "light"); }
+    else { root.dataset.theme = "dark"; localStorage.setItem(key, "dark"); }
+    updateTheme();
   });
   updateTheme();
 
