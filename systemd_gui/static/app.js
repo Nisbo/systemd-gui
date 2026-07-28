@@ -754,6 +754,8 @@
     const searchInput = logControls?.querySelector("[data-log-search]");
     const refreshNow = logControls?.querySelector("[data-log-refresh-now]");
     const logWindowLink = logControls?.querySelector("[data-log-window]");
+    const panelMaximizeButtons = logPanel.querySelectorAll("[data-log-maximize-panel]");
+    const outputMaximizeButtons = logPanel.querySelectorAll("[data-log-maximize-output]");
     const searchStatus = document.querySelector("[data-log-search-status]");
     const refreshPaused = document.querySelector("[data-log-refresh-paused]");
     const lineCountLabel = document.querySelector("[data-log-line-count]");
@@ -764,6 +766,30 @@
     const selectedLines = () => linesSelect?.value || "200";
     const selectedPerNode = () => perNodeSelect?.value || selectedLines();
     const selectedPriority = () => prioritySelect?.value || "all";
+    const syncMaximizeButtons = () => {
+      const panelMaximized = logPanel.classList.contains("log-panel-maximized");
+      const outputMaximized = logPanel.classList.contains("log-output-maximized");
+      document.body.classList.toggle("log-maximized-page", panelMaximized || outputMaximized);
+      panelMaximizeButtons.forEach((button) => {
+        button.setAttribute("aria-pressed", String(panelMaximized));
+        button.title = panelMaximized ? "Restore log panel" : "Maximize log panel";
+        button.setAttribute("aria-label", button.title);
+      });
+      outputMaximizeButtons.forEach((button) => {
+        button.setAttribute("aria-pressed", String(outputMaximized));
+        button.title = outputMaximized ? "Restore log messages" : "Maximize log messages";
+        button.setAttribute("aria-label", button.title);
+      });
+    };
+    const togglePanelMaximized = () => {
+      logPanel.classList.remove("log-output-maximized");
+      logPanel.classList.toggle("log-panel-maximized");
+      syncMaximizeButtons();
+    };
+    const toggleOutputMaximized = () => {
+      logPanel.classList.toggle("log-output-maximized");
+      syncMaximizeButtons();
+    };
     const selectedNodes = () => {
       const values = [];
       logControls?.querySelectorAll("input[name='node']:checked").forEach((input) => values.push(input.value));
@@ -1041,9 +1067,18 @@
       syncLogUrl();
       refreshLogs({ followBottom: false });
     });
+    panelMaximizeButtons.forEach((button) => button.addEventListener("click", togglePanelMaximized));
+    outputMaximizeButtons.forEach((button) => button.addEventListener("click", toggleOutputMaximized));
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      if (!logPanel.classList.contains("log-panel-maximized") && !logPanel.classList.contains("log-output-maximized")) return;
+      logPanel.classList.remove("log-panel-maximized", "log-output-maximized");
+      syncMaximizeButtons();
+    });
     applyLogSearch();
     updateLineCountLabel();
     updateRefreshPaused();
+    syncMaximizeButtons();
     startTimer();
   }
 })();

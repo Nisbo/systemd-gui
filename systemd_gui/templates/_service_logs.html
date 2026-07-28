@@ -1,6 +1,9 @@
-<pre class="config-preview log-preview {% if log_wrap is defined and not log_wrap %}no-wrap{% endif %}" data-log-output data-raw-log="{{ logs.output or '' }}"><code>{% if log_entries is defined and log_entries %}
+<div class="log-output-shell">
+  <button class="ghost-button icon-button log-output-overlay-button" type="button" data-log-maximize-output title="Restore log messages" aria-label="Restore log messages" aria-pressed="true"><svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M8 3H3v5"/><path d="M3 3l7 7"/><path d="M16 3h5v5"/><path d="m21 3-7 7"/><path d="M8 21H3v-5"/><path d="m3 21 7-7"/><path d="M16 21h5v-5"/><path d="m21 21-7-7"/></svg></button>
+  <pre class="config-preview log-preview {% if log_wrap is defined and not log_wrap %}no-wrap{% endif %}" data-log-output data-raw-log="{{ logs.output or '' }}"><code>{% if log_entries is defined and log_entries %}
 {% for entry in log_entries %}<span class="log-line" data-log-node="{{ entry.node_label }}" data-log-level="{{ entry.priority }}" data-node-color="{{ entry.node_color_class }}"><span class="log-node-chip {{ entry.node_color_class }}" title="{{ 'Remote node' if entry.node.remote else 'Local node' }}">{{ entry.node_label }}</span> <span class="log-level log-level-{{ entry.level_class|lower }}">{{ entry.priority }}</span> <span>{{ entry.timestamp }} {{ entry.host }} {{ entry.process }}: {{ entry.message }}</span></span>
 {% endfor %}{% else %}{{ logs.output or 'No logs available.' }}{% endif %}</code></pre>
+</div>
 {% if log_node_options is defined %}
   <div hidden data-log-node-meta-list>
     {% for node in log_node_options %}

@@ -332,6 +332,7 @@
           <h2>Logs</h2>
           <p>Showing up to <span data-log-line-count>{{ log_lines }}</span> loaded lines from <code>{{ log_command_label }}</code>.</p>
         </div>
+        <button class="ghost-button icon-button" type="button" data-log-maximize-panel title="Maximize log panel" aria-label="Maximize log panel" aria-pressed="false">{{ icon("maximize") }}</button>
       </div>
       <form class="log-controls" method="get" action="{{ url_for('service_detail', name=info.name) }}" data-log-controls>
         <input type="hidden" name="tab" value="logs">
@@ -388,6 +389,7 @@
         </div>
         <button class="ghost-button" type="button" data-log-refresh-now>Refresh now</button>
         <a class="ghost-button" href="{{ url_for('service_logs_window', name=info.name, lines=log_lines, per_node=log_per_node, priority=log_priority if log_priority != 'all' else None, refresh='1' if log_refresh else None, interval=log_refresh_interval if log_refresh else None, log_q=request.args.get('log_q') or None, wrap='0' if not log_wrap else None) }}" target="_blank" rel="noopener noreferrer" data-log-window>Open window</a>
+        <button class="ghost-button icon-button" type="button" data-log-maximize-output title="Maximize log messages" aria-label="Maximize log messages" aria-pressed="false">{{ icon("maximize") }}</button>
       </form>
       <div class="log-refresh-paused" data-log-refresh-paused hidden>Auto-refresh paused while text is selected.</div>
       <div class="log-search-status" data-log-search-status hidden></div>
