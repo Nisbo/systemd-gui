@@ -83,10 +83,16 @@
             Search loaded logs
             <input name="log_q" value="{{ request.args.get('log_q', '') }}" placeholder="Filter visible log lines" autocomplete="off" data-log-search>
           </label>
-          <label class="toggle-label">
-            <input name="wrap" type="checkbox" value="1" data-log-wrap {% if log_wrap %}checked{% endif %}>
-            Wrap lines
-          </label>
+          <div class="log-toggle-stack">
+            <label class="toggle-label">
+              <input name="wrap" type="checkbox" value="1" data-log-wrap {% if log_wrap %}checked{% endif %}>
+              Wrap lines
+            </label>
+            <label class="toggle-label">
+              <input name="small" type="checkbox" value="1" data-log-small>
+              Small lines
+            </label>
+          </div>
           <div class="log-node-select">
             <span class="log-node-select-title">Nodes</span>
             {% for node in log_node_options %}

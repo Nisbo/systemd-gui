@@ -750,10 +750,12 @@
     const perNodeSelect = logControls?.querySelector("[data-log-per-node]");
     const prioritySelect = logControls?.querySelector("[data-log-priority]");
     const wrapCheckbox = logControls?.querySelector("[data-log-wrap]");
+    const smallLinesCheckbox = logControls?.querySelector("[data-log-small]");
     const intervalSelect = logControls?.querySelector("[data-log-interval]");
     const searchInput = logControls?.querySelector("[data-log-search]");
     const refreshNow = logControls?.querySelector("[data-log-refresh-now]");
     const logWindowLink = logControls?.querySelector("[data-log-window]");
+    const saveSettingsButton = logPanel.querySelector("[data-log-save-settings]");
     const panelMaximizeButtons = logPanel.querySelectorAll("[data-log-maximize-panel]");
     const outputMaximizeButtons = logPanel.querySelectorAll("[data-log-maximize-output]");
     const searchStatus = document.querySelector("[data-log-search-status]");
@@ -766,6 +768,19 @@
     const selectedLines = () => linesSelect?.value || "200";
     const selectedPerNode = () => perNodeSelect?.value || selectedLines();
     const selectedPriority = () => prioritySelect?.value || "all";
+    const selectedSmallLines = () => Boolean(smallLinesCheckbox?.checked);
+    const logSettingsKey = "systemd-gui-log-settings";
+    const logUrlHasExplicitSettings = () => {
+      const params = new URLSearchParams(window.location.search);
+      return ["lines", "per_node", "priority", "refresh", "interval", "log_q", "wrap", "small", "node"].some((key) => params.has(key));
+    };
+    const readSavedLogSettings = () => {
+      try {
+        return JSON.parse(window.localStorage.getItem(logSettingsKey) || "null");
+      } catch {
+        return null;
+      }
+    };
     const syncMaximizeButtons = () => {
       const panelMaximized = logPanel.classList.contains("log-panel-maximized");
       const outputMaximized = logPanel.classList.contains("log-output-maximized");
@@ -846,6 +861,8 @@
       else url.searchParams.delete("log_q");
       if (wrapEnabled()) url.searchParams.delete("wrap");
       else url.searchParams.set("wrap", "0");
+      if (selectedSmallLines()) url.searchParams.set("small", "1");
+      else url.searchParams.delete("small");
       window.history.replaceState({}, "", url);
       if (logWindowLink) {
         const windowUrl = new URL(logWindowLink.href, window.location.href);
@@ -866,6 +883,8 @@
         else windowUrl.searchParams.delete("log_q");
         if (wrapEnabled()) windowUrl.searchParams.delete("wrap");
         else windowUrl.searchParams.set("wrap", "0");
+        if (selectedSmallLines()) windowUrl.searchParams.set("small", "1");
+        else windowUrl.searchParams.delete("small");
         logWindowLink.href = windowUrl.toString();
       }
     };
@@ -947,11 +966,15 @@
     const applyLogWrap = () => {
       document.querySelector("[data-log-output]")?.classList.toggle("no-wrap", !wrapEnabled());
     };
+    const applyLogDensity = () => {
+      document.querySelector("[data-log-output]")?.classList.toggle("small-lines", selectedSmallLines());
+    };
     const renderLogText = (rawText) => {
       const output = document.querySelector("[data-log-output]");
       const code = output?.querySelector("code");
       if (!output || !code) return;
       applyLogWrap();
+      applyLogDensity();
       const query = selectedSearch();
       output.dataset.rawLog = rawText;
       code.textContent = "";
@@ -1046,7 +1069,49 @@
       startTimer();
       if (refresh) refreshLogs({ followBottom: false });
     };
+    const applySavedLogSettings = () => {
+      if (logUrlHasExplicitSettings()) {
+        if (smallLinesCheckbox) smallLinesCheckbox.checked = new URLSearchParams(window.location.search).get("small") === "1";
+        return false;
+      }
+      const settings = readSavedLogSettings();
+      if (!settings || typeof settings !== "object") return false;
+      if (linesSelect && settings.lines) linesSelect.value = settings.lines;
+      if (perNodeSelect && settings.perNode) perNodeSelect.value = settings.perNode;
+      if (prioritySelect && settings.priority) prioritySelect.value = settings.priority;
+      if (intervalSelect) intervalSelect.value = settings.refresh ? String(settings.interval || "5") : "off";
+      if (searchInput && typeof settings.search === "string") searchInput.value = settings.search;
+      if (wrapCheckbox) wrapCheckbox.checked = settings.wrap !== false;
+      if (smallLinesCheckbox) smallLinesCheckbox.checked = Boolean(settings.small);
+      if (Array.isArray(settings.nodes)) {
+        logControls?.querySelectorAll("input[name='node']").forEach((checkbox) => {
+          if (!checkbox.disabled) checkbox.checked = settings.nodes.includes(checkbox.value);
+        });
+      }
+      return true;
+    };
+    const saveLogSettings = () => {
+      const settings = {
+        lines: selectedLines(),
+        perNode: selectedPerNode(),
+        priority: selectedPriority(),
+        refresh: refreshEnabled(),
+        interval: selectedInterval(),
+        search: selectedSearch(),
+        wrap: wrapEnabled(),
+        small: selectedSmallLines(),
+        nodes: selectedNodes(),
+      };
+      try {
+        window.localStorage.setItem(logSettingsKey, JSON.stringify(settings));
+      } catch {
+        return;
+      }
+      saveSettingsButton?.classList.add("saved");
+      window.setTimeout(() => saveSettingsButton?.classList.remove("saved"), 900);
+    };
 
+    const restoredLogSettings = applySavedLogSettings();
     captureNodeColors(document);
     renderLogText(document.querySelector("[data-log-output]")?.dataset.rawLog || document.querySelector("[data-log-output] code")?.textContent || "");
     linesSelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
@@ -1059,6 +1124,10 @@
       applyLogWrap();
       syncLogUrl();
     });
+    smallLinesCheckbox?.addEventListener("change", () => {
+      applyLogDensity();
+      syncLogUrl();
+    });
     intervalSelect?.addEventListener("change", () => applyLogControls({ refresh: refreshEnabled() }));
     searchInput?.addEventListener("input", () => {
       window.clearTimeout(searchTimer);
@@ -1069,6 +1138,7 @@
       syncLogUrl();
       refreshLogs({ followBottom: false });
     });
+    saveSettingsButton?.addEventListener("click", saveLogSettings);
     panelMaximizeButtons.forEach((button) => button.addEventListener("click", togglePanelMaximized));
     outputMaximizeButtons.forEach((button) => button.addEventListener("click", toggleOutputMaximized));
     document.addEventListener("keydown", (event) => {
@@ -1082,5 +1152,6 @@
     updateRefreshPaused();
     syncMaximizeButtons();
     startTimer();
+    if (restoredLogSettings) refreshLogs({ followBottom: false });
   }
 })();

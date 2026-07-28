@@ -6,7 +6,10 @@
         <h2>Logs</h2>
         <p>Showing up to <span data-log-line-count>{{ log_lines }}</span> loaded lines from <code>{{ log_command_label }}</code>.</p>
       </div>
-      <button class="ghost-button icon-button maximize-toggle" type="button" data-log-maximize-panel title="Maximize log panel" aria-label="Maximize log panel" aria-pressed="false"><span class="maximize-icon-expand">{{ icon("maximize") }}</span><span class="maximize-icon-restore">{{ icon("restore") }}</span></button>
+      <div class="panel-actions">
+        <button class="ghost-button icon-button" type="button" data-log-save-settings title="Save current log settings in this browser" aria-label="Save current log settings in this browser">{{ icon("save") }}</button>
+        <button class="ghost-button icon-button maximize-toggle" type="button" data-log-maximize-panel title="Maximize log panel" aria-label="Maximize log panel" aria-pressed="false"><span class="maximize-icon-expand">{{ icon("maximize") }}</span><span class="maximize-icon-restore">{{ icon("restore") }}</span></button>
+      </div>
     </div>
     <form class="log-controls" method="get" action="{{ url_for('logs') }}" data-log-controls>
       <label>
@@ -46,10 +49,16 @@
         Search loaded logs
         <input name="log_q" value="{{ request.args.get('log_q', '') }}" placeholder="Filter visible log lines" autocomplete="off" data-log-search>
       </label>
-      <label class="toggle-label">
-        <input name="wrap" type="checkbox" value="1" data-log-wrap {% if log_wrap %}checked{% endif %}>
-        Wrap lines
-      </label>
+      <div class="log-toggle-stack">
+        <label class="toggle-label">
+          <input name="wrap" type="checkbox" value="1" data-log-wrap {% if log_wrap %}checked{% endif %}>
+          Wrap lines
+        </label>
+        <label class="toggle-label">
+          <input name="small" type="checkbox" value="1" data-log-small>
+          Small lines
+        </label>
+      </div>
       <div class="log-node-select">
         <span class="log-node-select-title">Nodes</span>
         {% for node in log_node_options %}

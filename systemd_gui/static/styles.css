@@ -74,6 +74,7 @@ button:disabled { opacity:.48; cursor:not-allowed; }
 .icon-button { width:42px; min-width:42px; padding:0; }
 .theme-toggle { width:42px; min-width:42px; padding:0; }
 .theme-toggle .button-icon,.icon-button .button-icon { width:19px; height:19px; }
+.icon-button.saved { background:var(--accent); border-color:var(--accent); color:#fff; transition:background-color .24s ease, border-color .24s ease, color .24s ease; }
 .maximize-toggle .maximize-icon-restore { display:none; }
 .maximize-toggle.is-active .maximize-icon-expand { display:none; }
 .maximize-toggle.is-active .maximize-icon-restore { display:inline-flex; }
@@ -263,6 +264,8 @@ th.actions-heading { text-align:right; }
 .log-node-count { display:inline-flex; align-items:center; border-radius:999px; background:color-mix(in srgb, currentColor 14%, transparent); font-size:.74rem; line-height:1; padding:3px 6px; }
 .log-node-choice.log-node-error .log-node-count { background:color-mix(in srgb, var(--danger) 14%, transparent); color:var(--danger); }
 .log-controls.refresh-paused .toggle-label { color:var(--danger); }
+.log-toggle-stack { display:grid; gap:3px; align-self:end; min-height:44px; align-content:center; }
+.log-toggle-stack .toggle-label { min-height:20px; line-height:1.1; }
 .log-refresh-paused { color:var(--danger); font-size:.82rem; font-weight:900; letter-spacing:0; text-transform:uppercase; margin:0 0 10px; }
 .log-refresh-paused[hidden] { display:none; }
 .log-search-status { color:var(--muted); font-size:.86rem; font-weight:750; margin:0 0 12px; }
@@ -278,6 +281,8 @@ th.actions-heading { text-align:right; }
 .log-output-maximized .log-output-shell { position:fixed; inset:12px; z-index:26; border-radius:8px; background:var(--panel); box-shadow:var(--shadow); padding:0; }
 .log-output-maximized .log-preview { flex:1 1 auto; max-height:none; min-height:0; overflow:auto; padding-right:58px; }
 .log-output-maximized .log-output-overlay-button { display:inline-flex; }
+.log-preview { line-height:1.42; }
+.log-preview.small-lines { line-height:.92; }
 .log-preview.no-wrap { white-space:pre; }
 .log-preview code { display:block; }
 .log-line { display:block; }
