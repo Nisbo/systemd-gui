@@ -24,6 +24,24 @@ port_80_listeners() {
   fi
 }
 
+primary_ipv4_address() {
+  local ip_addr=""
+
+  if command -v ip >/dev/null 2>&1; then
+    ip_addr="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for (i=1; i<=NF; i++) if ($i == "src") {print $(i+1); exit}}')"
+  fi
+
+  if [[ -z "${ip_addr}" ]] && command -v hostname >/dev/null 2>&1; then
+    ip_addr="$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+\.' | grep -Ev '^(127|169\.254)\.' | head -n 1 || true)"
+  fi
+
+  if [[ -z "${ip_addr}" ]]; then
+    ip_addr="YOUR-SERVER-IP"
+  fi
+
+  echo "${ip_addr}"
+}
+
 SYSTEMD_GUI_SKIP_NGINX_REQUESTED="${SYSTEMD_GUI_SKIP_NGINX:-auto}"
 if [[ "${SYSTEMD_GUI_SKIP_NGINX_REQUESTED}" =~ ^(1|true|yes|on)$ ]]; then
   SYSTEMD_GUI_SKIP_NGINX=1
@@ -199,12 +217,14 @@ fi
 
 echo
 echo "Systemd Gui installed."
+SYSTEMD_GUI_DISPLAY_HOST="$(primary_ipv4_address)"
+echo "Open: http://${SYSTEMD_GUI_DISPLAY_HOST}:${SYSTEMD_GUI_PUBLIC_PORT}"
 if [[ "${SYSTEMD_GUI_SKIP_NGINX}" == "1" ]]; then
   echo "Nginx setup: skipped"
   echo "Gunicorn bind: ${SYSTEMD_GUI_HOST}:${SYSTEMD_GUI_PORT}"
-  echo "Open direct or proxy this target from your existing reverse proxy."
+  echo "Proxy target: http://${SYSTEMD_GUI_DISPLAY_HOST}:${SYSTEMD_GUI_PORT}"
 else
-  echo "Open: http://YOUR-SERVER-IP:${SYSTEMD_GUI_PUBLIC_PORT}"
+  echo "Nginx setup: enabled"
 fi
 echo "Password: ${SYSTEMD_GUI_PASSWORD}"
 echo "Environment file: ${ENV_FILE}"

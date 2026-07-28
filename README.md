@@ -246,12 +246,13 @@ cd /opt/systemd-gui
 ./scripts/install_debian.sh
 ```
 
-At the end, the installer prints the generated login password.
+At the end, the installer prints the generated login password and the detected
+IPv4 URL, for example `http://192.168.1.20:8850`.
 
 Open:
 
 ```text
-http://YOUR-SERVER-IP:8850
+http://SERVER-IP:8850
 ```
 
 ## Installer Environment Variables
@@ -288,6 +289,9 @@ Then point the existing reverse proxy to:
 ```text
 http://SERVER-IP:8851
 ```
+
+The installer also prints this direct IPv4 target when reverse proxy mode is
+used.
 
 ## Updates And Backups
 
