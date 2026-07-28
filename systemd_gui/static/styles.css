@@ -255,7 +255,18 @@ th.actions-heading { text-align:right; }
 .log-preview.no-wrap { white-space:pre; }
 .log-preview code { display:block; }
 .log-line { display:block; }
-.log-node-chip { display:inline-flex; align-items:center; border-radius:999px; background:color-mix(in srgb, #2563eb 13%, transparent); color:#1d4ed8; font-weight:900; padding:0 7px; margin-right:4px; }
+.log-node-chip { display:inline-flex; align-items:center; border-radius:999px; background:color-mix(in srgb, var(--muted) 12%, transparent); color:var(--muted); font-weight:900; padding:0 7px; margin-right:4px; }
+.log-node-local { background:color-mix(in srgb, var(--muted) 13%, transparent); color:var(--muted); }
+.log-node-color-1 { background:color-mix(in srgb, #2563eb 14%, transparent); color:#1d4ed8; }
+.log-node-color-2 { background:color-mix(in srgb, #059669 15%, transparent); color:#047857; }
+.log-node-color-3 { background:color-mix(in srgb, #d97706 17%, transparent); color:#a16207; }
+.log-node-color-4 { background:color-mix(in srgb, #7c3aed 14%, transparent); color:#6d28d9; }
+.log-node-color-5 { background:color-mix(in srgb, #dc2626 13%, transparent); color:#b91c1c; }
+.log-node-color-6 { background:color-mix(in srgb, #0891b2 15%, transparent); color:#0e7490; }
+.log-node-color-7 { background:color-mix(in srgb, #be185d 13%, transparent); color:#be185d; }
+.log-node-color-8 { background:color-mix(in srgb, #4f46e5 13%, transparent); color:#4338ca; }
+.log-node-color-9 { background:color-mix(in srgb, #65a30d 17%, transparent); color:#4d7c0f; }
+.log-node-color-10 { background:color-mix(in srgb, #c2410c 15%, transparent); color:#c2410c; }
 .log-level { display:inline-flex; min-width:68px; color:var(--muted); font-weight:900; }
 .log-level-emergency,.log-level-alert,.log-level-critical,.log-level-error { color:var(--danger); font-weight:850; }
 .log-level-warning { color:#956300; font-weight:800; }
@@ -263,7 +274,17 @@ th.actions-heading { text-align:right; }
 .log-level-debug { color:var(--muted); }
 :root[data-theme="dark"] .log-level-warning { color:#f7c948; }
 :root[data-theme="dark"] .log-level-notice { color:#93c5fd; }
-:root[data-theme="dark"] .log-node-chip { color:#93c5fd; }
+:root[data-theme="dark"] .log-node-local { background:color-mix(in srgb, var(--muted) 20%, transparent); color:#d1d5db; }
+:root[data-theme="dark"] .log-node-color-1 { background:color-mix(in srgb, #60a5fa 24%, transparent); color:#bfdbfe; }
+:root[data-theme="dark"] .log-node-color-2 { background:color-mix(in srgb, #34d399 22%, transparent); color:#a7f3d0; }
+:root[data-theme="dark"] .log-node-color-3 { background:color-mix(in srgb, #fbbf24 22%, transparent); color:#fde68a; }
+:root[data-theme="dark"] .log-node-color-4 { background:color-mix(in srgb, #a78bfa 22%, transparent); color:#ddd6fe; }
+:root[data-theme="dark"] .log-node-color-5 { background:color-mix(in srgb, #f87171 22%, transparent); color:#fecaca; }
+:root[data-theme="dark"] .log-node-color-6 { background:color-mix(in srgb, #22d3ee 22%, transparent); color:#a5f3fc; }
+:root[data-theme="dark"] .log-node-color-7 { background:color-mix(in srgb, #f472b6 22%, transparent); color:#fbcfe8; }
+:root[data-theme="dark"] .log-node-color-8 { background:color-mix(in srgb, #818cf8 22%, transparent); color:#c7d2fe; }
+:root[data-theme="dark"] .log-node-color-9 { background:color-mix(in srgb, #bef264 20%, transparent); color:#d9f99d; }
+:root[data-theme="dark"] .log-node-color-10 { background:color-mix(in srgb, #fb923c 22%, transparent); color:#fed7aa; }
 .log-preview mark { background:color-mix(in srgb, var(--amber) 46%, transparent); color:var(--ink); border-radius:3px; padding:0 2px; }
 .log-window-body { height:100vh; min-height:0; overflow:hidden; background:var(--bg); }
 .log-window-shell { width:100%; height:100vh; padding:12px; overflow:hidden; }

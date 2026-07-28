@@ -765,6 +765,14 @@
     };
     const selectedSearch = () => searchInput?.value.trim() || "";
     const wrapEnabled = () => !wrapCheckbox || Boolean(wrapCheckbox.checked);
+    const nodeColorClasses = new Map();
+    const captureNodeColors = (root) => {
+      root?.querySelectorAll("[data-log-node][data-node-color]").forEach((line) => {
+        const nodeName = line.dataset.logNode || "";
+        const colorClass = line.dataset.nodeColor || "";
+        if (nodeName && colorClass) nodeColorClasses.set(nodeName, colorClass);
+      });
+    };
     const selectedInterval = () => {
       const seconds = Number.parseInt(intervalSelect?.value || logPanel.dataset.refreshInterval || "5", 10);
       return Number.isFinite(seconds) && seconds > 0 ? seconds : 5;
@@ -842,7 +850,7 @@
       const content = nodeMatch ? nodeMatch[2] : line;
       if (nodeMatch) {
         const chip = document.createElement("span");
-        chip.className = "log-node-chip";
+        chip.className = ["log-node-chip", nodeColorClasses.get(nodeMatch[1])].filter(Boolean).join(" ");
         chip.title = "Log source node";
         chip.textContent = nodeMatch[1];
         lineNode.append(chip, document.createTextNode(" "));
@@ -933,6 +941,7 @@
         const doc = new DOMParser().parseFromString(await response.text(), "text/html");
         const nextLog = doc.querySelector("[data-log-output]");
         if (!nextLog || !currentLog) return;
+        captureNodeColors(nextLog);
         const nextCode = nextLog.querySelector("code");
         renderLogText(nextLog.dataset.rawLog || nextCode?.textContent || "");
         if (followBottom && wasNearBottom) {
@@ -962,6 +971,7 @@
       if (refresh) refreshLogs({ followBottom: false });
     };
 
+    captureNodeColors(output);
     linesSelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
     perNodeSelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
     prioritySelect?.addEventListener("change", () => applyLogControls({ refresh: true }));

@@ -1863,8 +1863,19 @@ def _selected_log_nodes() -> list[str]:
 
 def _log_node_options(app: Flask, selected: list[str]) -> list[dict[str, object]]:
     data = read_nodes(_nodes_path(app))
-    options = [{"id": "local", "name": "Local", "label": "This node", "selected": "local" in selected, "api_ok": True, "local": True}]
-    for node in data.get("nodes") if isinstance(data.get("nodes"), list) else []:
+    options = [{
+        "id": "local",
+        "name": "Local",
+        "label": "This node",
+        "selected": "local" in selected,
+        "api_ok": True,
+        "local": True,
+        "log_color_class": "log-node-local",
+    }]
+    raw_nodes = data.get("nodes") if isinstance(data.get("nodes"), list) else []
+    saved_nodes = [node for node in raw_nodes if isinstance(node, dict)]
+    saved_nodes.sort(key=lambda item: str(item.get("name") or "Remote node").lower())
+    for index, node in enumerate(saved_nodes):
         if not isinstance(node, dict):
             continue
         token_saved = bool(str(node.get("api_token") or "").strip())
@@ -1878,6 +1889,7 @@ def _log_node_options(app: Flask, selected: list[str]) -> list[dict[str, object]
             "api_ok": token_saved,
             "disabled": not token_saved,
             "local": False,
+            "log_color_class": _log_node_color_class(index),
         })
     return options
 
@@ -1891,6 +1903,7 @@ def _combined_journal_logs(
     selected_nodes: list[str],
 ) -> tuple[CommandResult, list[dict[str, object]], list[dict[str, object]]]:
     options = _log_node_options(app, selected_nodes)
+    color_by_id = {str(option.get("id") or ""): str(option.get("log_color_class") or "") for option in options}
     selected_set = set(selected_nodes)
     entries: list[dict[str, object]] = []
     ok = True
@@ -1903,6 +1916,7 @@ def _combined_journal_logs(
             "name": settings.get("node_name", APP_NAME) or APP_NAME,
             "version": APP_VERSION,
             "remote": False,
+            "log_color_class": color_by_id.get("local", "log-node-local"),
         }
         local_logs = run_journalctl_entries(service, per_node_lines, priority)
         ok = ok and local_logs.ok
@@ -1916,10 +1930,11 @@ def _combined_journal_logs(
             continue
         result = fetch_remote_logs(node, service, per_node_lines, priority)
         ok = ok and result.ok
+        remote_node = {**result.node, "log_color_class": color_by_id.get(str(node.get("id") or ""), "")}
         if result.entries:
-            entries.extend(_decorate_log_entry(entry, result.node) for entry in result.entries)
+            entries.extend(_decorate_log_entry(entry, remote_node) for entry in result.entries)
         if not result.ok:
-            entries.append(_log_error_entry(result.node, result.message))
+            entries.append(_log_error_entry(remote_node, result.message))
 
     newest = sorted(entries, key=lambda entry: int(entry.get("timestamp_sort") or 0), reverse=True)[:display_lines]
     visible_entries = sorted(newest, key=lambda entry: int(entry.get("timestamp_sort") or 0))
@@ -1938,8 +1953,10 @@ def _decorate_log_entry(entry: dict[str, object], node: dict[str, object]) -> di
             "name": node_name,
             "version": str(node.get("version") or ""),
             "remote": bool(node.get("remote")),
+            "color_class": str(node.get("log_color_class") or ""),
         },
         "node_label": node_name,
+        "node_color_class": str(node.get("log_color_class") or ""),
         "level_class": _log_level_class(priority),
         "text": f"[{node_name}] {formatted}",
     }
@@ -1956,11 +1973,21 @@ def _log_error_entry(node: dict[str, object], message: str) -> dict[str, object]
         "priority": "ERROR",
         "message": message,
         "formatted": f"- - systemd-gui: [ERROR] {message}",
-        "node": {"id": str(node.get("id") or ""), "name": node_name, "remote": bool(node.get("remote"))},
+        "node": {
+            "id": str(node.get("id") or ""),
+            "name": node_name,
+            "remote": bool(node.get("remote")),
+            "color_class": str(node.get("log_color_class") or ""),
+        },
         "node_label": node_name,
+        "node_color_class": str(node.get("log_color_class") or ""),
         "level_class": "error",
         "text": f"[{node_name}] - - systemd-gui: [ERROR] {message}",
     }
+
+
+def _log_node_color_class(index: int) -> str:
+    return f"log-node-color-{index % 10 + 1}"
 
 
 def _log_level_class(priority: str) -> str:
