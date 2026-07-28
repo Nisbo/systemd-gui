@@ -74,6 +74,9 @@ button:disabled { opacity:.48; cursor:not-allowed; }
 .icon-button { width:42px; min-width:42px; padding:0; }
 .theme-toggle { width:42px; min-width:42px; padding:0; }
 .theme-toggle .button-icon,.icon-button .button-icon { width:19px; height:19px; }
+.maximize-toggle .maximize-icon-restore { display:none; }
+.maximize-toggle.is-active .maximize-icon-expand { display:none; }
+.maximize-toggle.is-active .maximize-icon-restore { display:inline-flex; }
 .compact-nav-button { min-height:32px; padding:0 10px; color:var(--muted); font-size:.82rem; }
 .compact-nav-button .button-icon { width:15px; height:15px; }
 .flash-stack { display:grid; gap:8px; margin-bottom:16px; } .flash { border-radius:8px; padding:12px 14px; font-weight:750; } .flash.success { background:rgba(23,107,91,.12); color:var(--accent-strong); } .flash.error { background:rgba(180,35,24,.10); color:var(--danger); } .flash.warning { background:color-mix(in srgb, var(--amber) 18%, transparent); }
@@ -268,7 +271,7 @@ th.actions-heading { text-align:right; }
 .log-output-shell .log-preview { width:100%; }
 .log-output-overlay-button { display:none; position:absolute; top:10px; right:10px; z-index:2; background:color-mix(in srgb, var(--panel) 92%, transparent); box-shadow:var(--shadow); }
 .log-maximized-page { overflow:hidden; }
-.log-panel-maximized { position:fixed; inset:12px; z-index:25; display:flex; flex-direction:column; max-height:none; min-height:0; overflow:hidden; margin:0; padding:16px; }
+.log-panel-maximized { position:fixed; inset:12px; z-index:25; display:flex; flex-direction:column; max-height:none; min-height:0; overflow:hidden; margin:0; padding:16px; background:var(--panel); box-shadow:0 0 0 100vmax var(--bg), var(--shadow); }
 .log-panel-maximized .panel-head,.log-panel-maximized .log-controls,.log-panel-maximized .log-search-status,.log-panel-maximized .log-refresh-paused { flex:0 0 auto; }
 .log-panel-maximized .log-output-shell { flex:1 1 auto; }
 .log-panel-maximized .log-preview { flex:1 1 auto; max-height:none; min-height:0; overflow:auto; }

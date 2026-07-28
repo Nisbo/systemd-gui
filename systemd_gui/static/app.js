@@ -774,11 +774,13 @@
         button.setAttribute("aria-pressed", String(panelMaximized));
         button.title = panelMaximized ? "Restore log panel" : "Maximize log panel";
         button.setAttribute("aria-label", button.title);
+        button.classList.toggle("is-active", panelMaximized);
       });
       outputMaximizeButtons.forEach((button) => {
         button.setAttribute("aria-pressed", String(outputMaximized));
         button.title = outputMaximized ? "Restore log messages" : "Maximize log messages";
         button.setAttribute("aria-label", button.title);
+        button.classList.toggle("is-active", outputMaximized);
       });
     };
     const togglePanelMaximized = () => {
