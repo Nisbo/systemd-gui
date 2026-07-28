@@ -766,11 +766,19 @@
     const selectedSearch = () => searchInput?.value.trim() || "";
     const wrapEnabled = () => !wrapCheckbox || Boolean(wrapCheckbox.checked);
     const nodeColorClasses = new Map();
+    const nodeLoadedCounts = new Map();
     const captureNodeColors = (root) => {
       root?.querySelectorAll("[data-log-node][data-node-color]").forEach((line) => {
         const nodeName = line.dataset.logNode || "";
         const colorClass = line.dataset.nodeColor || "";
         if (nodeName && colorClass) nodeColorClasses.set(nodeName, colorClass);
+      });
+      root?.querySelectorAll("[data-log-node-meta]").forEach((meta) => {
+        const nodeName = meta.dataset.logNodeLabel || "";
+        const colorClass = meta.dataset.nodeColor || "";
+        const loaded = Number.parseInt(meta.dataset.loadedCount || "0", 10);
+        if (nodeName && colorClass) nodeColorClasses.set(nodeName, colorClass);
+        if (nodeName && Number.isFinite(loaded)) nodeLoadedCounts.set(nodeName, loaded);
       });
     };
     const selectedInterval = () => {
@@ -823,6 +831,27 @@
     };
     const updateLineCountLabel = () => {
       if (lineCountLabel) lineCountLabel.textContent = selectedLines();
+    };
+    const updateNodeChoiceCounts = (lines) => {
+      const visibleCounts = new Map();
+      lines.forEach((line) => {
+        const match = line.match(/^\[([^\]]+)\]\s+/);
+        if (!match) return;
+        visibleCounts.set(match[1], (visibleCounts.get(match[1]) || 0) + 1);
+      });
+      logControls?.querySelectorAll("[data-log-node-choice]").forEach((choice) => {
+        const nodeName = choice.dataset.logNodeLabel || "";
+        const countTarget = choice.querySelector("[data-log-node-count]");
+        const colorClass = nodeColorClasses.get(nodeName);
+        if (colorClass && !choice.classList.contains(colorClass)) choice.classList.add(colorClass);
+        const visible = visibleCounts.get(nodeName) || 0;
+        const loaded = nodeLoadedCounts.has(nodeName)
+          ? nodeLoadedCounts.get(nodeName)
+          : Number.parseInt(choice.dataset.loadedCount || "0", 10) || 0;
+        choice.dataset.loadedCount = String(loaded);
+        if (countTarget) countTarget.textContent = loaded || visible ? `${visible}/${loaded}` : "";
+        if (loaded || visible) choice.title = `${nodeName}: ${visible} visible, ${loaded} loaded from this node.`;
+      });
     };
     const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const appendHighlightedText = (fragment, text, query) => {
@@ -894,6 +923,7 @@
           fragment.appendChild(lineNode);
         });
       }
+      updateNodeChoiceCounts(matchingLines);
       code.appendChild(fragment);
       if (searchStatus) {
         searchStatus.hidden = !query;
@@ -941,7 +971,7 @@
         const doc = new DOMParser().parseFromString(await response.text(), "text/html");
         const nextLog = doc.querySelector("[data-log-output]");
         if (!nextLog || !currentLog) return;
-        captureNodeColors(nextLog);
+        captureNodeColors(doc);
         const nextCode = nextLog.querySelector("code");
         renderLogText(nextLog.dataset.rawLog || nextCode?.textContent || "");
         if (followBottom && wasNearBottom) {
@@ -971,7 +1001,8 @@
       if (refresh) refreshLogs({ followBottom: false });
     };
 
-    captureNodeColors(document.querySelector("[data-log-output]"));
+    captureNodeColors(document);
+    renderLogText(document.querySelector("[data-log-output]")?.dataset.rawLog || document.querySelector("[data-log-output] code")?.textContent || "");
     linesSelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
     perNodeSelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
     prioritySelect?.addEventListener("change", () => applyLogControls({ refresh: true }));

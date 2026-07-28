@@ -244,9 +244,9 @@ th.actions-heading { text-align:right; }
 .log-node-select-title { color:var(--muted); font-size:.78rem; font-weight:900; text-transform:uppercase; }
 .log-node-choice { display:inline-flex; align-items:center; gap:6px; min-height:30px; border-radius:999px; background:color-mix(in srgb, var(--muted) 10%, transparent); color:var(--muted); font-size:.82rem; font-weight:900; padding:4px 9px; }
 .log-node-choice input { width:auto; height:auto; }
-.log-node-choice:has(input:checked) { background:color-mix(in srgb, #2563eb 13%, transparent); color:#1d4ed8; }
+.log-node-choice:has(input:checked) { box-shadow:inset 0 0 0 2px currentColor; }
 .log-node-choice.disabled { opacity:.55; cursor:not-allowed; }
-:root[data-theme="dark"] .log-node-choice:has(input:checked) { color:#93c5fd; }
+.log-node-count { display:inline-flex; align-items:center; border-radius:999px; background:color-mix(in srgb, currentColor 14%, transparent); font-size:.74rem; line-height:1; padding:3px 6px; }
 .log-controls.refresh-paused .toggle-label { color:var(--danger); }
 .log-refresh-paused { color:var(--danger); font-size:.82rem; font-weight:900; letter-spacing:0; text-transform:uppercase; margin:0 0 10px; }
 .log-refresh-paused[hidden] { display:none; }
