@@ -5,11 +5,14 @@
   const updateTheme = () => {
     const isDark = root.dataset.theme === "dark";
     const toggle = document.querySelector("[data-theme-toggle]");
-    const icon = document.querySelector("[data-theme-toggle-icon]");
-    const text = document.querySelector("[data-theme-toggle-text]");
-    if (toggle) toggle.setAttribute("aria-label", isDark ? "Switch to light theme" : "Switch to dark theme");
-    if (icon) icon.textContent = isDark ? "☀" : "◐";
-    if (text) text.textContent = isDark ? "Light" : "Dark";
+    const label = isDark ? "Switch to light theme" : "Switch to dark theme";
+    if (toggle) {
+      toggle.setAttribute("aria-label", label);
+      toggle.title = label;
+    }
+    document.querySelectorAll("[data-theme-icon]").forEach((icon) => {
+      icon.hidden = icon.dataset.themeIcon !== (isDark ? "light" : "dark");
+    });
   };
   document.querySelector("[data-theme-toggle]")?.addEventListener("click", () => {
     if (root.dataset.theme === "dark") { delete root.dataset.theme; localStorage.setItem(key, "light"); }
