@@ -332,6 +332,7 @@ th.actions-heading { text-align:right; }
 .log-window-panel h1 { font-size:1.45rem; line-height:1.15; }
 .log-window-panel .log-preview { flex:1 1 auto; max-height:none; min-height:0; overflow:auto; }
 .toggle-label { display:flex; align-items:center; gap:8px; min-height:44px; color:var(--ink); }
+.log-search-head .log-exclude-toggle { min-height:0; color:var(--muted); }
 .toggle-label input { width:auto; height:auto; }
 .diagnostic { display:grid; gap:4px; border:2px solid color-mix(in srgb, var(--amber) 78%, var(--line)); border-left-width:7px; border-radius:8px; padding:12px 14px; margin-bottom:16px; } .diagnostic.error { border-color:color-mix(in srgb, var(--danger) 72%, var(--line)); } .diagnostic span { color:var(--muted); }
 .diagnostic[hidden] { display:none; }
