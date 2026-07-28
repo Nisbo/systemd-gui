@@ -264,9 +264,9 @@ th.actions-heading { text-align:right; }
 .log-node-count { display:inline-flex; align-items:center; border-radius:999px; background:color-mix(in srgb, currentColor 14%, transparent); font-size:.74rem; line-height:1; padding:3px 6px; }
 .log-node-choice.log-node-error .log-node-count { background:color-mix(in srgb, var(--danger) 14%, transparent); color:var(--danger); }
 .log-controls.refresh-paused .toggle-label { color:var(--danger); }
-.log-search-control { display:grid; gap:6px; }
-.log-search-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
-.log-exclude-toggle { min-height:auto; color:var(--muted); font-size:.82rem; text-transform:none; }
+.log-search-control { display:grid; gap:7px; }
+.log-search-head { display:flex; align-items:center; justify-content:flex-start; gap:12px; min-height:17px; }
+.log-exclude-toggle { display:inline-flex; min-height:0; color:var(--muted); font-size:.82rem; line-height:1; text-transform:none; }
 .log-toggle-stack { display:grid; gap:3px; align-self:end; min-height:44px; align-content:center; }
 .log-toggle-stack .toggle-label { min-height:20px; line-height:1.1; }
 .log-refresh-paused { color:var(--danger); font-size:.82rem; font-weight:900; letter-spacing:0; text-transform:uppercase; margin:0 0 10px; }
