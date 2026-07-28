@@ -304,19 +304,39 @@ def trigger_remote_git_update(node: dict[str, object], timeout: float = 90.0) ->
             method="POST",
         )
         with urlopen(request, timeout=timeout) as response:
-            payload = json.loads(response.read().decode("utf-8"))
+            response_text = response.read().decode("utf-8")
+            try:
+                payload = json.loads(response_text)
+            except json.JSONDecodeError:
+                return RemoteUpdateResult(
+                    False,
+                    "Remote node returned a non-JSON answer. It may not support remote updates yet, or it restarted before answering."
+                    f" Response starts with: {_response_preview(response_text)}",
+                    node_info,
+                    "error",
+                )
     except HTTPError as exc:
+        response_text = ""
         try:
-            payload = json.loads(exc.read().decode("utf-8"))
+            response_text = exc.read().decode("utf-8")
+            payload = json.loads(response_text)
             error_message = str(payload.get("error") or payload.get("message") or "")
         except (ValueError, json.JSONDecodeError, OSError):
             error_message = ""
+        if exc.code == 404:
+            return RemoteUpdateResult(
+                False,
+                "Remote node does not support remote git updates yet. Update that node once normally, then try again.",
+                node_info,
+                "unsupported",
+            )
         if exc.code == 401:
             return RemoteUpdateResult(False, error_message or "Token was rejected by the remote node.", node_info, "denied")
         if exc.code == 403:
             return RemoteUpdateResult(False, error_message or "Remote node denied this IP address or update access.", node_info, "denied")
-        return RemoteUpdateResult(False, error_message or f"Remote node returned HTTP {exc.code}.", node_info, "error")
-    except (OSError, URLError, ValueError, json.JSONDecodeError) as exc:
+        preview = f" Response starts with: {_response_preview(response_text)}" if response_text else ""
+        return RemoteUpdateResult(False, error_message or f"Remote node returned HTTP {exc.code}.{preview}", node_info, "error")
+    except (OSError, URLError, ValueError) as exc:
         return RemoteUpdateResult(False, f"Remote update request failed: {exc}", node_info, "error")
     if not isinstance(payload, dict) or payload.get("app") != "systemd-gui":
         return RemoteUpdateResult(False, "Remote answer was not a Systemd Gui API response.", node_info, "error")
@@ -338,6 +358,11 @@ def api_scopes_from_form(form) -> list[str]:
 def api_scope_options(selected: list[str] | None = None) -> list[dict[str, object]]:
     selected_set = set(selected or [])
     return [{"id": scope, "label": label, "selected": scope in selected_set} for scope, label in API_SCOPES.items()]
+
+
+def _response_preview(value: str) -> str:
+    compact = " ".join(str(value or "").split())
+    return compact[:140] or "(empty response)"
 
 
 def _parse_ip_rules(value: str) -> list[ipaddress._BaseNetwork]:

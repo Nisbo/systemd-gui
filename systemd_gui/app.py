@@ -285,7 +285,7 @@ def create_app() -> Flask:
         }
         restart_message = ""
         if result.ok:
-            restart_ok, restart_message = _request_systemd_gui_restart(app)
+            restart_ok, restart_message = _request_systemd_gui_restart(app, delay_seconds=4)
             if not restart_ok:
                 result.ok = False
                 result.message = f"{result.message} Restart failed: {restart_message}"
@@ -959,6 +959,10 @@ def create_app() -> Flask:
         flash(result.message, "success" if result.ok else "error")
         if result.ok and request.form.get("remote_update") == "1":
             _flash_remote_git_update_results(app)
+            restart_ok, restart_message = _request_systemd_gui_restart(app, delay_seconds=3)
+            if restart_ok:
+                session.pop("app_update_pending_restart", None)
+            flash(restart_message, "success" if restart_ok else "error")
         return redirect(url_for("settings", tab="updates"))
 
     @app.post("/settings/update/release")
@@ -1486,12 +1490,13 @@ def _require_remote_api_access(app: Flask, scope: str) -> tuple[Response, int] |
     return None
 
 
-def _request_systemd_gui_restart(app: Flask) -> tuple[bool, str]:
+def _request_systemd_gui_restart(app: Flask, delay_seconds: int = 1) -> tuple[bool, str]:
     systemctl = shutil.which("systemctl")
     if not systemctl:
         return False, "systemctl is not available in this environment."
     service = app.config["SYSTEMD_GUI_SERVICE"]
-    command = f"sleep 1; exec {shlex.quote(systemctl)} restart {shlex.quote(service)}"
+    delay = max(1, int(delay_seconds))
+    command = f"sleep {delay}; exec {shlex.quote(systemctl)} restart {shlex.quote(service)}"
     try:
         subprocess.Popen(["/bin/sh", "-c", command], start_new_session=True)
     except OSError as exc:
