@@ -67,7 +67,7 @@ button:disabled { opacity:.48; cursor:not-allowed; }
 .primary-button { background:var(--accent); color:#fff; } .ghost-button { background:var(--panel); border-color:var(--line); color:var(--ink); } .danger-button { background:var(--panel); border-color:rgba(180,35,24,.24); color:var(--danger); }
 .button-icon { width:18px; height:18px; flex:0 0 auto; fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
 .nav-button,.compact-nav-button { gap:7px; }
-.nav-button.active { background:color-mix(in srgb, var(--accent) 12%, var(--panel)); border-color:color-mix(in srgb, var(--accent) 58%, var(--line)); color:var(--accent-strong); box-shadow:inset 0 -3px 0 var(--accent); }
+.nav-button.active { background:color-mix(in srgb, var(--accent) 10%, var(--panel)); border-color:color-mix(in srgb, var(--accent) 42%, var(--line)); color:var(--accent-strong); box-shadow:inset 4px 0 0 var(--accent); }
 :root[data-theme="dark"] .nav-button.active { color:var(--accent-strong); }
 .icon-button { width:42px; min-width:42px; padding:0; }
 .theme-toggle { width:42px; min-width:42px; padding:0; }
