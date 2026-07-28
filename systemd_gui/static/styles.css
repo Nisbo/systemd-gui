@@ -247,6 +247,7 @@ th.actions-heading { text-align:right; }
 .log-node-choice:has(input:checked) { box-shadow:inset 0 0 0 2px currentColor; }
 .log-node-choice.disabled { opacity:.55; cursor:not-allowed; }
 .log-node-count { display:inline-flex; align-items:center; border-radius:999px; background:color-mix(in srgb, currentColor 14%, transparent); font-size:.74rem; line-height:1; padding:3px 6px; }
+.log-node-choice.log-node-error .log-node-count { background:color-mix(in srgb, var(--danger) 14%, transparent); color:var(--danger); }
 .log-controls.refresh-paused .toggle-label { color:var(--danger); }
 .log-refresh-paused { color:var(--danger); font-size:.82rem; font-weight:900; letter-spacing:0; text-transform:uppercase; margin:0 0 10px; }
 .log-refresh-paused[hidden] { display:none; }

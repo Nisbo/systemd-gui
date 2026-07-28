@@ -1909,6 +1909,8 @@ def _combined_journal_logs(
     options = _log_node_options(app, selected_nodes)
     color_by_id = {str(option.get("id") or ""): str(option.get("log_color_class") or "") for option in options}
     loaded_by_id = {str(option.get("id") or ""): 0 for option in options}
+    status_by_id = {str(option.get("id") or ""): "ok" for option in options}
+    message_by_id = {str(option.get("id") or ""): "" for option in options}
     selected_set = set(selected_nodes)
     entries: list[dict[str, object]] = []
     ok = True
@@ -1926,6 +1928,9 @@ def _combined_journal_logs(
         local_logs = run_journalctl_entries(service, per_node_lines, priority)
         ok = ok and local_logs.ok
         loaded_by_id["local"] = len(local_logs.entries)
+        if not local_logs.ok:
+            status_by_id["local"] = "error"
+            message_by_id["local"] = local_logs.output or "Local journalctl failed."
         entries.extend(_decorate_log_entry(entry, local_node) for entry in local_logs.entries)
         if not local_logs.ok and not local_logs.entries:
             entries.append(_log_error_entry(local_node, local_logs.output or "Local journalctl failed."))
@@ -1938,6 +1943,9 @@ def _combined_journal_logs(
         ok = ok and result.ok
         option_id = str(node.get("id") or "")
         loaded_by_id[option_id] = len(result.entries)
+        if not result.ok:
+            status_by_id[option_id] = "error"
+            message_by_id[option_id] = result.message
         remote_node = {**result.node, "id": option_id, "log_color_class": color_by_id.get(option_id, "")}
         if result.entries:
             entries.extend(_decorate_log_entry(entry, remote_node) for entry in result.entries)
@@ -1948,7 +1956,10 @@ def _combined_journal_logs(
     visible_entries = sorted(newest, key=lambda entry: int(entry.get("timestamp_sort") or 0))
     output = "\n".join(str(entry.get("text") or entry.get("formatted") or entry.get("message") or "") for entry in visible_entries)
     for option in options:
-        option["loaded_count"] = loaded_by_id.get(str(option.get("id") or ""), 0)
+        option_id = str(option.get("id") or "")
+        option["loaded_count"] = loaded_by_id.get(option_id, 0)
+        option["log_status"] = status_by_id.get(option_id, "ok")
+        option["log_status_message"] = message_by_id.get(option_id, "")
     return CommandResult(ok, output, 0 if ok else 1), visible_entries, options
 
 

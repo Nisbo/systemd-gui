@@ -767,6 +767,8 @@
     const wrapEnabled = () => !wrapCheckbox || Boolean(wrapCheckbox.checked);
     const nodeColorClasses = new Map();
     const nodeLoadedCounts = new Map();
+    const nodeLogStatuses = new Map();
+    const nodeLogMessages = new Map();
     const captureNodeColors = (root) => {
       root?.querySelectorAll("[data-log-node][data-node-color]").forEach((line) => {
         const nodeName = line.dataset.logNode || "";
@@ -777,8 +779,12 @@
         const nodeName = meta.dataset.logNodeLabel || "";
         const colorClass = meta.dataset.nodeColor || "";
         const loaded = Number.parseInt(meta.dataset.loadedCount || "0", 10);
+        const status = meta.dataset.logStatus || "ok";
+        const message = meta.dataset.logStatusMessage || "";
         if (nodeName && colorClass) nodeColorClasses.set(nodeName, colorClass);
         if (nodeName && Number.isFinite(loaded)) nodeLoadedCounts.set(nodeName, loaded);
+        if (nodeName) nodeLogStatuses.set(nodeName, status);
+        if (nodeName) nodeLogMessages.set(nodeName, message);
       });
     };
     const selectedInterval = () => {
@@ -848,9 +854,15 @@
         const loaded = nodeLoadedCounts.has(nodeName)
           ? nodeLoadedCounts.get(nodeName)
           : Number.parseInt(choice.dataset.loadedCount || "0", 10) || 0;
+        const status = nodeLogStatuses.get(nodeName) || choice.dataset.logStatus || "ok";
+        const message = nodeLogMessages.get(nodeName) || choice.dataset.logStatusMessage || "";
         choice.dataset.loadedCount = String(loaded);
-        if (countTarget) countTarget.textContent = loaded || visible ? `${visible}/${loaded}` : "";
-        if (loaded || visible) choice.title = `${nodeName}: ${visible} visible, ${loaded} loaded from this node.`;
+        choice.dataset.logStatus = status;
+        choice.dataset.logStatusMessage = message;
+        choice.classList.toggle("log-node-error", status === "error");
+        if (countTarget) countTarget.textContent = status === "error" ? "Error" : (loaded || visible ? `${visible}/${loaded}` : "");
+        if (status === "error") choice.title = message ? `${nodeName}: ${message}` : `${nodeName}: log access failed.`;
+        else if (loaded || visible) choice.title = `${nodeName}: ${visible} visible, ${loaded} loaded from this node.`;
       });
     };
     const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

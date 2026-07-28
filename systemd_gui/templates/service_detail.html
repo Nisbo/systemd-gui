@@ -379,7 +379,7 @@
         <div class="log-node-select">
           <span class="log-node-select-title">Nodes</span>
           {% for node in log_node_options %}
-            <label class="log-node-choice {{ node.log_color_class }} {% if node.disabled %}disabled{% endif %}" data-log-node-choice data-log-node-label="{{ node.log_label or node.label }}" data-loaded-count="{{ node.loaded_count or 0 }}" title="{% if node.local %}Local node{% elif node.disabled %}No Remote API token saved{% else %}Remote API token saved{% endif %}">
+            <label class="log-node-choice {{ node.log_color_class }} {% if node.disabled %}disabled{% endif %}" data-log-node-choice data-log-node-label="{{ node.log_label or node.label }}" data-loaded-count="{{ node.loaded_count or 0 }}" data-log-status="{{ node.log_status or 'ok' }}" data-log-status-message="{{ node.log_status_message or '' }}" title="{% if node.local %}Local node{% elif node.disabled %}No Remote API token saved{% else %}Remote API token saved{% endif %}">
               <input type="checkbox" name="node" value="{{ node.id }}" {% if node.selected %}checked{% endif %} {% if node.disabled %}disabled{% endif %}>
               <span>{{ node.label }}</span>
               <span class="log-node-count" data-log-node-count></span>

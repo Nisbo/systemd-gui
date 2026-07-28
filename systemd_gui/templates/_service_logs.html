@@ -4,7 +4,7 @@
 {% if log_node_options is defined %}
   <div hidden data-log-node-meta-list>
     {% for node in log_node_options %}
-      <span data-log-node-meta data-log-node-label="{{ node.log_label or node.label }}" data-node-color="{{ node.log_color_class }}" data-loaded-count="{{ node.loaded_count or 0 }}"></span>
+      <span data-log-node-meta data-log-node-label="{{ node.log_label or node.label }}" data-node-color="{{ node.log_color_class }}" data-loaded-count="{{ node.loaded_count or 0 }}" data-log-status="{{ node.log_status or 'ok' }}" data-log-status-message="{{ node.log_status_message or '' }}"></span>
     {% endfor %}
   </div>
 {% endif %}
