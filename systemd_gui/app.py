@@ -158,7 +158,7 @@ def create_app() -> Flask:
 
     @app.before_request
     def require_login_and_csrf():
-        if request.endpoint in {"login", "login_post", "node_info", "api_ping", "api_logs", "static"}:
+        if request.endpoint in {"login", "login_post", "node_info", "static"} or str(request.endpoint or "").startswith("api_"):
             return None
         if app.config["ADMIN_PASSWORD"] and not session.get("logged_in"):
             return redirect(url_for("login"))
