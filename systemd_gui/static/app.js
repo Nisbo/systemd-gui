@@ -751,6 +751,7 @@
     const prioritySelect = logControls?.querySelector("[data-log-priority]");
     const wrapCheckbox = logControls?.querySelector("[data-log-wrap]");
     const smallLinesCheckbox = logControls?.querySelector("[data-log-small]");
+    const excludeSearchCheckbox = logControls?.querySelector("[data-log-exclude]");
     const intervalSelect = logControls?.querySelector("[data-log-interval]");
     const searchInput = logControls?.querySelector("[data-log-search]");
     const refreshNow = logControls?.querySelector("[data-log-refresh-now]");
@@ -758,6 +759,7 @@
     const saveSettingsButton = logPanel.querySelector("[data-log-save-settings]");
     const panelMaximizeButtons = logPanel.querySelectorAll("[data-log-maximize-panel]");
     const outputMaximizeButtons = logPanel.querySelectorAll("[data-log-maximize-output]");
+    const logScrollButtons = logPanel.querySelectorAll("[data-log-scroll]");
     const searchStatus = document.querySelector("[data-log-search-status]");
     const refreshPaused = document.querySelector("[data-log-refresh-paused]");
     const lineCountLabel = document.querySelector("[data-log-line-count]");
@@ -769,10 +771,11 @@
     const selectedPerNode = () => perNodeSelect?.value || selectedLines();
     const selectedPriority = () => prioritySelect?.value || "all";
     const selectedSmallLines = () => Boolean(smallLinesCheckbox?.checked);
+    const selectedExcludeSearch = () => Boolean(excludeSearchCheckbox?.checked);
     const logSettingsKey = "systemd-gui-log-settings";
     const logUrlHasExplicitSettings = () => {
       const params = new URLSearchParams(window.location.search);
-      return ["lines", "per_node", "priority", "refresh", "interval", "log_q", "wrap", "small", "node"].some((key) => params.has(key));
+      return ["lines", "per_node", "priority", "refresh", "interval", "log_q", "wrap", "small", "exclude", "node"].some((key) => params.has(key));
     };
     const readSavedLogSettings = () => {
       try {
@@ -859,6 +862,8 @@
       }
       if (selectedSearch()) url.searchParams.set("log_q", selectedSearch());
       else url.searchParams.delete("log_q");
+      if (selectedExcludeSearch()) url.searchParams.set("exclude", "1");
+      else url.searchParams.delete("exclude");
       if (wrapEnabled()) url.searchParams.delete("wrap");
       else url.searchParams.set("wrap", "0");
       if (selectedSmallLines()) url.searchParams.set("small", "1");
@@ -881,6 +886,8 @@
         }
         if (selectedSearch()) windowUrl.searchParams.set("log_q", selectedSearch());
         else windowUrl.searchParams.delete("log_q");
+        if (selectedExcludeSearch()) windowUrl.searchParams.set("exclude", "1");
+        else windowUrl.searchParams.delete("exclude");
         if (wrapEnabled()) windowUrl.searchParams.delete("wrap");
         else windowUrl.searchParams.set("wrap", "0");
         if (selectedSmallLines()) windowUrl.searchParams.set("small", "1");
@@ -980,9 +987,12 @@
       code.textContent = "";
       const fragment = document.createDocumentFragment();
       const lines = rawText.split("\n");
-      const matchingLines = query ? lines.filter((line) => line.toLowerCase().includes(query.toLowerCase())) : lines;
+      const normalizedQuery = query.toLowerCase();
+      const matchingLines = query
+        ? lines.filter((line) => selectedExcludeSearch() !== line.toLowerCase().includes(normalizedQuery))
+        : lines;
       if (query && matchingLines.length === 0) {
-        fragment.appendChild(document.createTextNode("No loaded log lines match this search."));
+        fragment.appendChild(document.createTextNode(selectedExcludeSearch() ? "No loaded log lines remain after excluding this search." : "No loaded log lines match this search."));
       } else {
         matchingLines.forEach((line, index) => {
           if (index > 0) fragment.appendChild(document.createTextNode("\n"));
@@ -996,7 +1006,11 @@
       code.appendChild(fragment);
       if (searchStatus) {
         searchStatus.hidden = !query;
-        searchStatus.textContent = query ? `${matchingLines.length} matching line${matchingLines.length === 1 ? "" : "s"} in the loaded logs.` : "";
+        searchStatus.textContent = query
+          ? selectedExcludeSearch()
+            ? `${matchingLines.length} line${matchingLines.length === 1 ? "" : "s"} remain after excluding this search.`
+            : `${matchingLines.length} matching line${matchingLines.length === 1 ? "" : "s"} in the loaded logs.`
+          : "";
       }
     };
     const applyLogSearch = () => {
@@ -1071,7 +1085,9 @@
     };
     const applySavedLogSettings = () => {
       if (logUrlHasExplicitSettings()) {
-        if (smallLinesCheckbox) smallLinesCheckbox.checked = new URLSearchParams(window.location.search).get("small") === "1";
+        const params = new URLSearchParams(window.location.search);
+        if (smallLinesCheckbox) smallLinesCheckbox.checked = params.get("small") === "1";
+        if (excludeSearchCheckbox) excludeSearchCheckbox.checked = params.get("exclude") === "1";
         return false;
       }
       const settings = readSavedLogSettings();
@@ -1083,6 +1099,7 @@
       if (searchInput && typeof settings.search === "string") searchInput.value = settings.search;
       if (wrapCheckbox) wrapCheckbox.checked = settings.wrap !== false;
       if (smallLinesCheckbox) smallLinesCheckbox.checked = Boolean(settings.small);
+      if (excludeSearchCheckbox) excludeSearchCheckbox.checked = Boolean(settings.exclude);
       if (Array.isArray(settings.nodes)) {
         logControls?.querySelectorAll("input[name='node']").forEach((checkbox) => {
           if (!checkbox.disabled) checkbox.checked = settings.nodes.includes(checkbox.value);
@@ -1098,6 +1115,7 @@
         refresh: refreshEnabled(),
         interval: selectedInterval(),
         search: selectedSearch(),
+        exclude: selectedExcludeSearch(),
         wrap: wrapEnabled(),
         small: selectedSmallLines(),
         nodes: selectedNodes(),
@@ -1128,6 +1146,7 @@
       applyLogDensity();
       syncLogUrl();
     });
+    excludeSearchCheckbox?.addEventListener("change", applyLogSearch);
     intervalSelect?.addEventListener("change", () => applyLogControls({ refresh: refreshEnabled() }));
     searchInput?.addEventListener("input", () => {
       window.clearTimeout(searchTimer);
@@ -1141,6 +1160,13 @@
     saveSettingsButton?.addEventListener("click", saveLogSettings);
     panelMaximizeButtons.forEach((button) => button.addEventListener("click", togglePanelMaximized));
     outputMaximizeButtons.forEach((button) => button.addEventListener("click", toggleOutputMaximized));
+    logScrollButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const output = document.querySelector("[data-log-output]");
+        if (!output) return;
+        output.scrollTo({ top: button.dataset.logScroll === "top" ? 0 : output.scrollHeight, behavior: "smooth" });
+      });
+    });
     document.addEventListener("keydown", (event) => {
       if (event.key !== "Escape") return;
       if (!logPanel.classList.contains("log-panel-maximized") && !logPanel.classList.contains("log-output-maximized")) return;

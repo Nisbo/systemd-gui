@@ -49,6 +49,10 @@
         Search loaded logs
         <input name="log_q" value="{{ request.args.get('log_q', '') }}" placeholder="Filter visible log lines" autocomplete="off" data-log-search>
       </label>
+      <label class="toggle-label log-exclude-toggle">
+        <input name="exclude" type="checkbox" value="1" data-log-exclude>
+        Exclude
+      </label>
       <div class="log-toggle-stack">
         <label class="toggle-label">
           <input name="wrap" type="checkbox" value="1" data-log-wrap {% if log_wrap %}checked{% endif %}>
