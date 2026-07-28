@@ -45,13 +45,15 @@
           {% endfor %}
         </select>
       </label>
-      <label>
-        Search loaded logs
+      <label class="log-search-control">
+        <span class="log-search-head">
+          <span>Search loaded logs</span>
+          <span class="toggle-label log-exclude-toggle">
+            <input name="exclude" type="checkbox" value="1" data-log-exclude>
+            Exclude
+          </span>
+        </span>
         <input name="log_q" value="{{ request.args.get('log_q', '') }}" placeholder="Filter visible log lines" autocomplete="off" data-log-search>
-      </label>
-      <label class="toggle-label log-exclude-toggle">
-        <input name="exclude" type="checkbox" value="1" data-log-exclude>
-        Exclude
       </label>
       <div class="log-toggle-stack">
         <label class="toggle-label">
