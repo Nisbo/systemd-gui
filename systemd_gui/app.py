@@ -1587,7 +1587,7 @@ def _node_navigation(app: Flask) -> dict[str, object]:
             "absolute_url": node_url,
             "node_id": node_id,
             "version": version,
-            "ssh_indicators": _node_ssh_indicators(node),
+            "ssh_indicators": _node_ssh_indicators(node) + _node_api_indicators(node),
             "current": False,
         })
     nodes = sorted(nodes, key=lambda item: str(item.get("name") or "").lower())
