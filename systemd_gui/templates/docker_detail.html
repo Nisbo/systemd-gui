@@ -71,7 +71,7 @@
           <span class="card-actions">
             <span class="summary-meta">
               <span class="summary-meta-label">Started</span>
-              <span>{{ container.running_for or container.started_at or '-' }}</span>
+              <span>{{ container.running_for or container.started_at_display or '-' }}</span>
             </span>
           </span>
         </dd>
@@ -93,8 +93,8 @@
       <dl class="detail-grid two">
         <div><dt>Entrypoint</dt><dd>{{ container.entrypoint or '-' }}</dd></div>
         <div><dt>Command</dt><dd>{{ container.command or '-' }}</dd></div>
-        <div><dt>Started at</dt><dd>{{ container.started_at or '-' }}</dd></div>
-        <div><dt>Finished at</dt><dd>{{ container.finished_at or '-' }}</dd></div>
+        <div><dt>Started at</dt><dd>{{ container.started_at_display or '-' }}</dd></div>
+        <div><dt>Finished at</dt><dd>{{ container.finished_at_display or '-' }}</dd></div>
       </dl>
     </section>
 

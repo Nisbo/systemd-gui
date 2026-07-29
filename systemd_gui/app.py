@@ -22,6 +22,7 @@ from .api_access import (
     create_api_token,
     delete_token,
     fetch_remote_logs,
+    fetch_remote_docker_containers,
     read_api_access,
     trigger_remote_git_update,
     update_api_settings,
@@ -269,6 +270,28 @@ def create_app() -> Flask:
             "ok": logs.ok,
             "entries": [_decorate_log_entry(entry, node) for entry in logs.entries],
             "output": logs.output,
+        })
+
+    @app.get("/api/v1/docker/containers")
+    def api_docker_containers():
+        access = _require_remote_api_access(app, "docker:read")
+        if access:
+            return access
+        status, containers = list_containers()
+        data = read_nodes(_nodes_path(app))
+        settings = data.get("settings") or {}
+        node = {
+            "id": settings.get("node_id", ""),
+            "name": settings.get("node_name", APP_NAME),
+            "version": APP_VERSION,
+            "remote": False,
+        }
+        return jsonify({
+            "app": "systemd-gui",
+            "node": node,
+            "ok": bool(status.get("running")),
+            "status": status,
+            "containers": containers,
         })
 
     @app.post("/api/v1/update/git")
@@ -641,7 +664,8 @@ def create_app() -> Flask:
             "running": sum(1 for item in containers if item.get("state") == "running"),
             "exited": sum(1 for item in containers if item.get("state") == "exited"),
         }
-        return render_template("docker.html", status=status, containers=containers, counts=counts)
+        remote_docker = _remote_docker_overview(app)
+        return render_template("docker.html", status=status, containers=containers, counts=counts, remote_docker=remote_docker)
 
     @app.get("/docker/<container_id>")
     def docker_detail(container_id: str):
@@ -2100,6 +2124,38 @@ def _combined_journal_logs(
         option["log_status"] = status_by_id.get(option_id, "ok")
         option["log_status_message"] = message_by_id.get(option_id, "")
     return CommandResult(ok, output, 0 if ok else 1), visible_entries, options
+
+
+def _remote_docker_overview(app: Flask) -> list[dict[str, object]]:
+    data = read_nodes(_nodes_path(app))
+    raw_nodes = data.get("nodes") if isinstance(data.get("nodes"), list) else []
+    nodes = [node for node in raw_nodes if isinstance(node, dict)]
+    nodes.sort(key=lambda item: str(item.get("name") or "Remote node").lower())
+    if not nodes:
+        return []
+
+    def load(node: dict[str, object]):
+        return fetch_remote_docker_containers(node)
+
+    with ThreadPoolExecutor(max_workers=min(6, len(nodes))) as executor:
+        results = list(executor.map(load, nodes))
+
+    overview = []
+    for node, result in zip(nodes, results):
+        containers = list(result.containers)
+        overview.append({
+            "node": {**result.node, "id": str(node.get("id") or result.node.get("id") or "")},
+            "ok": result.ok,
+            "message": result.message,
+            "status": result.status,
+            "containers": containers,
+            "counts": {
+                "total": len(containers),
+                "running": sum(1 for item in containers if item.get("state") == "running"),
+                "exited": sum(1 for item in containers if item.get("state") == "exited"),
+            },
+        })
+    return overview
 
 
 def _decorate_log_entry(entry: dict[str, object], node: dict[str, object]) -> dict[str, object]:

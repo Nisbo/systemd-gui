@@ -17,6 +17,7 @@ API_SCOPES = {
     "node:read": "Node info",
     "services:read": "Service list and details",
     "logs:read": "Journal logs",
+    "docker:read": "Docker overview",
     "quick-shell:read": "Quick Shell exports",
     "updates:write": "Remote updates",
 }
@@ -46,6 +47,15 @@ class RemoteUpdateResult:
     node: dict[str, object]
     status: str = "unknown"
     details: dict[str, object] | None = None
+
+
+@dataclass(frozen=True)
+class RemoteDockerResult:
+    ok: bool
+    message: str
+    node: dict[str, object]
+    containers: list[dict[str, object]]
+    status: str = "unknown"
 
 
 def default_api_access_data() -> dict[str, object]:
@@ -348,6 +358,53 @@ def trigger_remote_git_update(node: dict[str, object], timeout: float = 90.0) ->
         {**node_info, **remote_node, "remote": True, "url": url},
         "ok" if ok else "error",
         payload,
+    )
+
+
+def fetch_remote_docker_containers(node: dict[str, object], timeout: float = 5.0) -> RemoteDockerResult:
+    url = str(node.get("url") or "").strip()
+    token = str(node.get("api_token") or "").strip()
+    node_info = {
+        "id": str(node.get("node_id") or node.get("id") or ""),
+        "name": str(node.get("name") or "Remote node"),
+        "url": url,
+        "version": str(node.get("version") or ""),
+        "remote": True,
+    }
+    if not url:
+        return RemoteDockerResult(False, "No GUI URL is configured for this node.", node_info, [], "missing")
+    if not token:
+        return RemoteDockerResult(False, "No Remote API token is saved for this node.", node_info, [], "missing")
+    try:
+        request = Request(
+            urljoin(f"{url.rstrip('/')}/", "api/v1/docker/containers"),
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        with urlopen(request, timeout=timeout) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        if exc.code == 404:
+            return RemoteDockerResult(False, "Remote node does not support Docker overview yet. Update that node first.", node_info, [], "unsupported")
+        if exc.code == 401:
+            return RemoteDockerResult(False, "Token was rejected by the remote node.", node_info, [], "denied")
+        if exc.code == 403:
+            return RemoteDockerResult(False, "Remote node denied this IP address or Docker access.", node_info, [], "denied")
+        return RemoteDockerResult(False, f"Remote node returned HTTP {exc.code}.", node_info, [], "error")
+    except (OSError, URLError, ValueError, json.JSONDecodeError) as exc:
+        return RemoteDockerResult(False, f"Remote Docker overview failed: {exc}", node_info, [], "error")
+    if not isinstance(payload, dict) or payload.get("app") != "systemd-gui":
+        return RemoteDockerResult(False, "Remote answer was not a Systemd Gui API response.", node_info, [], "error")
+    remote_node = payload.get("node") if isinstance(payload.get("node"), dict) else {}
+    containers = payload.get("containers") if isinstance(payload.get("containers"), list) else []
+    status = payload.get("status") if isinstance(payload.get("status"), dict) else {}
+    message = str(status.get("message") or "Remote Docker overview loaded.")
+    ok = bool(payload.get("ok", True))
+    return RemoteDockerResult(
+        ok,
+        message,
+        {**node_info, **remote_node, "remote": True, "url": url},
+        [container for container in containers if isinstance(container, dict)],
+        "ok" if ok else "error",
     )
 
 

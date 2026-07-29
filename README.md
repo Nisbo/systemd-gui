@@ -63,6 +63,8 @@ Gunicorn.
 - Show Docker Compose project, service, working directory and config file when
   Compose labels are available.
 - Show lightweight CPU and memory values from `docker stats --no-stream`.
+- Show a simple read-only Docker overview from saved remote nodes when their
+  API token allows Docker overview.
 - Open a container detail page with start, stop and restart actions.
 - View important runtime settings from `docker inspect`.
 - View full `docker inspect` JSON.
@@ -200,6 +202,7 @@ Remote API tokens can be limited by access category:
 - Node info
 - Service list and details
 - Journal logs
+- Docker overview
 - Quick Shell exports
 
 You can also restrict which client IPs may use a valid token. Exact IP addresses

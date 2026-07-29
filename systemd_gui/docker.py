@@ -156,7 +156,9 @@ def _enrich_containers(containers: list[dict[str, object]]) -> None:
             finished_at = str(state.get("FinishedAt") or "")
             container.update({
                 "started_at": started_at,
+                "started_at_display": _format_docker_time(started_at),
                 "finished_at": finished_at,
+                "finished_at_display": _format_docker_time(finished_at),
                 "running_for": _running_for(started_at) if state.get("Running") else "",
                 "compose": _compose_info(labels),
             })
@@ -210,7 +212,9 @@ def _container_from_ps(item: dict[str, object]) -> dict[str, object]:
         "created": str(item.get("CreatedAt") or item.get("Created") or ""),
         "running_for": str(item.get("RunningFor") or ""),
         "started_at": "",
+        "started_at_display": "",
         "finished_at": "",
+        "finished_at_display": "",
         "compose": {},
         "stats": {},
     }
@@ -234,8 +238,10 @@ def _container_from_inspect(raw: dict[str, object]) -> dict[str, object]:
         "status": str(state.get("Status") or "unknown"),
         "running": bool(state.get("Running")),
         "started_at": started_at,
+        "started_at_display": _format_docker_time(started_at),
         "running_for": _running_for(started_at) if state.get("Running") else "",
         "finished_at": str(state.get("FinishedAt") or ""),
+        "finished_at_display": _format_docker_time(str(state.get("FinishedAt") or "")),
         "exit_code": state.get("ExitCode"),
         "error": str(state.get("Error") or ""),
         "created": str(raw.get("Created") or ""),
@@ -333,10 +339,18 @@ def _running_for(started_at: str) -> str:
     return "less than 1m"
 
 
+def _format_docker_time(value: str) -> str:
+    parsed = _parse_docker_time(value)
+    if not parsed:
+        return ""
+    return parsed.astimezone().strftime("%Y-%m-%d %H:%M:%S")
+
+
 def _parse_docker_time(value: str) -> datetime | None:
     if not value or value.startswith("0001-"):
         return None
     normalized = value
+    normalized = re.sub(r"(\.\d{6})\d+", r"\1", normalized)
     if normalized.endswith("Z"):
         normalized = f"{normalized[:-1]}+00:00"
     try:
