@@ -64,13 +64,14 @@
             <span class="status-stack">
               <span class="tag neutral">{{ container.network_mode or 'default network' }}</span>
               {% if container.hostname %}<span class="tag neutral">{{ container.hostname }}</span>{% endif %}
+              {% if container.compose %}<span class="tag override">Compose</span>{% endif %}
             </span>
           </span>
           <span class="summary-divider" aria-hidden="true"></span>
           <span class="card-actions">
             <span class="summary-meta">
               <span class="summary-meta-label">Started</span>
-              <span>{{ container.started_at or '-' }}</span>
+              <span>{{ container.running_for or container.started_at or '-' }}</span>
             </span>
           </span>
         </dd>
@@ -92,8 +93,20 @@
       <dl class="detail-grid two">
         <div><dt>Entrypoint</dt><dd>{{ container.entrypoint or '-' }}</dd></div>
         <div><dt>Command</dt><dd>{{ container.command or '-' }}</dd></div>
-        <div><dt>Created</dt><dd>{{ container.created or '-' }}</dd></div>
-        <div><dt>Finished</dt><dd>{{ container.finished_at or '-' }}</dd></div>
+        <div><dt>Started at</dt><dd>{{ container.started_at or '-' }}</dd></div>
+        <div><dt>Finished at</dt><dd>{{ container.finished_at or '-' }}</dd></div>
+      </dl>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><div><h2>Compose and resources</h2><p>Docker Compose labels and lightweight live stats when available.</p></div></div>
+      <dl class="detail-grid two">
+        <div><dt>Compose project</dt><dd>{{ container.compose.project if container.compose else '-' }}</dd></div>
+        <div><dt>Compose service</dt><dd>{{ container.compose.service if container.compose else '-' }}</dd></div>
+        <div><dt>Compose working dir</dt><dd><code>{{ container.compose.working_dir if container.compose else '-' }}</code></dd></div>
+        <div><dt>Compose file</dt><dd><code>{{ container.compose.config_files if container.compose else '-' }}</code></dd></div>
+        <div><dt>CPU</dt><dd>{{ container.stats.cpu if container.stats else '-' }}</dd></div>
+        <div><dt>Memory</dt><dd>{{ container.stats.memory if container.stats else '-' }}{% if container.stats and container.stats.memory_percent %} <span class="muted">({{ container.stats.memory_percent }})</span>{% endif %}</dd></div>
       </dl>
     </section>
 

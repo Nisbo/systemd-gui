@@ -52,8 +52,10 @@
               <th>Name</th>
               <th>Status</th>
               <th>Image</th>
+              <th>Compose</th>
+              <th>CPU / RAM</th>
               <th>Ports</th>
-              <th>Created</th>
+              <th>Running</th>
               <th class="actions-heading">Actions</th>
             </tr>
           </thead>
@@ -69,8 +71,34 @@
                   <div class="muted">{{ container.status or '-' }}</div>
                 </td>
                 <td><code>{{ container.image or '-' }}</code></td>
+                <td>
+                  {% if container.compose %}
+                    <span class="tag override" title="Docker Compose container">Compose</span>
+                    <div class="muted">{{ container.compose.project or '-' }}{% if container.compose.service %} / {{ container.compose.service }}{% endif %}</div>
+                  {% else %}
+                    <span class="muted">-</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if container.stats %}
+                    <strong>{{ container.stats.cpu or '-' }}</strong>
+                    <div class="muted">{{ container.stats.memory or '-' }}</div>
+                  {% else %}
+                    <span class="muted">-</span>
+                  {% endif %}
+                </td>
                 <td>{{ container.ports or '-' }}</td>
-                <td>{{ container.created or container.running_for or '-' }}</td>
+                <td>
+                  {% if container.running_for %}
+                    {{ container.running_for }}
+                    <div class="muted">{{ container.started_at or '-' }}</div>
+                  {% elif container.finished_at %}
+                    <span class="muted">Stopped</span>
+                    <div class="muted">{{ container.finished_at }}</div>
+                  {% else %}
+                    <span class="muted">{{ container.created or '-' }}</span>
+                  {% endif %}
+                </td>
                 <td>
                   <div class="table-actions">
                     <a class="ghost-button compact-button" href="{{ url_for('docker_detail', container_id=container.id) }}">Details</a>

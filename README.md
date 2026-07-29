@@ -60,6 +60,9 @@ Gunicorn.
 
 - Detect whether Docker is installed and whether the Docker daemon is reachable.
 - List local containers with image, status, ports and creation information.
+- Show Docker Compose project, service, working directory and config file when
+  Compose labels are available.
+- Show lightweight CPU and memory values from `docker stats --no-stream`.
 - Open a container detail page with start, stop and restart actions.
 - View important runtime settings from `docker inspect`.
 - View full `docker inspect` JSON.
