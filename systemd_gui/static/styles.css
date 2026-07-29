@@ -111,6 +111,9 @@ th.actions-heading { text-align:right; }
 .tag.node-status.online { background:color-mix(in srgb, var(--accent) 13%, transparent); color:var(--accent-strong); }
 .tag.node-status.offline { background:rgba(127,29,29,.12); color:var(--danger); }
 .tag.node-status.unknown { background:color-mix(in srgb, var(--amber) 16%, transparent); color:#8a5a00; }
+.tag.docker-state.running { background:color-mix(in srgb, var(--accent) 13%, transparent); color:var(--accent-strong); }
+.tag.docker-state.exited,.tag.docker-state.dead { background:color-mix(in srgb, var(--muted) 11%, transparent); color:var(--muted); }
+.tag.docker-state.paused,.tag.docker-state.restarting { background:color-mix(in srgb, var(--amber) 16%, transparent); color:#8a5a00; }
 .status-pill.sub-state { background:color-mix(in srgb, var(--muted) 14%, transparent); color:var(--muted); }
 .state-text { border-bottom:1px dotted currentColor; cursor:help; }
 .failed-row { color:var(--muted); } .star-button { min-height:32px; padding:0 8px; background:transparent; color:var(--accent); }
@@ -164,6 +167,10 @@ th.actions-heading { text-align:right; }
 .info-card h3 { margin:0; font-size:1rem; }
 .info-card p { line-height:1.5; }
 .info-meta-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+.docker-table table { min-width:1040px; }
+.docker-detail-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; }
+.plain-list { display:grid; gap:9px; margin:0; padding-left:18px; }
+.plain-list li { overflow-wrap:anywhere; }
 .node-dialog { width:min(860px, calc(100% - 32px)); }
 .modal-head { align-items:flex-start; border-bottom:1px solid var(--line); padding-bottom:12px; }
 .node-dialog .modal-head { border-bottom:0; padding-bottom:0; }
@@ -383,4 +390,4 @@ button[aria-busy="true"] { opacity:.72; }
 .info-links { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
 .app-footer { display:flex; justify-content:center; gap:10px; color:var(--muted); font-size:.88rem; margin-top:28px; }
 @media (max-width: 980px) { .quick-shell-helper,.quick-shell-history-card,.local-node-layout,.node-status-grid { grid-template-columns:1fr; } }
-@media (max-width: 760px) { .topbar,.panel-head,.search-row,.restart-banner,.restart-card,.backup-action-row { align-items:stretch; flex-direction:column; } .operations-grid,.detail-grid,.detail-grid.two,.detail-grid.three,.form-grid,.node-form-section,.backup-create,.update-version-bar,.update-actions,.log-controls,.info-layout,.info-meta-grid,.quick-shell-settings-form,.quick-shell-history-controls,.local-node-settings-card,.node-feature-grid { grid-template-columns:1fr; } .top-actions { justify-items:start; } .top-nav,.action-bar,.backup-danger-group { justify-content:flex-start; } .session-action { justify-content:flex-start; } .quick-shell-tree-item { margin-left:0; } .discovery-repair-card { grid-template-columns:1fr; } .discovery-repair-card button { width:100%; } }
+@media (max-width: 760px) { .topbar,.panel-head,.search-row,.restart-banner,.restart-card,.backup-action-row { align-items:stretch; flex-direction:column; } .operations-grid,.detail-grid,.detail-grid.two,.detail-grid.three,.form-grid,.node-form-section,.backup-create,.update-version-bar,.update-actions,.log-controls,.info-layout,.info-meta-grid,.quick-shell-settings-form,.quick-shell-history-controls,.local-node-settings-card,.node-feature-grid,.docker-detail-grid { grid-template-columns:1fr; } .top-actions { justify-items:start; } .top-nav,.action-bar,.backup-danger-group { justify-content:flex-start; } .session-action { justify-content:flex-start; } .quick-shell-tree-item { margin-left:0; } .discovery-repair-card { grid-template-columns:1fr; } .discovery-repair-card button { width:100%; } }

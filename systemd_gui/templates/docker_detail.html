@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block content %}
+  {% set active_tab = request.args.get('tab', 'overview') %}
+  {% if active_tab not in ['overview', 'config', 'logs'] %}{% set active_tab = 'overview' %}{% endif %}
+  {% macro docker_action(action) -%}
+    <form method="post" action="{{ url_for('docker_action', container_id=container.id, action=action) }}" data-confirm="Run docker {{ action }} {{ container.name or container.short_id }}?">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="{% if action == 'stop' %}danger-button{% elif action == 'restart' %}primary-button{% else %}ghost-button{% endif %} compact-button" type="submit">{{ action|capitalize }}</button>
+    </form>
+  {%- endmacro %}
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2 class="heading-with-action">
+          <span>{{ container.name or container.short_id }}</span>
+          <button class="ghost-button icon-button" type="button" title="Copy container name" aria-label="Copy container name" data-copy-text="{{ container.name or container.short_id }}">⧉</button>
+        </h2>
+        <p>{{ container.image or 'No image information available.' }}</p>
+      </div>
+      <a class="ghost-button" href="{{ url_for('docker_index') }}">Back to Docker</a>
+    </div>
+
+    <dl class="detail-grid service-summary-grid">
+      <div class="summary-card">
+        <dt>Status</dt>
+        <dd>
+          <span class="summary-main">
+            <span class="status-stack">
+              <span class="tag docker-state {{ container.status }}">{{ container.status }}</span>
+              {% if container.exit_code is not none %}<span class="tag neutral">Exit {{ container.exit_code }}</span>{% endif %}
+            </span>
+          </span>
+          <span class="summary-divider" aria-hidden="true"></span>
+          <span class="card-actions">
+            {{ docker_action("start") }}
+            {{ docker_action("stop") }}
+            {{ docker_action("restart") }}
+          </span>
+        </dd>
+      </div>
+      <div class="summary-card">
+        <dt>Container</dt>
+        <dd>
+          <span class="summary-main">
+            <span class="path-copy-row">
+              <span class="path-value"><code>{{ container.short_id }}</code></span>
+              <button class="ghost-button icon-button small-icon-button" type="button" title="Copy container ID" aria-label="Copy container ID" data-copy-text="{{ container.id }}">⧉</button>
+            </span>
+          </span>
+          <span class="summary-divider" aria-hidden="true"></span>
+          <span class="card-actions">
+            <span class="summary-meta">
+              <span class="summary-meta-label">Restart</span>
+              <span>{{ container.restart_policy }}</span>
+            </span>
+          </span>
+        </dd>
+      </div>
+      <div class="summary-card">
+        <dt>Runtime</dt>
+        <dd>
+          <span class="summary-main">
+            <span class="status-stack">
+              <span class="tag neutral">{{ container.network_mode or 'default network' }}</span>
+              {% if container.hostname %}<span class="tag neutral">{{ container.hostname }}</span>{% endif %}
+            </span>
+          </span>
+          <span class="summary-divider" aria-hidden="true"></span>
+          <span class="card-actions">
+            <span class="summary-meta">
+              <span class="summary-meta-label">Started</span>
+              <span>{{ container.started_at or '-' }}</span>
+            </span>
+          </span>
+        </dd>
+      </div>
+    </dl>
+  </section>
+
+  <section class="panel service-tabs-panel">
+    <nav class="settings-tabs" aria-label="Docker container sections">
+      {% for tab_key, tab_label in [("overview", "Overview"), ("config", "Config"), ("logs", "Logs")] %}
+        <a class="settings-tab {% if active_tab == tab_key %}active{% endif %}" href="{{ url_for('docker_detail', container_id=container.id, tab=tab_key, lines=log_lines) }}" {% if active_tab == tab_key %}aria-current="page"{% endif %}>{{ tab_label }}</a>
+      {% endfor %}
+    </nav>
+  </section>
+
+  {% if active_tab == "overview" %}
+    <section class="panel">
+      <div class="panel-head"><div><h2>Configuration summary</h2><p>Important runtime settings from <code>docker inspect</code>.</p></div></div>
+      <dl class="detail-grid two">
+        <div><dt>Entrypoint</dt><dd>{{ container.entrypoint or '-' }}</dd></div>
+        <div><dt>Command</dt><dd>{{ container.command or '-' }}</dd></div>
+        <div><dt>Created</dt><dd>{{ container.created or '-' }}</dd></div>
+        <div><dt>Finished</dt><dd>{{ container.finished_at or '-' }}</dd></div>
+      </dl>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><div><h2>Mounts and networks</h2><p>Where data is mounted and which Docker networks are attached.</p></div></div>
+      <div class="docker-detail-grid">
+        <div class="info-card">
+          <h3>Mounts</h3>
+          {% if container.mounts %}
+            <ul class="plain-list">
+              {% for mount in container.mounts %}
+                <li><code>{{ mount.Source or mount.Name or '-' }}</code> → <code>{{ mount.Destination or '-' }}</code> <span class="muted">{{ mount.Type or '' }}</span></li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="empty-note">No mounts reported.</p>
+          {% endif %}
+        </div>
+        <div class="info-card">
+          <h3>Networks</h3>
+          {% if container.networks %}
+            <ul class="plain-list">
+              {% for name, network in container.networks.items() %}
+                <li><strong>{{ name }}</strong> <span class="muted">{{ network.IPAddress or '-' }}</span></li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <p class="empty-note">No networks reported.</p>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+  {% elif active_tab == "config" %}
+    <section class="panel">
+      <div class="panel-head">
+        <div><h2>Inspect JSON</h2><p>Full output from <code>docker inspect</code>.</p></div>
+        <button class="ghost-button icon-button" type="button" title="Copy inspect JSON" aria-label="Copy inspect JSON" data-copy-target="#docker-inspect-json">⧉</button>
+      </div>
+      <pre class="config-preview"><code id="docker-inspect-json">{{ container.raw_json }}</code></pre>
+    </section>
+  {% elif active_tab == "logs" %}
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h2>Container logs</h2>
+          <p>Last {{ log_lines }} lines from <code>docker logs --timestamps</code>.</p>
+        </div>
+        <form class="inline-form" method="get" action="{{ url_for('docker_detail', container_id=container.id) }}">
+          <input type="hidden" name="tab" value="logs">
+          <label>
+            Lines
+            <select name="lines">
+              {% for option in [50, 100, 200, 500, 1000] %}
+                <option value="{{ option }}" {% if log_lines == option %}selected{% endif %}>{{ option }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <button class="ghost-button" type="submit">Refresh</button>
+        </form>
+      </div>
+      {% if not logs_ok %}
+        <div class="diagnostic error">
+          <strong>Docker logs failed</strong>
+          <span>{{ logs }}</span>
+        </div>
+      {% endif %}
+      <pre class="config-preview log-preview"><code>{{ logs or 'No logs returned.' }}</code></pre>
+    </section>
+  {% endif %}
+{% endblock %}

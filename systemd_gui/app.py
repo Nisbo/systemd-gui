@@ -29,6 +29,7 @@ from .api_access import (
     verify_bearer_token,
     write_api_access,
 )
+from .docker import DockerError, container_detail, container_logs, list_containers, run_docker_action
 from .nodes import (
     announcement_status,
     discover_nodes,
@@ -120,6 +121,7 @@ from .updater import (
 from .version import APP_NAME, APP_VERSION, REPO_URL
 
 SERVICE_ACTIONS = {"start", "stop", "restart", "reload", "enable", "disable"}
+DOCKER_ACTIONS = {"start", "stop", "restart"}
 RUNTIME_ACTIONS = {"start", "stop", "restart", "reload"}
 AUTOSTART_ACTIONS = {"enable", "disable"}
 ACTION_HELP = {
@@ -630,6 +632,49 @@ def create_app() -> Flask:
             log_window_action=url_for("logs_window"),
             log_source_label="All journal logs",
         )
+
+    @app.get("/docker")
+    def docker_index():
+        status, containers = list_containers()
+        counts = {
+            "total": len(containers),
+            "running": sum(1 for item in containers if item.get("state") == "running"),
+            "exited": sum(1 for item in containers if item.get("state") == "exited"),
+        }
+        return render_template("docker.html", status=status, containers=containers, counts=counts)
+
+    @app.get("/docker/<container_id>")
+    def docker_detail(container_id: str):
+        log_lines = _log_line_count(request.args.get("lines", "200"))
+        try:
+            container = container_detail(container_id)
+            logs_result = container_logs(container_id, log_lines)
+        except DockerError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("docker_index"))
+        return render_template(
+            "docker_detail.html",
+            container=container,
+            log_lines=log_lines,
+            logs=logs_result.output,
+            logs_ok=logs_result.ok,
+        )
+
+    @app.post("/docker/<container_id>/<action>")
+    def docker_action(container_id: str, action: str):
+        if action not in DOCKER_ACTIONS:
+            flash("Unsupported Docker action.", "error")
+            return redirect(url_for("docker_detail", container_id=container_id))
+        try:
+            result = run_docker_action(container_id, action)
+        except DockerError as exc:
+            flash(str(exc), "error")
+            return redirect(url_for("docker_index"))
+        if result.ok:
+            flash(f"Docker {action} completed.", "success")
+        else:
+            flash(result.output or f"Docker {action} failed.", "error")
+        return redirect(url_for("docker_detail", container_id=container_id))
 
     @app.get("/quick-shell")
     def quick_shell():

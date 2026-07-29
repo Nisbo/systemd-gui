@@ -1,9 +1,10 @@
 # Systemd Gui
 
-Systemd Gui is a small web interface for managing systemd `.service` units and
-local Quick Shell command shortcuts on Debian-style servers. It is intended for
-users who prefer a browser UI over working with SSH, `nano`, `vi`, `systemctl`
-and `journalctl`.
+Systemd Gui is a small web interface for managing systemd `.service` units,
+local Quick Shell command shortcuts, LAN nodes and simple Docker container
+tasks on Debian-style servers. It is intended for users who prefer a browser UI
+over working with SSH, `nano`, `vi`, `systemctl`, `journalctl` and repeated
+Docker CLI commands.
 
 The app is written in Python with Flask and is installed behind nginx and
 Gunicorn.
@@ -54,6 +55,15 @@ Gunicorn.
 - Toggle line wrapping for long log output.
 - Store per-service notes.
 - Show curated beginner-friendly service information.
+
+### Docker
+
+- Detect whether Docker is installed and whether the Docker daemon is reachable.
+- List local containers with image, status, ports and creation information.
+- Open a container detail page with start, stop and restart actions.
+- View important runtime settings from `docker inspect`.
+- View full `docker inspect` JSON.
+- View recent container logs from `docker logs --timestamps`.
 
 ### Quick Shell
 
@@ -177,10 +187,10 @@ stored, but SSH keys are recommended because local password storage only protect
 against casual exposure, not a compromised server.
 
 The Nodes page also contains the Remote API access foundation. This is used for
-future cross-node features such as reading logs from another Systemd Gui node or
-copying Quick Shell command sets between nodes. Access is disabled by default.
-When enabled, every request needs a token. Tokens are only shown once when they
-are created; the local node stores only a hash.
+cross-node features such as reading logs from another Systemd Gui node,
+triggering remote updates or copying Quick Shell command sets between nodes.
+Access is disabled by default. When enabled, every request needs a token. Tokens
+are only shown once when they are created; the local node stores only a hash.
 
 Remote API tokens can be limited by access category:
 

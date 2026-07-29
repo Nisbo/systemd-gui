@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Docker</h2>
+        <p>View local Docker containers and use simple start, stop, restart and log actions.</p>
+      </div>
+      <span class="tag {% if status.running %}{% elif status.available %}neutral{% else %}danger{% endif %}">
+        {% if status.running %}Docker running{% elif status.available %}Daemon unavailable{% else %}Docker missing{% endif %}
+      </span>
+    </div>
+
+    <dl class="detail-grid three">
+      <div>
+        <dt>Docker command</dt>
+        <dd>{{ 'Available' if status.available else 'Missing' }}</dd>
+      </div>
+      <div>
+        <dt>Docker daemon</dt>
+        <dd>{{ 'Reachable' if status.running else 'Unavailable' }}</dd>
+      </div>
+      <div>
+        <dt>Server version</dt>
+        <dd>{{ status.server_version or '-' }}</dd>
+      </div>
+    </dl>
+
+    {% if not status.running %}
+      <div class="diagnostic {% if status.available %}warning{% else %}error{% endif %}">
+        <strong>Docker cannot be queried</strong>
+        <span>{{ status.message }}</span>
+        {% if status.client_version %}<span>{{ status.client_version }}</span>{% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Containers</h2>
+        <p>{{ counts.total }} container{{ '' if counts.total == 1 else 's' }} found. {{ counts.running }} running, {{ counts.exited }} exited.</p>
+      </div>
+      <a class="ghost-button" href="{{ url_for('docker_index') }}">Refresh</a>
+    </div>
+
+    {% if containers %}
+      <div class="table-wrap compact-table docker-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Status</th>
+              <th>Image</th>
+              <th>Ports</th>
+              <th>Created</th>
+              <th class="actions-heading">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for container in containers %}
+              <tr>
+                <td>
+                  <a class="table-link" href="{{ url_for('docker_detail', container_id=container.id) }}">{{ container.name or container.short_id }}</a>
+                  <div class="muted"><code>{{ container.short_id }}</code></div>
+                </td>
+                <td>
+                  <span class="tag docker-state {{ container.state }}">{{ container.state or 'unknown' }}</span>
+                  <div class="muted">{{ container.status or '-' }}</div>
+                </td>
+                <td><code>{{ container.image or '-' }}</code></td>
+                <td>{{ container.ports or '-' }}</td>
+                <td>{{ container.created or container.running_for or '-' }}</td>
+                <td>
+                  <div class="table-actions">
+                    <a class="ghost-button compact-button" href="{{ url_for('docker_detail', container_id=container.id) }}">Details</a>
+                    <a class="ghost-button icon-button" href="{{ url_for('docker_detail', container_id=container.id, tab='logs') }}" title="Open container logs" aria-label="Open logs for {{ container.name or container.short_id }}"><span aria-hidden="true">≡</span></a>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% elif status.running %}
+      <p class="empty-note">No Docker containers were found on this server.</p>
+    {% endif %}
+  </section>
+{% endblock %}
