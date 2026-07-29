@@ -1,4 +1,115 @@
 {% extends "base.html" %}
+{% macro node_form_dialog(dialog_id, title, description, action_url, submit_label, node, csrf_token, is_edit=False) -%}
+  {% set node_name = node.name if node else '' %}
+  {% set node_url = node.url if node else '' %}
+  {% set node_host = node.host if node else '' %}
+  {% set ssh_user = node.ssh_user if node else '' %}
+  {% set ssh_host = node.ssh_host if node else '' %}
+  {% set ssh_port = node.ssh_port if node and node.ssh_port else '22' %}
+  {% set ssh_key_path = node.ssh_key_path if node else '' %}
+  {% set ssh_password = node.ssh_password if node else '' %}
+  {% set api_token = node.api_token if node else '' %}
+  {% set remote_keep_menu = node.remote_keep_menu if node and node.remote_keep_menu else 'yes' %}
+  {% set node_note = node.note if node else '' %}
+  <div class="confirm-modal" data-node-edit-modal id="{{ dialog_id }}" hidden>
+    <div class="confirm-dialog node-dialog" role="dialog" aria-modal="true" aria-labelledby="{{ dialog_id }}-title">
+      <div class="panel-head modal-head">
+        <div>
+          <strong id="{{ dialog_id }}-title">{{ title }}</strong>
+          <p>{{ description }}</p>
+        </div>
+        <button class="ghost-button small-icon-button" type="button" data-node-modal-close aria-label="Close">×</button>
+      </div>
+      <form class="node-form" method="post" action="{{ action_url }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        {% if is_edit %}
+          <input type="hidden" name="keep_ssh_password" value="1">
+          <input type="hidden" name="keep_api_token" value="1">
+        {% endif %}
+
+        <div class="node-form-section">
+          <div class="node-form-heading">
+            <strong>Basic connection</strong>
+            <span>The GUI URL is used for opening the node and Remote API access.</span>
+          </div>
+          <label>
+            Name
+            <input name="name" value="{{ node_name }}" placeholder="Backup server" {% if is_edit %}required{% endif %}>
+          </label>
+          <label>
+            GUI URL
+            <input name="url" value="{{ node_url }}" placeholder="http://192.168.1.20:8850" required>
+          </label>
+        </div>
+
+        <div class="node-form-section">
+          <div class="node-form-heading">
+            <strong>SSH for Quick Shell</strong>
+            <span>Optional. Used when opening remote <code>qs</code> from this node.</span>
+          </div>
+          <label>
+            SSH user
+            <input name="ssh_user" value="{{ ssh_user }}" placeholder="root">
+          </label>
+          <label>
+            SSH host
+            <input name="ssh_host" value="{{ ssh_host }}" placeholder="{{ node_host or '192.168.1.20' }}">
+          </label>
+          <label>
+            SSH port
+            <input name="ssh_port" value="{{ ssh_port }}" inputmode="numeric">
+          </label>
+          <label>
+            SSH key path
+            <input name="ssh_key_path" value="{{ ssh_key_path }}" placeholder="/root/.ssh/id_ed25519">
+            <span class="field-help">Recommended. A key is safer than storing a password.</span>
+          </label>
+          <label class="wide-field">
+            SSH password
+            <input name="ssh_password" type="password" placeholder="{% if ssh_password %}Stored; leave empty to keep{% else %}Optional, not recommended{% endif %}">
+            <span class="field-help">Stored in <code>nodes.json</code> if entered. Use only on trusted systems.</span>
+          </label>
+        </div>
+
+        <div class="node-form-section">
+          <div class="node-form-heading">
+            <strong>Remote API and qs behavior</strong>
+            <span>Tokens are needed for API features such as remote logs and remote updates.</span>
+          </div>
+          <label>
+            Remote API token
+            <input name="api_token" type="password" placeholder="{% if api_token %}Stored; leave empty to keep{% else %}Token from the remote node{% endif %}">
+          </label>
+          <label>
+            Remote qs after command
+            <select name="remote_keep_menu">
+              <option value="yes" {% if remote_keep_menu == "yes" %}selected{% endif %}>Yes, keep remote menu open</option>
+              <option value="no" {% if remote_keep_menu == "no" %}selected{% endif %}>No, disconnect after command</option>
+              <option value="ask" {% if remote_keep_menu == "ask" %}selected{% endif %}>Ask when connecting</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="node-form-section">
+          <div class="node-form-heading">
+            <strong>Note</strong>
+            <span>Optional local reminder for purpose, location or owner.</span>
+          </div>
+          <label class="wide-field">
+            Note
+            <input name="note" value="{{ node_note }}" placeholder="Purpose, location or owner">
+          </label>
+        </div>
+
+        <div class="form-actions">
+          <button class="primary-button" type="submit">{{ submit_label }}</button>
+          <button class="ghost-button" type="button" data-node-modal-close>Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{%- endmacro %}
+
 {% block content %}
   <section class="panel settings-tabs-panel">
     <div class="panel-head">
@@ -253,6 +364,7 @@
         <h2>Saved nodes</h2>
         <p>Saved nodes stay here even when they are offline. The status checks the saved GUI URL; Quick Shell uses SSH settings; later Remote API features use saved tokens.</p>
       </div>
+      <button class="primary-button" type="button" data-node-edit-open data-target="#node-add">Add node</button>
     </div>
 
     {% if saved_nodes %}
@@ -333,78 +445,12 @@
       </div>
 
       {% for node in saved_nodes %}
-        <div class="confirm-modal" data-node-edit-modal id="node-edit-{{ loop.index0 }}" hidden>
-          <div class="confirm-dialog node-dialog" role="dialog" aria-modal="true" aria-labelledby="node-edit-title-{{ loop.index0 }}">
-            <div class="panel-head modal-head">
-              <div>
-                <strong id="node-edit-title-{{ loop.index0 }}">Edit {{ node.name }}</strong>
-                <p>Change the saved GUI and optional SSH settings for this node.</p>
-              </div>
-              <button class="ghost-button small-icon-button" type="button" data-node-modal-close aria-label="Close">×</button>
-            </div>
-            <form class="form-grid" method="post" action="{{ url_for('update_node', node_id=node.id) }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-              <input type="hidden" name="keep_ssh_password" value="1">
-              <input type="hidden" name="keep_api_token" value="1">
-              <label>
-                Name
-                <input name="name" value="{{ node.name }}" required>
-              </label>
-              <label>
-                GUI URL
-                <input name="url" value="{{ node.url }}" placeholder="http://server:8850" required>
-              </label>
-              <label>
-                SSH user
-                <input name="ssh_user" value="{{ node.ssh_user }}" placeholder="root">
-              </label>
-              <label>
-                SSH host
-                <input name="ssh_host" value="{{ node.ssh_host }}" placeholder="{{ node.host }}">
-              </label>
-              <label>
-                SSH port
-                <input name="ssh_port" value="{{ node.ssh_port or '22' }}" inputmode="numeric">
-              </label>
-              <label>
-                SSH key path
-                <input name="ssh_key_path" value="{{ node.ssh_key_path }}" placeholder="/root/.ssh/id_ed25519">
-                <span class="field-help">Recommended. A key is safer than storing a password.</span>
-              </label>
-              <label>
-                SSH password
-                <input name="ssh_password" type="password" placeholder="{% if node.ssh_password %}Stored; leave empty to keep{% else %}Optional, not recommended{% endif %}">
-                <span class="field-help">Optional and stored in <code>nodes.json</code>. Use only on trusted systems.</span>
-              </label>
-              <label>
-                Remote API token
-                <input name="api_token" type="password" placeholder="{% if node.api_token %}Stored; leave empty to keep{% else %}Token from the remote node{% endif %}">
-                <span class="field-help">Optional and stored in <code>nodes.json</code>. Needed later when this installation should read data from that node through the Remote API.</span>
-              </label>
-              <label>
-                Remote qs after command
-                <select name="remote_keep_menu">
-                  <option value="yes" {% if node.remote_keep_menu == "yes" or not node.remote_keep_menu %}selected{% endif %}>Yes, keep remote menu open</option>
-                  <option value="no" {% if node.remote_keep_menu == "no" %}selected{% endif %}>No, disconnect after command</option>
-                  <option value="ask" {% if node.remote_keep_menu == "ask" %}selected{% endif %}>Ask when connecting</option>
-                </select>
-                <span class="field-help">Controls what happens after a remote command finishes. The remote node still uses its own Quick Shell menu.</span>
-              </label>
-              <label>
-                Note
-                <input name="note" value="{{ node.note }}" placeholder="Purpose, location or owner">
-              </label>
-              <div class="form-actions">
-                <button class="primary-button" type="submit">Save node</button>
-                <button class="ghost-button" type="button" data-node-modal-close>Cancel</button>
-              </div>
-            </form>
-          </div>
-        </div>
+        {{ node_form_dialog("node-edit-" ~ loop.index0, "Edit " ~ node.name, "Change the saved GUI, SSH and Remote API settings for this node.", url_for('update_node', node_id=node.id), "Save node", node, csrf_token, True) }}
       {% endfor %}
     {% else %}
       <p class="empty-note">No saved nodes yet. Save a discovered node below or add one manually.</p>
     {% endif %}
+    {{ node_form_dialog("node-add", "Add node", "Add a Systemd Gui installation manually when discovery is not available or the node is in another network segment.", url_for('create_node'), "Add node", none, csrf_token, False) }}
   </section>
 
   <section class="panel">
@@ -467,59 +513,6 @@
     {% else %}
       <p class="empty-note">No Systemd Gui nodes were discovered right now.</p>
     {% endif %}
-  </section>
-
-  <section class="panel">
-    <div class="panel-head">
-      <div>
-        <h2>Add node manually</h2>
-        <p>Use this when mDNS is not available or when the node is in another network segment.</p>
-      </div>
-    </div>
-    <form class="form-grid" method="post" action="{{ url_for('create_node') }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <label>
-        Name
-        <input name="name" placeholder="Backup server">
-      </label>
-      <label>
-        GUI URL
-        <input name="url" placeholder="http://192.168.1.20:8850" required>
-      </label>
-      <label>
-        SSH user
-        <input name="ssh_user" placeholder="root">
-      </label>
-      <label>
-        SSH host
-        <input name="ssh_host" placeholder="192.168.1.20">
-      </label>
-      <label>
-        SSH port
-        <input name="ssh_port" value="22" inputmode="numeric">
-      </label>
-      <label>
-        SSH key path
-        <input name="ssh_key_path" placeholder="/root/.ssh/id_ed25519">
-      </label>
-      <label>
-        SSH password
-        <input name="ssh_password" type="password" placeholder="Optional, not recommended">
-        <span class="field-help">Stored in <code>nodes.json</code> if entered. Prefer SSH keys where possible.</span>
-      </label>
-      <label>
-        Remote API token
-        <input name="api_token" type="password" placeholder="Optional token from this node">
-        <span class="field-help">Used later for Remote API features such as reading logs or importing Quick Shell entries from this node.</span>
-      </label>
-      <label>
-        Note
-        <input name="note" placeholder="Optional">
-      </label>
-      <div class="form-actions">
-        <button class="primary-button" type="submit">Add node</button>
-      </div>
-    </form>
   </section>
   {% endif %}
 {% endblock %}

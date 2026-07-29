@@ -163,8 +163,14 @@ th.actions-heading { text-align:right; }
 .info-card h3 { margin:0; font-size:1rem; }
 .info-card p { line-height:1.5; }
 .info-meta-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
-.node-dialog { width:min(760px, calc(100% - 32px)); }
+.node-dialog { width:min(860px, calc(100% - 32px)); }
 .modal-head { align-items:flex-start; border-bottom:1px solid var(--line); padding-bottom:12px; }
+.node-form { display:grid; gap:16px; }
+.node-form-section { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px 14px; border:1px solid var(--line); border-radius:8px; padding:14px; }
+.node-form-heading { grid-column:1 / -1; display:grid; gap:4px; padding-bottom:10px; border-bottom:1px solid var(--line); }
+.node-form-heading strong { font-size:1rem; }
+.node-form-heading span { color:var(--muted); font-size:.88rem; font-weight:700; line-height:1.35; }
+.node-form .wide-field { grid-column:1 / -1; }
 .backup-action-row { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:18px; }
 .backup-action-group { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .backup-danger-group { justify-content:flex-end; }
@@ -343,4 +349,4 @@ button[aria-busy="true"] { opacity:.72; }
 .info-links { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
 .app-footer { display:flex; justify-content:center; gap:10px; color:var(--muted); font-size:.88rem; margin-top:28px; }
 @media (max-width: 980px) { .quick-shell-helper,.quick-shell-history-card { grid-template-columns:1fr; } }
-@media (max-width: 760px) { .topbar,.panel-head,.search-row,.restart-banner,.restart-card,.backup-action-row { align-items:stretch; flex-direction:column; } .operations-grid,.detail-grid,.detail-grid.two,.detail-grid.three,.form-grid,.backup-create,.update-version-bar,.update-actions,.log-controls,.info-layout,.info-meta-grid,.quick-shell-settings-form,.quick-shell-history-controls { grid-template-columns:1fr; } .top-actions { justify-items:start; } .top-nav,.action-bar,.backup-danger-group { justify-content:flex-start; } .session-action { justify-content:flex-start; } .quick-shell-tree-item { margin-left:0; } }
+@media (max-width: 760px) { .topbar,.panel-head,.search-row,.restart-banner,.restart-card,.backup-action-row { align-items:stretch; flex-direction:column; } .operations-grid,.detail-grid,.detail-grid.two,.detail-grid.three,.form-grid,.node-form-section,.backup-create,.update-version-bar,.update-actions,.log-controls,.info-layout,.info-meta-grid,.quick-shell-settings-form,.quick-shell-history-controls { grid-template-columns:1fr; } .top-actions { justify-items:start; } .top-nav,.action-bar,.backup-danger-group { justify-content:flex-start; } .session-action { justify-content:flex-start; } .quick-shell-tree-item { margin-left:0; } }
