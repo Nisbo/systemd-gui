@@ -128,24 +128,62 @@
     <div class="panel-head">
       <div>
         <h2>This node</h2>
-        <p>Local identity and discovery information for this Systemd Gui installation.</p>
+        <p>How this installation identifies itself and becomes visible to other nodes.</p>
       </div>
-    </div>
-    <div class="diagnostic warning">
-      <strong>Remote Quick Shell uses saved SSH settings</strong>
-      <span>In the local <code>qs</code> menu, choose <code>N</code> to open <code>qs</code> on a saved node over SSH. SSH keys are preferred; passwords are optional and should only be stored on trusted systems.</span>
-    </div>
-
-    <div class="diagnostic warning">
-      <strong>Remote API access is token based</strong>
-      <span>Use tokens when another Systemd Gui installation should read data from this node later. IP allowlists add protection, but static IPs are easier to maintain. If your router gives devices dynamic IPs, a saved allowlist entry can stop working after DHCP changes.</span>
+      <span class="tag {% if announcement.installed and announcement.current %}{% elif announcement.available %}neutral{% else %}danger{% endif %}">
+        {% if announcement.installed and announcement.current %}Announced{% elif announcement.available %}Ready{% else %}Unavailable{% endif %}
+      </span>
     </div>
 
-    <dl class="detail-grid three">
-      <div><dt>This node</dt><dd>{{ node_settings.node_name }}</dd></div>
-      <div><dt>Node ID</dt><dd><code>{{ node_settings.node_id }}</code></dd></div>
-      <div><dt>Storage</dt><dd><code>{{ nodes_path }}</code></dd></div>
-    </dl>
+    <div class="local-node-layout">
+      <div class="local-node-main">
+        <form class="local-node-card local-node-form" method="post" action="{{ url_for('update_nodes_settings') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="local-node-card-head">
+            <strong>Local identity</strong>
+            <span>Shown in discovery lists, remote logs and the node switcher.</span>
+          </div>
+          <label>
+            Local display name
+            <input name="node_name" value="{{ node_settings.node_name }}" placeholder="Server name">
+            <span class="field-help">Use a name humans can recognize, for example location or role.</span>
+          </label>
+          <label class="toggle-label">
+            <input type="checkbox" name="announce_enabled" value="1" {% if node_settings.announce_enabled %}checked{% endif %}>
+            <span>Announce this node on LAN</span>
+          </label>
+          <div class="form-actions">
+            <button class="primary-button" type="submit">Save this node</button>
+          </div>
+        </form>
+
+        <div class="node-feature-grid">
+          <div class="node-feature-card">
+            <strong>Remote Quick Shell</strong>
+            <span>Uses the saved SSH settings from the Nodes tab. SSH keys are preferred; stored passwords should only be used on trusted systems.</span>
+          </div>
+          <div class="node-feature-card">
+            <strong>Remote API</strong>
+            <span>Uses API keys from the API keys tab. Optional IP allowlists are safer with static DHCP leases because dynamic IPs can change.</span>
+          </div>
+        </div>
+      </div>
+
+      <dl class="local-node-card node-identity-list">
+        <div>
+          <dt>This node</dt>
+          <dd>{{ node_settings.node_name }}</dd>
+        </div>
+        <div>
+          <dt>Node ID</dt>
+          <dd><code>{{ node_settings.node_id }}</code></dd>
+        </div>
+        <div>
+          <dt>Storage</dt>
+          <dd><code>{{ nodes_path }}</code></dd>
+        </div>
+      </dl>
+    </div>
   </section>
 
   <section class="panel">
@@ -154,31 +192,32 @@
         <h2>LAN announcement</h2>
         <p>Announce this server as <code>_systemd-gui._tcp.local</code> so other installations can find it.</p>
       </div>
-      <span class="tag {% if announcement.installed and announcement.current %}{% elif announcement.available %}neutral{% else %}danger{% endif %}">
-        {% if announcement.installed and announcement.current %}Announced{% elif announcement.available %}Ready{% else %}Unavailable{% endif %}
-      </span>
     </div>
 
-    <dl class="detail-grid three">
-      <div>
+    <dl class="node-status-grid">
+      <div class="node-status-card {% if announcement.available %}ok{% else %}bad{% endif %}">
         <dt>Avahi</dt>
         <dd>{{ 'Installed' if announcement.available else 'Missing' }}</dd>
+        <span>{{ announcement.message }}</span>
       </div>
-      <div>
+      <div class="node-status-card {% if announcement.installed and announcement.current %}ok{% elif announcement.installed %}warn{% else %}neutral{% endif %}">
         <dt>Own announcement</dt>
         <dd>{% if announcement.installed and announcement.current %}Installed and current{% elif announcement.installed %}Installed but outdated{% else %}Not installed{% endif %}</dd>
+        <span>Controls whether other Systemd Gui installations can discover this node automatically.</span>
       </div>
-      <div>
+      <div class="node-status-card neutral">
         <dt>Service file</dt>
         <dd><code>{{ announcement.service_file }}</code></dd>
+        <span>Written by the discovery setup helper when announcement is installed.</span>
       </div>
     </dl>
 
     {% if not announcement.available or not announcement.installed or not announcement.current %}
-      <div class="diagnostic warning">
-        <strong>Discovery setup can be repaired from here</strong>
-        <span>Finding other nodes only needs discovery tools such as <code>avahi-browse</code>. This button also repairs the own announcement file so other nodes can find this installation.</span>
-        <span>On Debian-style systems this may install <code>avahi-daemon</code> and <code>avahi-utils</code>, start Avahi and write the Systemd Gui LAN announcement file.</span>
+      <div class="discovery-repair-card">
+        <div>
+          <strong>Discovery setup needs attention</strong>
+          <span>Repair installs or updates Avahi support and writes the LAN announcement file on Debian-style systems.</span>
+        </div>
         <form method="post" action="{{ url_for('install_nodes_discovery') }}" data-confirm="Install or repair LAN discovery support now? This may run apt-get install avahi-daemon avahi-utils on this server.">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <button class="primary-button" type="submit">Install/repair LAN discovery</button>
@@ -194,27 +233,6 @@
         {% endif %}
       </div>
     {% endif %}
-
-    <form class="form-grid" method="post" action="{{ url_for('update_nodes_settings') }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <label>
-        Local display name
-        <input name="node_name" value="{{ node_settings.node_name }}" placeholder="Server name">
-        <span class="field-help">Shown to other Systemd Gui installations in the LAN discovery list.</span>
-      </label>
-      <label class="toggle-label">
-        <input type="checkbox" name="announce_enabled" value="1" {% if node_settings.announce_enabled %}checked{% endif %}>
-        <span>Announce this node on LAN</span>
-      </label>
-      <div class="diagnostic {% if announcement.available %}warning{% else %}error{% endif %}">
-        <strong>Avahi/mDNS</strong>
-        <span>{{ announcement.message }}</span>
-        <span>Service file: <code>{{ announcement.service_file }}</code></span>
-      </div>
-      <div class="form-actions">
-        <button class="primary-button" type="submit">Save announcement settings</button>
-      </div>
-    </form>
   </section>
 
   {% elif active_tab == "api" %}
@@ -222,7 +240,7 @@
     <div class="panel-head">
       <div>
         <h2>Remote API access</h2>
-        <p>Allow other Systemd Gui nodes to connect to this installation with a token. Later features will use these access categories for logs, service data and Quick Shell sharing.</p>
+        <p>Allow other Systemd Gui nodes to connect to this installation with a token. Access categories control logs, service data, remote updates and Quick Shell exports.</p>
       </div>
       <span class="tag {% if api_access.settings.enabled %}{% else %}neutral{% endif %}">
         {% if api_access.settings.enabled %}API enabled{% else %}API disabled{% endif %}
