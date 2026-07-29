@@ -357,7 +357,7 @@
     <div class="panel-head">
       <div>
         <h2>Saved nodes</h2>
-        <p>Saved nodes stay here even when they are offline. The status checks the saved GUI URL; Quick Shell uses SSH settings; later Remote API features use saved tokens.</p>
+        <p>Saved nodes stay here even when they are offline. The status checks the saved GUI URL; Quick Shell uses SSH settings; Remote API features use saved tokens.</p>
       </div>
       <button class="primary-button" type="button" data-node-edit-open data-target="#node-add">Add node</button>
     </div>
@@ -452,7 +452,7 @@
     <div class="panel-head">
       <div>
         <h2>Discovered nodes</h2>
-        <p>These nodes currently announce Systemd Gui through Avahi/mDNS on your LAN. Only IPv4 addresses are shown; versions are refreshed from the running node when available.</p>
+        <p>These nodes announce Systemd Gui through Avahi/mDNS on your LAN. Only IPv4 addresses are shown; versions are refreshed from the running node when available.</p>
       </div>
       <span class="tag {% if discovery.available %}{% else %}danger{% endif %}">
         {% if discovery.available %}Discovery active{% else %}Discovery unavailable{% endif %}

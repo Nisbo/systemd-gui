@@ -1551,7 +1551,7 @@ def _node_navigation(app: Flask) -> dict[str, object]:
     local_url = request.host_url.rstrip("/") if request else ""
     current = {
         "name": local_name,
-        "url": url_for("index"),
+        "url": _node_switch_url(""),
         "absolute_url": local_url,
         "node_id": local_id,
         "version": APP_VERSION,
@@ -1583,7 +1583,7 @@ def _node_navigation(app: Flask) -> dict[str, object]:
         version = str(metadata.get("version") or node.get("version") or "").strip()
         nodes.append({
             "name": str(node.get("name") or node_url or "Systemd Gui node").strip(),
-            "url": node_url,
+            "url": _node_switch_url(node_url),
             "absolute_url": node_url,
             "node_id": node_id,
             "version": version,
@@ -1592,6 +1592,19 @@ def _node_navigation(app: Flask) -> dict[str, object]:
         })
     nodes = sorted(nodes, key=lambda item: str(item.get("name") or "").lower())
     return {"current": current, "nodes": nodes}
+
+
+def _node_switch_url(base_url: str) -> str:
+    path = "/"
+    if request and request.method == "GET" and str(request.endpoint or "") not in {"login", "static"}:
+        path = request.path or "/"
+        query = request.query_string.decode("utf-8", "ignore")
+        if query:
+            path = f"{path}?{query}"
+    base = str(base_url or "").strip().rstrip("/")
+    if not base:
+        return path
+    return f"{base}{path if path.startswith('/') else '/' + path}"
 
 
 def _nav_node_url_key(url: str) -> str:
