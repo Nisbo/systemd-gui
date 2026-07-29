@@ -52,6 +52,11 @@
             <input name="ssh_user" value="{{ ssh_user }}" placeholder="root">
           </label>
           <label>
+            SSH password
+            <input name="ssh_password" type="password" placeholder="{% if ssh_password %}Stored; leave empty to keep{% else %}Optional, not recommended{% endif %}">
+            <span class="field-help">Stored in <code>nodes.json</code> if entered. Use only on trusted systems.</span>
+          </label>
+          <label>
             SSH host
             <input name="ssh_host" value="{{ ssh_host }}" placeholder="{{ node_host or '192.168.1.20' }}">
           </label>
@@ -64,24 +69,8 @@
             <input name="ssh_key_path" value="{{ ssh_key_path }}" placeholder="/root/.ssh/id_ed25519">
             <span class="field-help">Recommended. A key is safer than storing a password.</span>
           </label>
-          <label class="wide-field">
-            SSH password
-            <input name="ssh_password" type="password" placeholder="{% if ssh_password %}Stored; leave empty to keep{% else %}Optional, not recommended{% endif %}">
-            <span class="field-help">Stored in <code>nodes.json</code> if entered. Use only on trusted systems.</span>
-          </label>
-        </div>
-
-        <div class="node-form-section">
-          <div class="node-form-heading">
-            <strong>Remote API and qs behavior</strong>
-            <span>Tokens are needed for API features such as remote logs and remote updates.</span>
-          </div>
           <label>
-            Remote API token
-            <input name="api_token" type="password" placeholder="{% if api_token %}Stored; leave empty to keep{% else %}Token from the remote node{% endif %}">
-          </label>
-          <label>
-            Remote qs after command
+            Remote qs behavior
             <select name="remote_keep_menu">
               <option value="yes" {% if remote_keep_menu == "yes" %}selected{% endif %}>Yes, keep remote menu open</option>
               <option value="no" {% if remote_keep_menu == "no" %}selected{% endif %}>No, disconnect after command</option>
@@ -92,11 +81,18 @@
 
         <div class="node-form-section">
           <div class="node-form-heading">
-            <strong>Note</strong>
-            <span>Optional local reminder for purpose, location or owner.</span>
+            <strong>Remote API</strong>
+            <span>Optional. Needed for API features such as remote logs and remote updates.</span>
           </div>
           <label class="wide-field">
-            Note
+            Remote API token
+            <input name="api_token" type="password" placeholder="{% if api_token %}Stored; leave empty to keep{% else %}Token from the remote node{% endif %}">
+          </label>
+        </div>
+
+        <div class="node-form-section node-note-section">
+          <label class="wide-field">
+            <span class="sr-only">Note</span>
             <input name="note" value="{{ node_note }}" placeholder="Purpose, location or owner">
           </label>
         </div>

@@ -171,6 +171,7 @@ th.actions-heading { text-align:right; }
 .node-form-heading strong { font-size:1rem; }
 .node-form-heading span { color:var(--muted); font-size:.88rem; font-weight:700; line-height:1.35; }
 .node-form .wide-field { grid-column:1 / -1; }
+.node-note-section { padding:0; border:0; }
 .backup-action-row { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:18px; }
 .backup-action-group { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .backup-danger-group { justify-content:flex-end; }
