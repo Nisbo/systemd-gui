@@ -314,11 +314,11 @@
                 <td>{{ node.note or '-' }}</td>
                 <td>
                   <div class="table-actions">
-                    <a class="ghost-button small-icon-button" href="{{ node.url }}" target="_blank" rel="noopener" title="Open node" aria-label="Open {{ node.name }}">{{ icon("open") }}</a>
                     <form method="post" action="{{ url_for('check_node_api', node_id=node.id) }}">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                       <button class="ghost-button compact-button" type="submit" title="Check whether this node accepts the saved Remote API token.">{{ icon("check") }}<span>Check API</span></button>
                     </form>
+                    <a class="ghost-button small-icon-button" href="{{ node.url }}" target="_blank" rel="noopener" title="Open node" aria-label="Open {{ node.name }}">{{ icon("open") }}</a>
                     <button class="ghost-button small-icon-button" type="button" data-node-edit-open data-target="#node-edit-{{ loop.index0 }}" title="Edit node" aria-label="Edit {{ node.name }}">{{ icon("edit") }}</button>
                     <form method="post" action="{{ url_for('delete_node', node_id=node.id) }}" data-confirm="Delete this saved node?">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -445,7 +445,7 @@
                 <td>{{ node.version or '-' }}</td>
                 <td>
                   <div class="table-actions">
-                    <a class="ghost-button compact-button" href="{{ node.url }}" target="_blank" rel="noopener">Open</a>
+                    <a class="ghost-button small-icon-button" href="{{ node.url }}" target="_blank" rel="noopener" title="Open node" aria-label="Open {{ node.name }}">{{ icon("open") }}</a>
                     {% if not node.saved %}
                       <form method="post" action="{{ url_for('save_discovered_node') }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
