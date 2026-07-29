@@ -122,6 +122,7 @@ th.actions-heading { text-align:right; }
 .summary-meta { display:flex; align-items:center; justify-content:space-between; gap:10px; min-height:34px; }
 .summary-meta-label { color:var(--muted); font-size:.78rem; font-weight:900; text-transform:uppercase; }
 .compact-button { min-height:34px; padding:0 10px; font-size:.9rem; }
+.compact-button .button-icon { width:16px; height:16px; margin-right:6px; }
 .path-copy-row { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:8px; align-items:center; width:100%; }
 .path-value { min-width:0; overflow-wrap:anywhere; line-height:1.15; }
 .action-bar { flex-wrap:wrap; margin-top:18px; }

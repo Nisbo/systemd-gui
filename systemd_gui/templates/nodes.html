@@ -53,10 +53,26 @@
       </span>
     </div>
 
+    <dl class="detail-grid three">
+      <div>
+        <dt>Avahi</dt>
+        <dd>{{ 'Installed' if announcement.available else 'Missing' }}</dd>
+      </div>
+      <div>
+        <dt>Own announcement</dt>
+        <dd>{% if announcement.installed and announcement.current %}Installed and current{% elif announcement.installed %}Installed but outdated{% else %}Not installed{% endif %}</dd>
+      </div>
+      <div>
+        <dt>Service file</dt>
+        <dd><code>{{ announcement.service_file }}</code></dd>
+      </div>
+    </dl>
+
     {% if not announcement.available or not announcement.installed or not announcement.current %}
       <div class="diagnostic warning">
         <strong>Discovery setup can be repaired from here</strong>
-        <span>This installs <code>avahi-daemon</code> and <code>avahi-utils</code> on Debian-style systems, starts Avahi and writes the Systemd Gui LAN announcement file.</span>
+        <span>Finding other nodes only needs discovery tools such as <code>avahi-browse</code>. This button also repairs the own announcement file so other nodes can find this installation.</span>
+        <span>On Debian-style systems this may install <code>avahi-daemon</code> and <code>avahi-utils</code>, start Avahi and write the Systemd Gui LAN announcement file.</span>
         <form method="post" action="{{ url_for('install_nodes_discovery') }}" data-confirm="Install or repair LAN discovery support now? This may run apt-get install avahi-daemon avahi-utils on this server.">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <button class="primary-button" type="submit">Install/repair LAN discovery</button>
@@ -298,15 +314,15 @@
                 <td>{{ node.note or '-' }}</td>
                 <td>
                   <div class="table-actions">
-                    <a class="ghost-button compact-button" href="{{ node.url }}" target="_blank" rel="noopener">Open</a>
+                    <a class="ghost-button small-icon-button" href="{{ node.url }}" target="_blank" rel="noopener" title="Open node" aria-label="Open {{ node.name }}">{{ icon("open") }}</a>
                     <form method="post" action="{{ url_for('check_node_api', node_id=node.id) }}">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                      <button class="ghost-button compact-button" type="submit" title="Check whether this node accepts the saved Remote API token.">Check API</button>
+                      <button class="ghost-button compact-button" type="submit" title="Check whether this node accepts the saved Remote API token.">{{ icon("check") }}<span>Check API</span></button>
                     </form>
-                    <button class="ghost-button compact-button" type="button" data-node-edit-open data-target="#node-edit-{{ loop.index0 }}">Edit</button>
+                    <button class="ghost-button small-icon-button" type="button" data-node-edit-open data-target="#node-edit-{{ loop.index0 }}" title="Edit node" aria-label="Edit {{ node.name }}">{{ icon("edit") }}</button>
                     <form method="post" action="{{ url_for('delete_node', node_id=node.id) }}" data-confirm="Delete this saved node?">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                      <button class="danger-button compact-button" type="submit">Delete</button>
+                      <button class="danger-button small-icon-button" type="submit" title="Delete node" aria-label="Delete {{ node.name }}">{{ icon("delete") }}</button>
                     </form>
                   </div>
                 </td>
