@@ -135,10 +135,10 @@
       </span>
     </div>
 
-    <div class="local-node-layout">
-      <div class="local-node-main">
-        <form class="local-node-card local-node-form" method="post" action="{{ url_for('update_nodes_settings') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <form class="local-node-settings" method="post" action="{{ url_for('update_nodes_settings') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="local-node-layout">
+        <div class="local-node-card local-node-settings-card">
           <div class="local-node-card-head">
             <strong>Local identity</strong>
             <span>Shown in discovery lists, remote logs and the node switcher.</span>
@@ -148,53 +148,37 @@
             <input name="node_name" value="{{ node_settings.node_name }}" placeholder="Server name">
             <span class="field-help">Use a name humans can recognize, for example location or role.</span>
           </label>
-          <label class="toggle-label">
+          <div class="local-node-card-head local-node-subhead">
+            <strong>LAN announcement</strong>
+            <span>Announce this server as <code>_systemd-gui._tcp.local</code> so other installations can find it.</span>
+          </div>
+          <label class="toggle-label local-node-toggle">
             <input type="checkbox" name="announce_enabled" value="1" {% if node_settings.announce_enabled %}checked{% endif %}>
             <span>Announce this node on LAN</span>
           </label>
           <div class="form-actions">
             <button class="primary-button" type="submit">Save this node</button>
           </div>
-        </form>
+        </div>
 
-        <div class="node-feature-grid">
-          <div class="node-feature-card">
-            <strong>Remote Quick Shell</strong>
-            <span>Uses the saved SSH settings from the Nodes tab. SSH keys are preferred; stored passwords should only be used on trusted systems.</span>
+        <dl class="local-node-card node-identity-list">
+          <div>
+            <dt>Node ID</dt>
+            <dd><code>{{ node_settings.node_id }}</code></dd>
           </div>
-          <div class="node-feature-card">
-            <strong>Remote API</strong>
-            <span>Uses API keys from the API keys tab. Optional IP allowlists are safer with static DHCP leases because dynamic IPs can change.</span>
+          <div>
+            <dt>Storage</dt>
+            <dd><code>{{ nodes_path }}</code></dd>
           </div>
-        </div>
+          <div>
+            <dt>Announcement file</dt>
+            <dd><code>{{ announcement.service_file }}</code></dd>
+          </div>
+        </dl>
       </div>
+    </form>
 
-      <dl class="local-node-card node-identity-list">
-        <div>
-          <dt>This node</dt>
-          <dd>{{ node_settings.node_name }}</dd>
-        </div>
-        <div>
-          <dt>Node ID</dt>
-          <dd><code>{{ node_settings.node_id }}</code></dd>
-        </div>
-        <div>
-          <dt>Storage</dt>
-          <dd><code>{{ nodes_path }}</code></dd>
-        </div>
-      </dl>
-    </div>
-  </section>
-
-  <section class="panel">
-    <div class="panel-head">
-      <div>
-        <h2>LAN announcement</h2>
-        <p>Announce this server as <code>_systemd-gui._tcp.local</code> so other installations can find it.</p>
-      </div>
-    </div>
-
-    <dl class="node-status-grid">
+    <dl class="node-status-grid local-node-status-grid">
       <div class="node-status-card {% if announcement.available %}ok{% else %}bad{% endif %}">
         <dt>Avahi</dt>
         <dd>{{ 'Installed' if announcement.available else 'Missing' }}</dd>
@@ -206,9 +190,9 @@
         <span>Controls whether other Systemd Gui installations can discover this node automatically.</span>
       </div>
       <div class="node-status-card neutral">
-        <dt>Service file</dt>
-        <dd><code>{{ announcement.service_file }}</code></dd>
-        <span>Written by the discovery setup helper when announcement is installed.</span>
+        <dt>Remote access</dt>
+        <dd>SSH and API</dd>
+        <span>Remote Quick Shell uses saved SSH settings. Remote logs, updates and exports use API keys.</span>
       </div>
     </dl>
 

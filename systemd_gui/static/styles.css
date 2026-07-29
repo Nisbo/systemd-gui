@@ -177,15 +177,17 @@ th.actions-heading { text-align:right; }
 .node-form-heading span { color:var(--muted); font-size:.88rem; font-weight:500; line-height:1.35; }
 .node-form .wide-field { grid-column:1 / -1; }
 .node-note-section { padding:0; border:0; }
-.local-node-layout { display:grid; grid-template-columns:minmax(0, 1.25fr) minmax(320px, .75fr); gap:16px; align-items:stretch; }
-.local-node-main { display:grid; gap:14px; }
+.local-node-layout { display:grid; grid-template-columns:minmax(0, 1.2fr) minmax(320px, .8fr); gap:16px; align-items:stretch; }
 .local-node-card { border:1px solid var(--line); border-radius:8px; background:color-mix(in srgb, var(--panel) 96%, var(--accent) 4%); padding:14px; }
-.local-node-form { display:grid; grid-template-columns:minmax(0, 1fr) auto auto; gap:12px 14px; align-items:end; }
+.local-node-settings { display:grid; gap:14px; }
+.local-node-settings-card { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:12px 16px; align-items:end; }
 .local-node-card-head { grid-column:1 / -1; display:grid; gap:4px; padding-bottom:10px; border-bottom:1px solid var(--line); }
 .local-node-card-head strong { font-size:1.05rem; }
 .local-node-card-head span,.node-feature-card span,.node-status-card span { color:var(--muted); font-size:.9rem; font-weight:500; line-height:1.4; }
-.local-node-form .form-actions { padding:0; align-self:end; }
-.local-node-form .primary-button { min-height:44px; white-space:nowrap; }
+.local-node-subhead { margin-top:4px; }
+.local-node-toggle { align-self:end; }
+.local-node-settings-card .form-actions { padding:0; align-self:end; justify-content:flex-end; }
+.local-node-settings-card .primary-button { min-height:44px; white-space:nowrap; }
 .node-feature-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; }
 .node-feature-card { display:grid; gap:6px; align-content:start; border:1px solid var(--line); border-left:6px solid color-mix(in srgb, var(--accent) 55%, var(--line)); border-radius:8px; padding:13px 14px; }
 .node-feature-card strong { font-size:.98rem; }
@@ -193,6 +195,7 @@ th.actions-heading { text-align:right; }
 .node-identity-list div { display:grid; gap:7px; padding:14px; border-bottom:1px solid var(--line); }
 .node-identity-list div:last-child { border-bottom:0; }
 .node-status-grid { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:12px; margin:0 0 16px; }
+.local-node-status-grid { margin:16px 0; }
 .node-status-card { display:grid; gap:8px; align-content:start; min-height:128px; border:1px solid var(--line); border-left:7px solid color-mix(in srgb, var(--muted) 30%, var(--line)); border-radius:8px; padding:13px; }
 .node-status-card.ok { border-left-color:color-mix(in srgb, var(--accent) 72%, var(--line)); }
 .node-status-card.warn { border-left-color:color-mix(in srgb, var(--amber) 82%, var(--line)); }
@@ -380,4 +383,4 @@ button[aria-busy="true"] { opacity:.72; }
 .info-links { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
 .app-footer { display:flex; justify-content:center; gap:10px; color:var(--muted); font-size:.88rem; margin-top:28px; }
 @media (max-width: 980px) { .quick-shell-helper,.quick-shell-history-card,.local-node-layout,.node-status-grid { grid-template-columns:1fr; } }
-@media (max-width: 760px) { .topbar,.panel-head,.search-row,.restart-banner,.restart-card,.backup-action-row { align-items:stretch; flex-direction:column; } .operations-grid,.detail-grid,.detail-grid.two,.detail-grid.three,.form-grid,.node-form-section,.backup-create,.update-version-bar,.update-actions,.log-controls,.info-layout,.info-meta-grid,.quick-shell-settings-form,.quick-shell-history-controls,.local-node-form,.node-feature-grid { grid-template-columns:1fr; } .top-actions { justify-items:start; } .top-nav,.action-bar,.backup-danger-group { justify-content:flex-start; } .session-action { justify-content:flex-start; } .quick-shell-tree-item { margin-left:0; } .discovery-repair-card { grid-template-columns:1fr; } .discovery-repair-card button { width:100%; } }
+@media (max-width: 760px) { .topbar,.panel-head,.search-row,.restart-banner,.restart-card,.backup-action-row { align-items:stretch; flex-direction:column; } .operations-grid,.detail-grid,.detail-grid.two,.detail-grid.three,.form-grid,.node-form-section,.backup-create,.update-version-bar,.update-actions,.log-controls,.info-layout,.info-meta-grid,.quick-shell-settings-form,.quick-shell-history-controls,.local-node-settings-card,.node-feature-grid { grid-template-columns:1fr; } .top-actions { justify-items:start; } .top-nav,.action-bar,.backup-danger-group { justify-content:flex-start; } .session-action { justify-content:flex-start; } .quick-shell-tree-item { margin-left:0; } .discovery-repair-card { grid-template-columns:1fr; } .discovery-repair-card button { width:100%; } }
