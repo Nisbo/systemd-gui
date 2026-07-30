@@ -160,10 +160,16 @@
           <input type="checkbox" data-docker-setting="collapseCompose">
           <span>Collapse all compose</span>
         </label>
-        <button class="ghost-button compact-button" type="button" data-docker-node-action="expand-all">Expand all nodes</button>
-        <button class="ghost-button compact-button" type="button" data-docker-node-action="collapse-all">Collapse all nodes</button>
-        <button class="ghost-button compact-button" type="button" data-docker-compose-action="expand-all">Expand all compose</button>
-        <button class="ghost-button compact-button" type="button" data-docker-compose-action="collapse-all">Collapse all compose</button>
+        <span class="docker-action-group">
+          <span class="docker-action-label">Nodes:</span>
+          <button class="ghost-button compact-button" type="button" data-docker-node-action="expand-all">Expand</button>
+          <button class="ghost-button compact-button" type="button" data-docker-node-action="collapse-all">Collapse</button>
+        </span>
+        <span class="docker-action-group">
+          <span class="docker-action-label">Composes:</span>
+          <button class="ghost-button compact-button" type="button" data-docker-compose-action="expand-all">Expand</button>
+          <button class="ghost-button compact-button" type="button" data-docker-compose-action="collapse-all">Collapse</button>
+        </span>
       </div>
     </div>
 
