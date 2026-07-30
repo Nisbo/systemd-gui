@@ -98,7 +98,7 @@
                 </td>
                 <td>
                   {% if container.image_source %}
-                    <a class="table-link" href="{{ container.image_source }}" target="_blank" rel="noopener" title="Open GitHub source"><code>{{ container.image or '-' }}</code></a>
+                    <a class="table-link" href="{{ container.image_source }}" target="_blank" rel="noopener" title="Open image repository"><code>{{ container.image or '-' }}</code></a>
                   {% else %}
                     <code>{{ container.image or '-' }}</code>
                   {% endif %}

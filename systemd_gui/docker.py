@@ -163,7 +163,7 @@ def _enrich_containers(containers: list[dict[str, object]]) -> None:
                 "finished_at_display": _format_docker_time(finished_at),
                 "running_for": _running_for(started_at) if state.get("Running") else "",
                 "compose": _compose_info(labels),
-                "image_source": _image_source_url(labels),
+                "image_source": _image_repository_url(str(container.get("image") or ""), labels),
             })
 
     stats = _container_stats(ids)
@@ -255,7 +255,7 @@ def _container_from_inspect(raw: dict[str, object]) -> dict[str, object]:
         "env": list(config.get("Env") or []),
         "labels": labels,
         "compose": _compose_info(labels),
-        "image_source": _image_source_url(labels),
+        "image_source": _image_repository_url(str(config.get("Image") or raw.get("Image") or ""), labels),
         "stats": {},
         "mounts": list(raw.get("Mounts") or []),
         "ports": network_settings.get("Ports") or {},
@@ -303,10 +303,37 @@ def _compose_info(labels: dict[str, str]) -> dict[str, object]:
     }
 
 
-def _image_source_url(labels: dict[str, str]) -> str:
-    source = labels.get("org.opencontainers.image.source", "").strip()
-    if source.startswith("https://github.com/") or source.startswith("http://github.com/"):
-        return source.replace("http://", "https://", 1)
+def _image_repository_url(image: str, labels: dict[str, str]) -> str:
+    for key in ("org.opencontainers.image.source", "org.opencontainers.image.url"):
+        source = labels.get(key, "").strip()
+        if source.startswith(("https://", "http://")):
+            return source.replace("http://", "https://", 1)
+
+    reference = image.split("@", 1)[0].strip("/")
+    last_slash = reference.rfind("/")
+    last_colon = reference.rfind(":")
+    if last_colon > last_slash:
+        reference = reference[:last_colon]
+    if not reference:
+        return ""
+    parts = reference.split("/")
+    registry = parts[0].lower() if "." in parts[0] or ":" in parts[0] or parts[0] == "localhost" else ""
+
+    if registry in {"", "docker.io", "index.docker.io"}:
+        path = parts[1:] if registry else parts
+        if len(path) == 1:
+            return f"https://hub.docker.com/_/{path[0]}"
+        if len(path) >= 2:
+            return f"https://hub.docker.com/r/{path[0]}/{path[1]}"
+
+    if registry == "ghcr.io" and len(parts) >= 3:
+        owner = parts[1]
+        package = "/".join(parts[2:])
+        return f"https://github.com/orgs/{owner}/packages/container/package/{package.replace('/', '%2F')}"
+
+    if registry == "quay.io" and len(parts) >= 3:
+        return f"https://quay.io/repository/{parts[1]}/{parts[2]}"
+
     return ""
 
 

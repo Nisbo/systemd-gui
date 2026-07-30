@@ -16,7 +16,13 @@
           <span>{{ container.name or container.short_id }}</span>
           <button class="ghost-button icon-button" type="button" title="Copy container name" aria-label="Copy container name" data-copy-text="{{ container.name or container.short_id }}">⧉</button>
         </h2>
-        <p>{{ container.image or 'No image information available.' }}</p>
+        <p>
+          {% if container.image_source %}
+            <a class="table-link" href="{{ container.image_source }}" target="_blank" rel="noopener" title="Open image repository">{{ container.image or 'No image information available.' }}</a>
+          {% else %}
+            {{ container.image or 'No image information available.' }}
+          {% endif %}
+        </p>
       </div>
       <a class="ghost-button" href="{{ url_for('docker_index') }}">Back to Docker</a>
     </div>
