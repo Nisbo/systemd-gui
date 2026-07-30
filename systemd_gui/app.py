@@ -23,6 +23,7 @@ from .api_access import (
     delete_token,
     fetch_remote_logs,
     fetch_remote_docker_containers,
+    fetch_remote_quick_shell_export,
     regenerate_api_token,
     read_api_access,
     trigger_remote_git_update,
@@ -295,6 +296,25 @@ def create_app() -> Flask:
             "status": status,
             "containers": containers,
         })
+
+    @app.get("/api/v1/quick-shell/export")
+    def api_quick_shell_export():
+        access = _require_remote_api_access(app, "quick-shell:read")
+        if access:
+            return access
+        data = read_quick_shell(_quick_shell_path(app))
+        nodes_data = read_nodes(_nodes_path(app))
+        settings = nodes_data.get("settings") or {}
+        node = {
+            "id": settings.get("node_id", ""),
+            "name": settings.get("node_name", APP_NAME),
+            "version": APP_VERSION,
+            "remote": False,
+        }
+        payload = quick_shell_export_payload(data, source=f"Remote API: {node['name']}")
+        payload["app"] = "systemd-gui"
+        payload["node"] = node
+        return jsonify(payload)
 
     @app.post("/api/v1/update/git")
     def api_update_git():
@@ -738,6 +758,7 @@ def create_app() -> Flask:
     @app.get("/quick-shell")
     def quick_shell():
         data = read_quick_shell(_quick_shell_path(app))
+        nodes_data = read_nodes(_nodes_path(app))
         parent_path = request.args.get("path", "").strip()
         active_tab = request.args.get("tab", "menu")
         if active_tab not in {"menu", "tree", "transfer", "setup"}:
@@ -763,6 +784,7 @@ def create_app() -> Flask:
             bash_history_status=bash_history_timestamp_status(),
             quick_shell_settings=data.get("settings") or {},
             quick_shell_data=data,
+            quick_shell_remote_nodes=_quick_shell_remote_import_nodes(nodes_data),
             quick_shell_path=_quick_shell_path(app),
             quick_shell_backups=list_quick_shell_backups(_quick_shell_backup_dir(app)),
             entry_label=entry_label,
@@ -969,30 +991,26 @@ def create_app() -> Flask:
         except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
             flash(f"Import failed: {exc}", "error")
             return redirect(url_for("quick_shell", tab="transfer"))
-        if not imported_items:
-            flash("Import file does not contain any entries.", "error")
-            return redirect(url_for("quick_shell", tab="transfer"))
+        return _finish_quick_shell_import(app, payload, imported_items, "Import")
 
-        data = read_quick_shell(_quick_shell_path(app))
-        mode = request.form.get("import_mode", "add_to_target")
-        target_path = request.form.get("target_path", "").strip()
-        duplicate_mode = request.form.get("duplicate_mode", "replace_conflicts")
-        backup_path = None
+    @app.post("/quick-shell/import/remote")
+    def import_quick_shell_remote():
+        node_id = request.form.get("node_id", "").strip()
+        nodes_data = read_nodes(_nodes_path(app))
+        node = _saved_node_by_id(nodes_data, node_id)
+        if not node:
+            flash("Choose a saved node with a Remote API token first.", "error")
+            return redirect(url_for("quick_shell", tab="transfer"))
+        result = fetch_remote_quick_shell_export(node)
+        if not result.ok or not result.payload:
+            flash(f"Remote import failed for {node.get('name') or 'remote node'}: {result.message}", "error")
+            return redirect(url_for("quick_shell", tab="transfer"))
         try:
-            if request.form.get("backup_current") == "1":
-                backup_path = create_quick_shell_backup(_quick_shell_path(app), _quick_shell_backup_dir(app), "Before Quick Shell import")
-            data, stats = import_quick_shell_items(data, imported_items, target_path, mode, duplicate_mode)
-            if mode == "replace_all":
-                data["settings"] = quick_shell_payload_settings(payload)
-            write_quick_shell(_quick_shell_path(app), data)
-        except (OSError, ValueError) as exc:
-            flash(f"Import failed: {exc}", "error")
+            imported_items = quick_shell_payload_items(result.payload)
+        except ValueError as exc:
+            flash(f"Remote import failed for {node.get('name') or 'remote node'}: {exc}", "error")
             return redirect(url_for("quick_shell", tab="transfer"))
-
-        backup_note = f" Backup created: {backup_path}." if backup_path else ""
-        flash(f"Import completed. Imported: {stats['imported']}, replaced: {stats.get('replaced', 0)}, renamed: {stats['renamed']}, skipped: {stats['skipped']}.{backup_note}", "success")
-        next_path = "" if mode == "replace_all" else target_path
-        return redirect(url_for("quick_shell", tab="menu", path=next_path))
+        return _finish_quick_shell_import(app, result.payload, imported_items, f"Remote import from {result.node.get('name') or node.get('name') or 'remote node'}")
 
     @app.post("/quick-shell/backups")
     def create_quick_shell_backup_route():
@@ -1815,6 +1833,58 @@ def _quick_shell_category_options(data: dict[str, object]) -> list[dict[str, obj
             continue
         options.append({"path": entry.path, "label": entry_label(entry.item), "depth": entry.depth + 1})
     return options
+
+
+def _quick_shell_remote_import_nodes(nodes_data: dict[str, object]) -> list[dict[str, object]]:
+    nodes = []
+    for raw_node in nodes_data.get("nodes") if isinstance(nodes_data.get("nodes"), list) else []:
+        if not isinstance(raw_node, dict):
+            continue
+        node = normalize_node(raw_node)
+        if str(node.get("api_token") or "").strip():
+            nodes.append(node)
+    return sorted(nodes, key=lambda item: str(item.get("name") or "Remote node").lower())
+
+
+def _saved_node_by_id(nodes_data: dict[str, object], node_id: str) -> dict[str, object] | None:
+    for raw_node in nodes_data.get("nodes") if isinstance(nodes_data.get("nodes"), list) else []:
+        if not isinstance(raw_node, dict):
+            continue
+        node = normalize_node(raw_node)
+        if str(node.get("id") or "") == node_id:
+            return node
+    return None
+
+
+def _finish_quick_shell_import(app: Flask, payload: dict[str, object], imported_items: list[dict[str, object]], source_label: str) -> Response:
+    if not imported_items:
+        flash(f"{source_label} does not contain any entries.", "error")
+        return redirect(url_for("quick_shell", tab="transfer"))
+
+    data = read_quick_shell(_quick_shell_path(app))
+    mode = request.form.get("import_mode", "add_to_target")
+    target_path = request.form.get("target_path", "").strip()
+    duplicate_mode = request.form.get("duplicate_mode", "replace_conflicts")
+    backup_path = None
+    try:
+        if request.form.get("backup_current") == "1":
+            backup_path = create_quick_shell_backup(_quick_shell_path(app), _quick_shell_backup_dir(app), "Before Quick Shell import")
+        data, stats = import_quick_shell_items(data, imported_items, target_path, mode, duplicate_mode)
+        if mode == "replace_all":
+            data["settings"] = quick_shell_payload_settings(payload)
+        write_quick_shell(_quick_shell_path(app), data)
+    except (OSError, ValueError) as exc:
+        flash(f"{source_label} failed: {exc}", "error")
+        return redirect(url_for("quick_shell", tab="transfer"))
+
+    backup_note = f" Backup created: {backup_path}." if backup_path else ""
+    flash(
+        f"{source_label} completed. Imported: {stats['imported']}, replaced: {stats.get('replaced', 0)}, "
+        f"renamed: {stats['renamed']}, skipped: {stats['skipped']}.{backup_note}",
+        "success",
+    )
+    next_path = "" if mode == "replace_all" else target_path
+    return redirect(url_for("quick_shell", tab="menu", path=next_path))
 
 
 def _quick_shell_parent_path(item_path: str) -> str:

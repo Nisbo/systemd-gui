@@ -58,6 +58,15 @@ class RemoteDockerResult:
     status: str = "unknown"
 
 
+@dataclass(frozen=True)
+class RemoteQuickShellExportResult:
+    ok: bool
+    message: str
+    node: dict[str, object]
+    payload: dict[str, object] | None = None
+    status: str = "unknown"
+
+
 def default_api_access_data() -> dict[str, object]:
     return {
         "settings": {
@@ -425,6 +434,49 @@ def fetch_remote_docker_containers(node: dict[str, object], timeout: float = 5.0
         {**node_info, **remote_node, "remote": True, "url": url},
         [container for container in containers if isinstance(container, dict)],
         "ok" if ok else "error",
+    )
+
+
+def fetch_remote_quick_shell_export(node: dict[str, object], timeout: float = 8.0) -> RemoteQuickShellExportResult:
+    url = str(node.get("url") or "").strip()
+    token = str(node.get("api_token") or "").strip()
+    node_info = {
+        "id": str(node.get("node_id") or node.get("id") or ""),
+        "name": str(node.get("name") or "Remote node"),
+        "url": url,
+        "version": str(node.get("version") or ""),
+        "remote": True,
+    }
+    if not url:
+        return RemoteQuickShellExportResult(False, "No GUI URL is configured for this node.", node_info, None, "missing")
+    if not token:
+        return RemoteQuickShellExportResult(False, "No Remote API token is saved for this node.", node_info, None, "missing")
+    try:
+        request = Request(
+            urljoin(f"{url.rstrip('/')}/", "api/v1/quick-shell/export"),
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        with urlopen(request, timeout=timeout) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        if exc.code == 404:
+            return RemoteQuickShellExportResult(False, "Remote node does not support Quick Shell exports yet. Update that node first.", node_info, None, "unsupported")
+        if exc.code == 401:
+            return RemoteQuickShellExportResult(False, "Token was rejected by the remote node.", node_info, None, "denied")
+        if exc.code == 403:
+            return RemoteQuickShellExportResult(False, "Remote node denied this IP address or Quick Shell export access.", node_info, None, "denied")
+        return RemoteQuickShellExportResult(False, f"Remote node returned HTTP {exc.code}.", node_info, None, "error")
+    except (OSError, URLError, ValueError, json.JSONDecodeError) as exc:
+        return RemoteQuickShellExportResult(False, f"Remote Quick Shell export failed: {exc}", node_info, None, "error")
+    if not isinstance(payload, dict) or payload.get("app") != "systemd-gui":
+        return RemoteQuickShellExportResult(False, "Remote answer was not a Systemd Gui API response.", node_info, None, "error")
+    remote_node = payload.get("node") if isinstance(payload.get("node"), dict) else {}
+    return RemoteQuickShellExportResult(
+        True,
+        "Remote Quick Shell export loaded.",
+        {**node_info, **remote_node, "remote": True, "url": url},
+        payload,
+        "ok",
     )
 
 
