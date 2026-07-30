@@ -175,10 +175,10 @@ th.actions-heading { text-align:right; }
 .compose-group-row td { border-top:1px solid var(--compose-line); border-right:1px solid var(--compose-line); border-left:6px solid var(--compose-line); border-radius:10px 10px 0 0; background:var(--compose-head); font-weight:850; }
 .compose-group-row.first-docker-item td { border-radius:0; border-top:0; }
 .compose-group-row td > * { margin-right:7px; }
-.compose-container-row td { background:var(--compose-bg); border-bottom-color:var(--line); }
+.compose-container-row td { background:var(--compose-bg); border-bottom-color:transparent; }
 .compose-container-row td:first-child { border-left:6px solid var(--compose-line); padding-left:28px; }
 .compose-container-row td:last-child { border-right:1px solid var(--compose-line); }
-.compose-group-last td { border-bottom:1px solid var(--compose-line); }
+.compose-group-last td { border-bottom:2px solid var(--compose-line); }
 .compose-group-last td:first-child { border-radius:0 0 0 10px; }
 .compose-group-last td:last-child { border-radius:0 0 10px 0; }
 .standalone-container-row td { border-top:1px solid var(--line); border-bottom:1px solid var(--line); background:color-mix(in srgb, var(--panel) 96%, var(--accent) 4%); }
