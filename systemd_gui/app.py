@@ -2193,7 +2193,12 @@ def _remote_docker_result(node: dict[str, object]) -> dict[str, object]:
 
 def _remote_docker_payload(node: dict[str, object], result) -> dict[str, object]:
     containers = list(result.containers)
-    node_info = {**result.node, "id": str(node.get("id") or result.node.get("id") or "")}
+    configured_name = str(node.get("name") or "").strip()
+    node_info = {
+        **result.node,
+        "id": str(node.get("id") or result.node.get("id") or ""),
+        "name": configured_name or str(result.node.get("name") or "Remote node"),
+    }
     if not str(node_info.get("version") or "").strip():
         metadata = node_runtime_metadata(node, timeout=0.7)
         version = str(metadata.get("version") or "").strip()
