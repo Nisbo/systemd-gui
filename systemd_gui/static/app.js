@@ -21,6 +21,16 @@
   });
   updateTheme();
 
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-scope-select-all]");
+    if (!button) return;
+    const group = button.closest("[data-scope-group]");
+    if (!group) return;
+    group.querySelectorAll('input[type="checkbox"][name="scopes"]:not(:disabled)').forEach((checkbox) => {
+      checkbox.checked = true;
+    });
+  });
+
   const closeNodeSwitchers = () => {
     document.querySelectorAll(".node-switcher[open]").forEach((details) => { details.open = false; });
   };
