@@ -308,9 +308,16 @@ th.actions-heading { text-align:right; }
 .quick-shell-add-form { align-items:end; margin-top:14px; }
 .quick-shell-import-form .import-control { display:grid; gap:8px; align-content:start; }
 .quick-shell-import-form .field-label { color:var(--muted); font-size:.83rem; font-weight:800; text-transform:uppercase; }
-.quick-shell-import-form .segmented-field { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
-.quick-shell-import-form .segmented-field label { display:inline-flex; align-items:center; gap:8px; min-height:44px; border:1px solid var(--line); border-radius:8px; background:var(--panel); padding:8px 12px; cursor:pointer; }
+.quick-shell-import-form .import-source-control { grid-column:1 / -1; grid-template-columns:minmax(240px, 360px) minmax(0, 1fr); gap:8px 16px; align-items:start; }
+.quick-shell-import-form .import-source-control .field-label { grid-column:1; }
+.quick-shell-import-form .import-source-control .import-source-switch { grid-column:1; }
+.quick-shell-import-form .import-source-control .import-explain { grid-column:2; grid-row:1 / span 2; align-self:stretch; }
+.quick-shell-import-form [data-import-file-field],.quick-shell-import-form [data-import-remote-field] { grid-column:1 / -1; }
+.quick-shell-import-form .segmented-field { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; width:100%; }
+.quick-shell-import-form .segmented-field label { position:relative; display:flex; align-items:center; justify-content:center; min-height:48px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--muted); padding:8px 12px; cursor:pointer; text-align:center; }
+.quick-shell-import-form .segmented-field input { position:absolute; opacity:0; pointer-events:none; width:1px; height:1px; padding:0; margin:0; }
 .quick-shell-import-form .segmented-field label:has(input:checked) { border-color:var(--accent); background:var(--accent); color:white; }
+.quick-shell-import-form .segmented-field label:has(input:focus-visible) { outline:2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset:2px; }
 .quick-shell-import-form .segmented-field label.disabled { opacity:.55; cursor:not-allowed; }
 .quick-shell-import-form .segmented-field label.disabled input { cursor:not-allowed; }
 .quick-shell-import-form .import-control.disabled label { color:var(--muted); }
@@ -466,4 +473,4 @@ button[aria-busy="true"] { opacity:.72; }
 .info-links { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
 .app-footer { display:flex; justify-content:center; gap:10px; color:var(--muted); font-size:.88rem; margin-top:28px; }
 @media (max-width: 980px) { .quick-shell-helper,.quick-shell-history-card,.local-node-layout,.node-status-grid { grid-template-columns:1fr; } }
-@media (max-width: 760px) { .topbar,.panel-head,.search-row,.restart-banner,.restart-card,.backup-action-row,.api-token-regenerate-form { align-items:stretch; flex-direction:column; } .operations-grid,.detail-grid,.detail-grid.two,.detail-grid.three,.form-grid,.node-form-section,.backup-create,.update-version-bar,.update-actions,.log-controls,.info-layout,.info-meta-grid,.quick-shell-settings-form,.quick-shell-history-controls,.local-node-settings-card,.node-feature-grid,.docker-detail-grid,.api-token-edit-grid { grid-template-columns:1fr; } .api-token-enabled-card { justify-self:start; } .top-actions { justify-items:start; } .top-nav,.action-bar,.backup-danger-group { justify-content:flex-start; } .session-action { justify-content:flex-start; } .quick-shell-tree-item { margin-left:0; } .discovery-repair-card { grid-template-columns:1fr; } .discovery-repair-card button { width:100%; } }
+@media (max-width: 760px) { .topbar,.panel-head,.search-row,.restart-banner,.restart-card,.backup-action-row,.api-token-regenerate-form { align-items:stretch; flex-direction:column; } .operations-grid,.detail-grid,.detail-grid.two,.detail-grid.three,.form-grid,.node-form-section,.backup-create,.update-version-bar,.update-actions,.log-controls,.info-layout,.info-meta-grid,.quick-shell-settings-form,.quick-shell-history-controls,.local-node-settings-card,.node-feature-grid,.docker-detail-grid,.api-token-edit-grid,.quick-shell-import-form .import-source-control { grid-template-columns:1fr; } .quick-shell-import-form .import-source-control .import-explain { grid-column:1; grid-row:auto; } .api-token-enabled-card { justify-self:start; } .top-actions { justify-items:start; } .top-nav,.action-bar,.backup-danger-group { justify-content:flex-start; } .session-action { justify-content:flex-start; } .quick-shell-tree-item { margin-left:0; } .discovery-repair-card { grid-template-columns:1fr; } .discovery-repair-card button { width:100%; } }

@@ -419,7 +419,7 @@
         <form class="form-grid quick-shell-import-form" method="post" action="{{ url_for('import_quick_shell') }}" enctype="multipart/form-data" data-quick-shell-import-form data-file-action="{{ url_for('import_quick_shell') }}" data-remote-action="{{ url_for('import_quick_shell_remote') }}" data-remote-preview-url="{{ url_for('preview_quick_shell_remote_import') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <script type="application/json" data-current-quick-shell>{{ quick_shell_data|tojson }}</script>
-          <div class="import-control">
+          <div class="import-control import-source-control">
             <span class="field-label">Import source</span>
             <div class="segmented-field import-source-switch">
               <label>
