@@ -529,6 +529,7 @@ def create_app() -> Flask:
             "url": request.form.get("url", ""),
             "host": request.form.get("host", ""),
             "port": request.form.get("port", ""),
+            "version": request.form.get("version", ""),
             "ssh_host": request.form.get("host", ""),
         })
         if not node["url"]:
@@ -664,8 +665,11 @@ def create_app() -> Flask:
             "running": sum(1 for item in containers if item.get("state") == "running"),
             "exited": sum(1 for item in containers if item.get("state") == "exited"),
         }
-        remote_docker = _remote_docker_overview(app)
-        return render_template("docker.html", status=status, containers=containers, counts=counts, remote_docker=remote_docker)
+        return render_template("docker.html", status=status, containers=containers, counts=counts)
+
+    @app.get("/docker/remote-fragment")
+    def docker_remote_fragment():
+        return render_template("_docker_remote.html", remote_docker=_remote_docker_overview(app))
 
     @app.get("/docker/<container_id>")
     def docker_detail(container_id: str):
@@ -2143,8 +2147,14 @@ def _remote_docker_overview(app: Flask) -> list[dict[str, object]]:
     overview = []
     for node, result in zip(nodes, results):
         containers = list(result.containers)
+        node_info = {**result.node, "id": str(node.get("id") or result.node.get("id") or "")}
+        if not str(node_info.get("version") or "").strip():
+            metadata = node_runtime_metadata(node, timeout=0.7)
+            version = str(metadata.get("version") or "").strip()
+            if version:
+                node_info["version"] = version
         overview.append({
-            "node": {**result.node, "id": str(node.get("id") or result.node.get("id") or "")},
+            "node": node_info,
             "ok": result.ok,
             "message": result.message,
             "status": result.status,

@@ -103,6 +103,7 @@ def normalize_node(node: dict[str, object]) -> dict[str, object]:
         "url": url,
         "host": host,
         "port": port,
+        "version": _clean_text(node.get("version")),
         "note": _clean_text(node.get("note")),
         "ssh_user": _clean_text(node.get("ssh_user")),
         "ssh_host": _clean_text(node.get("ssh_host")) or host,

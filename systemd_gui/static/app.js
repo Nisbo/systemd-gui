@@ -32,6 +32,26 @@
     if (event.key === "Escape") closeNodeSwitchers();
   });
 
+  document.querySelectorAll("[data-remote-docker-url]").forEach((target) => {
+    const url = target.dataset.remoteDockerUrl;
+    if (!url) return;
+    fetch(url, { headers: { "X-Requested-With": "fetch" } })
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.text();
+      })
+      .then((html) => {
+        target.innerHTML = html;
+      })
+      .catch((error) => {
+        target.replaceChildren();
+        const message = document.createElement("p");
+        message.className = "empty-note remote-docker-loading";
+        message.textContent = `Remote Docker overview could not be loaded: ${String(error.message || error)}`;
+        target.append(message);
+      });
+  });
+
   const modal = document.querySelector("[data-confirm-modal]");
   const message = document.querySelector("[data-confirm-message]");
   const extra = document.querySelector("[data-confirm-extra]");
