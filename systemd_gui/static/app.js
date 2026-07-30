@@ -528,6 +528,10 @@
     const duplicateDisabledHelp = form.querySelector("[data-duplicate-mode-disabled]");
     const targetSelect = form.querySelector("[data-import-target-select]");
     const fileInput = form.querySelector("input[name='import_file']");
+    const sourceRadios = Array.from(form.querySelectorAll("[data-import-source]"));
+    const fileField = form.querySelector("[data-import-file-field]");
+    const remoteField = form.querySelector("[data-import-remote-field]");
+    const remoteSelect = form.querySelector("[data-import-remote-node]");
     const preview = form.querySelector("[data-import-preview]");
     const previewTitle = form.querySelector("[data-import-preview-title]");
     const previewSummary = form.querySelector("[data-import-preview-summary]");
@@ -543,6 +547,7 @@
     })();
     let importPreviewPayload = null;
     let importPreviewReady = false;
+    let remotePreviewController = null;
     const HANDLED_PREVIEW_IMPORT = { handled: true };
 
     const entryName = (entry) => String(entry?.name || entry?.command || "Unnamed entry");
@@ -832,21 +837,58 @@
       previewSummary.textContent = summary;
       buildPreviewTree(items, mode, targetPath, duplicateMode);
     };
+    const importSource = () => sourceRadios.find((radio) => radio.checked)?.value || "file";
     const updateImportSubmit = (state) => {
       if (!importSubmit) return;
+      const source = importSource();
       if (state === "ready") {
         importSubmit.disabled = false;
-        importSubmit.textContent = "Import file";
+        importSubmit.textContent = source === "remote" ? "Import from node" : "Import file";
       } else if (state === "loading") {
         importSubmit.disabled = true;
-        importSubmit.textContent = "Loading import file...";
+        importSubmit.textContent = source === "remote" ? "Loading remote preview..." : "Loading import file...";
       } else if (state === "error") {
         importSubmit.disabled = true;
-        importSubmit.textContent = "Choose valid import file";
+        importSubmit.textContent = source === "remote" ? "Choose available remote node" : "Choose valid import file";
       } else {
         importSubmit.disabled = true;
-        importSubmit.textContent = "Load file for import";
+        importSubmit.textContent = source === "remote" ? "Load remote preview" : "Load file for import";
       }
+    };
+    const setImportPayload = (payload) => {
+      parseImportItems(payload);
+      importPreviewPayload = payload;
+      importPreviewReady = true;
+      updateImportSubmit("ready");
+      syncImportPreview();
+    };
+    const loadRemotePreview = () => {
+      const nodeId = remoteSelect?.value || "";
+      importPreviewPayload = null;
+      importPreviewReady = false;
+      if (!nodeId || !form.dataset.remotePreviewUrl) {
+        updateImportSubmit("empty");
+        syncImportPreview();
+        return;
+      }
+      if (remotePreviewController) remotePreviewController.abort();
+      remotePreviewController = new AbortController();
+      updateImportSubmit("loading");
+      const url = new URL(form.dataset.remotePreviewUrl, window.location.origin);
+      url.searchParams.set("node_id", nodeId);
+      fetch(url, { signal: remotePreviewController.signal })
+        .then((response) => response.json().then((payload) => ({ response, payload })))
+        .then(({ response, payload }) => {
+          if (!response.ok || !payload?.ok) throw new Error(payload?.error || `Remote node returned HTTP ${response.status}.`);
+          setImportPayload(payload.payload);
+        })
+        .catch((error) => {
+          if (error.name === "AbortError") return;
+          importPreviewPayload = {};
+          importPreviewReady = false;
+          updateImportSubmit("error");
+          setPreviewState("danger", error.message || "Could not load the remote Quick Shell export.");
+        });
     };
     const syncImportPreview = () => {
       if (!preview || !previewSummary) return;
@@ -900,7 +942,31 @@
       if (duplicateDisabledHelp) duplicateDisabledHelp.hidden = duplicateApplies;
       syncImportPreview();
     };
+    const syncImportSource = () => {
+      const source = importSource();
+      const isRemote = source === "remote";
+      if (form.dataset.fileAction && form.dataset.remoteAction) {
+        form.action = isRemote ? form.dataset.remoteAction : form.dataset.fileAction;
+      }
+      if (fileField) fileField.hidden = isRemote;
+      if (remoteField) remoteField.hidden = !isRemote;
+      if (fileInput) fileInput.required = !isRemote;
+      if (remoteSelect) remoteSelect.required = isRemote;
+      form.querySelectorAll("[data-import-source-help]").forEach((node) => {
+        node.hidden = node.dataset.importSourceHelp !== source;
+      });
+      importPreviewPayload = null;
+      importPreviewReady = false;
+      if (isRemote) {
+        loadRemotePreview();
+      } else {
+        updateImportSubmit(fileInput?.files?.length ? "loading" : "empty");
+        if (fileInput?.files?.length) fileInput.dispatchEvent(new Event("change"));
+        else syncImportPreview();
+      }
+    };
     fileInput?.addEventListener("change", () => {
+      if (importSource() !== "file") return;
       const file = fileInput.files?.[0];
       importPreviewPayload = null;
       importPreviewReady = false;
@@ -912,11 +978,7 @@
       updateImportSubmit("loading");
       file.text().then((text) => {
         const payload = JSON.parse(text);
-        parseImportItems(payload);
-        importPreviewPayload = payload;
-        importPreviewReady = true;
-        updateImportSubmit("ready");
-        syncImportPreview();
+        setImportPayload(payload);
       }).catch((error) => {
         importPreviewPayload = {};
         importPreviewReady = false;
@@ -927,14 +989,20 @@
     modeSelect?.addEventListener("change", syncImportHelp);
     duplicateSelect?.addEventListener("change", syncImportHelp);
     targetSelect?.addEventListener("change", syncImportPreview);
+    remoteSelect?.addEventListener("change", () => {
+      if (importSource() === "remote") loadRemotePreview();
+    });
+    sourceRadios.forEach((radio) => radio.addEventListener("change", syncImportSource));
     form.addEventListener("submit", (event) => {
       if (!importPreviewReady) {
         event.preventDefault();
-        updateImportSubmit(fileInput?.files?.length ? "loading" : "empty");
+        if (importSource() === "remote") loadRemotePreview();
+        else updateImportSubmit(fileInput?.files?.length ? "loading" : "empty");
       }
     });
     updateImportSubmit("empty");
     syncImportHelp();
+    syncImportSource();
   });
 
   const logPanel = document.querySelector("[data-log-panel]");

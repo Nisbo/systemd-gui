@@ -307,6 +307,12 @@ th.actions-heading { text-align:right; }
 .quick-shell-setup .quick-shell-actions { min-width:230px; }
 .quick-shell-add-form { align-items:end; margin-top:14px; }
 .quick-shell-import-form .import-control { display:grid; gap:8px; align-content:start; }
+.quick-shell-import-form .field-label { color:var(--muted); font-size:.83rem; font-weight:800; text-transform:uppercase; }
+.quick-shell-import-form .segmented-field { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.quick-shell-import-form .segmented-field label { display:inline-flex; align-items:center; gap:8px; min-height:44px; border:1px solid var(--line); border-radius:8px; background:var(--panel); padding:8px 12px; cursor:pointer; }
+.quick-shell-import-form .segmented-field label:has(input:checked) { border-color:var(--accent); background:var(--accent); color:white; }
+.quick-shell-import-form .segmented-field label.disabled { opacity:.55; cursor:not-allowed; }
+.quick-shell-import-form .segmented-field label.disabled input { cursor:not-allowed; }
 .quick-shell-import-form .import-control.disabled label { color:var(--muted); }
 .quick-shell-import-form .import-control.disabled select { background:color-mix(in srgb, var(--muted) 6%, var(--panel)); color:var(--muted); cursor:not-allowed; }
 .quick-shell-import-form .import-explain { display:grid; gap:5px; border:1px solid color-mix(in srgb, var(--accent) 24%, var(--line)); border-left:6px solid var(--accent); border-radius:8px; background:color-mix(in srgb, var(--accent) 7%, transparent); padding:12px 14px; }

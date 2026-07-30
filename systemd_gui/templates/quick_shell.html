@@ -413,71 +413,47 @@
 
       <div class="inline-section">
         <div class="update-section-title">
-          <strong>Import from remote node</strong>
-          <span>Pulls the Quick Shell export from a saved node through the Remote API. The saved token on that node needs Quick Shell exports access.</span>
+          <strong>Import entries</strong>
+          <span>Import a full backup, a shared export file, or pull entries from another saved node through the Remote API.</span>
         </div>
-        {% if quick_shell_remote_nodes %}
-          <form class="form-grid quick-shell-import-form" method="post" action="{{ url_for('import_quick_shell_remote') }}" data-confirm="Import Quick Shell entries from this remote node now? Choose a server backup first if you want a restore point.">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <label>
-              Remote node
-              <select name="node_id" required>
-                {% for node in quick_shell_remote_nodes %}
-                  <option value="{{ node.id }}">{{ node.name }}{% if node.version %} ({{ node.version }}){% endif %}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              Target category
-              <select name="target_path">
-                {% for option in category_options %}
-                  <option value="{{ option.path }}">{{ "-- " * option.depth }}{{ option.label }}</option>
-                {% endfor %}
-              </select>
-            </label>
-            <label>
-              Import mode
-              <select name="import_mode">
-                <option value="add_to_target" selected>Merge into selected category</option>
-                <option value="add_as_new">Add as new entries</option>
-                <option value="add_as_copy">Add as renamed copy</option>
-                <option value="replace_target">Replace entries inside selected category</option>
-                <option value="replace_selected_category">Replace selected category</option>
-                <option value="replace_all">Replace all Quick Shell categories</option>
-              </select>
-            </label>
-            <label>
-              Conflict handling
-              <select name="duplicate_mode">
-                <option value="replace_conflicts" selected>Update same names: skip identical, replace changed</option>
-                <option value="rename_conflicts">Keep both: skip identical, rename changed</option>
-                <option value="keep_all">Import everything, even duplicates</option>
-              </select>
-            </label>
-            <label class="toggle-label">
-              <input type="checkbox" name="backup_current" value="1">
-              <span>Create a server backup before importing</span>
-            </label>
-            <div class="form-actions">
-              <button class="primary-button" type="submit">Import from node</button>
-            </div>
-          </form>
-        {% else %}
-          <p class="empty-note">No saved nodes with a Remote API token are configured yet.</p>
-        {% endif %}
-      </div>
-
-      <div class="inline-section">
-        <div class="update-section-title">
-          <strong>Import from file</strong>
-          <span>Import a full backup or a shared export file. You decide which category receives the entries and how name conflicts are handled.</span>
-        </div>
-        <form class="form-grid quick-shell-import-form" method="post" action="{{ url_for('import_quick_shell') }}" enctype="multipart/form-data" data-quick-shell-import-form>
+        <form class="form-grid quick-shell-import-form" method="post" action="{{ url_for('import_quick_shell') }}" enctype="multipart/form-data" data-quick-shell-import-form data-file-action="{{ url_for('import_quick_shell') }}" data-remote-action="{{ url_for('import_quick_shell_remote') }}" data-remote-preview-url="{{ url_for('preview_quick_shell_remote_import') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <script type="application/json" data-current-quick-shell>{{ quick_shell_data|tojson }}</script>
-          <label>
+          <div class="import-control">
+            <span class="field-label">Import source</span>
+            <div class="segmented-field import-source-switch">
+              <label>
+                <input type="radio" name="import_source" value="file" checked data-import-source>
+                <span>File</span>
+              </label>
+              <label class="{{ 'disabled' if not quick_shell_remote_nodes else '' }}">
+                <input type="radio" name="import_source" value="remote" data-import-source {% if not quick_shell_remote_nodes %}disabled{% endif %}>
+                <span>Remote node</span>
+              </label>
+            </div>
+            <div class="import-explain subtle" data-import-source-help="file">
+              <strong>File import</strong>
+              <span>Loads a JSON export from your computer and previews the result before importing.</span>
+            </div>
+            <div class="import-explain subtle" data-import-source-help="remote" hidden>
+              <strong>Remote node import</strong>
+              <span>Loads the export through the Remote API. The saved token on that node needs Quick Shell exports access.</span>
+            </div>
+          </div>
+          <label data-import-file-field>
             Export file
             <input type="file" name="import_file" accept="application/json,.json" required>
+          </label>
+          <label data-import-remote-field hidden>
+            Remote node
+            <select name="node_id" data-import-remote-node>
+              {% for node in quick_shell_remote_nodes %}
+                <option value="{{ node.id }}">{{ node.name }}{% if node.version %} ({{ node.version }}){% endif %}</option>
+              {% endfor %}
+            </select>
+            {% if not quick_shell_remote_nodes %}
+              <span class="field-help">No saved nodes with a Remote API token are configured yet.</span>
+            {% endif %}
           </label>
           <label>
             Target category

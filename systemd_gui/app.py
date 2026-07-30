@@ -1012,6 +1012,18 @@ def create_app() -> Flask:
             return redirect(url_for("quick_shell", tab="transfer"))
         return _finish_quick_shell_import(app, result.payload, imported_items, f"Remote import from {result.node.get('name') or node.get('name') or 'remote node'}")
 
+    @app.get("/quick-shell/import/remote/preview")
+    def preview_quick_shell_remote_import():
+        node_id = request.args.get("node_id", "").strip()
+        nodes_data = read_nodes(_nodes_path(app))
+        node = _saved_node_by_id(nodes_data, node_id)
+        if not node:
+            return jsonify({"ok": False, "error": "Choose a saved node with a Remote API token first."}), 400
+        result = fetch_remote_quick_shell_export(node)
+        if not result.ok or not result.payload:
+            return jsonify({"ok": False, "error": result.message}), 502
+        return jsonify({"ok": True, "node": result.node, "payload": result.payload})
+
     @app.post("/quick-shell/backups")
     def create_quick_shell_backup_route():
         comment = request.form.get("comment", "").strip()
