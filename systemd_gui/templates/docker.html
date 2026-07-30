@@ -62,7 +62,7 @@
           </thead>
           <tbody>
             {% for container in containers %}
-              <tr>
+              <tr class="{% if container.compose %}compose-container-row{% endif %}" {% if container.compose %}title="Compose file: {{ container.compose.primary_config_file or container.compose.config_files or '-' }}"{% endif %}>
                 <td>
                   <a class="table-link" href="{{ url_for('docker_detail', container_id=container.id) }}">{{ container.name or container.short_id }}</a>
                   <div class="muted"><code>{{ container.short_id }}</code></div>
@@ -76,6 +76,7 @@
                   {% if container.compose %}
                     <span class="tag override" title="Docker Compose container">Compose</span>
                     <div class="muted">{{ container.compose.project or '-' }}{% if container.compose.service %} / {{ container.compose.service }}{% endif %}</div>
+                    {% if container.compose.primary_config_file %}<div class="muted"><code>{{ container.compose.primary_config_file }}</code></div>{% endif %}
                   {% else %}
                     <span class="muted">-</span>
                   {% endif %}

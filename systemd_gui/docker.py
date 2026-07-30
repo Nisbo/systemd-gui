@@ -6,6 +6,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 
 
 VALID_CONTAINER_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
@@ -83,7 +84,7 @@ def list_containers() -> tuple[dict[str, object], list[dict[str, object]]]:
             continue
         containers.append(_container_from_ps(item))
     _enrich_containers(containers)
-    containers.sort(key=lambda item: (str(item.get("name") or "").lower(), str(item.get("id") or "")))
+    containers.sort(key=_container_sort_key)
     return status, containers
 
 
@@ -103,6 +104,7 @@ def container_detail(container_id: str) -> dict[str, object]:
         raise DockerError(f"Docker container {container_id} was not found.")
     raw = payload[0]
     container = _container_from_inspect(raw)
+    _enrich_compose_file_contents(container)
     stats = _container_stats([str(container.get("id") or container_id)])
     for stats_id, stat in stats.items():
         if str(container.get("id") or "").startswith(stats_id):
@@ -277,19 +279,69 @@ def _container_labels(raw: dict[str, object]) -> dict[str, str]:
     return {str(key): str(value) for key, value in labels.items()}
 
 
-def _compose_info(labels: dict[str, str]) -> dict[str, str]:
+def _compose_info(labels: dict[str, str]) -> dict[str, object]:
     project = labels.get("com.docker.compose.project", "")
     service = labels.get("com.docker.compose.service", "")
     working_dir = labels.get("com.docker.compose.project.working_dir", "")
     config_files = labels.get("com.docker.compose.project.config_files", "")
     if not any([project, service, working_dir, config_files]):
         return {}
+    config_file_list = _compose_config_file_paths(working_dir, config_files)
+    primary_config_file = config_file_list[0] if config_file_list else ""
     return {
         "project": project,
         "service": service,
         "working_dir": working_dir,
         "config_files": config_files,
+        "config_file_list": config_file_list,
+        "primary_config_file": primary_config_file,
+        "group_key": f"{project}|{primary_config_file or config_files}",
+        "group_label": f"{project} · {primary_config_file or config_files}" if project else primary_config_file or config_files,
     }
+
+
+def _compose_config_file_paths(working_dir: str, config_files: str) -> list[str]:
+    paths = []
+    base = Path(working_dir) if working_dir else None
+    for raw_path in re.split(r"[,;]", config_files or ""):
+        raw_path = raw_path.strip()
+        if not raw_path:
+            continue
+        path = Path(raw_path)
+        if not path.is_absolute() and base:
+            path = base / path
+        paths.append(str(path))
+    return paths
+
+
+def _enrich_compose_file_contents(container: dict[str, object]) -> None:
+    compose = container.get("compose") if isinstance(container.get("compose"), dict) else {}
+    if not compose:
+        return
+    contents = []
+    for path_value in compose.get("config_file_list") if isinstance(compose.get("config_file_list"), list) else []:
+        path = Path(str(path_value))
+        entry = {"path": str(path), "ok": False, "content": "", "message": ""}
+        try:
+            if not path.is_file():
+                entry["message"] = "File was not found on this server."
+            elif path.stat().st_size > 512 * 1024:
+                entry["message"] = "File is larger than 512 KiB and was not loaded."
+            else:
+                entry["content"] = path.read_text(encoding="utf-8", errors="replace")
+                entry["ok"] = True
+        except OSError as exc:
+            entry["message"] = str(exc)
+        contents.append(entry)
+    compose["file_contents"] = contents
+
+
+def _container_sort_key(container: dict[str, object]) -> tuple[str, str, str, str]:
+    compose = container.get("compose") if isinstance(container.get("compose"), dict) else {}
+    group = str(compose.get("group_key") or "")
+    service = str(compose.get("service") or "")
+    name = str(container.get("name") or "").lower()
+    return (group.lower() if group else "~", service.lower(), name, str(container.get("id") or ""))
 
 
 def _container_stats(container_ids: list[str]) -> dict[str, dict[str, str]]:

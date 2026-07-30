@@ -169,6 +169,9 @@ th.actions-heading { text-align:right; }
 .info-card p { line-height:1.5; }
 .info-meta-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
 .docker-table table { min-width:1240px; }
+.compose-container-row td:first-child { border-left:6px solid color-mix(in srgb, #2563eb 48%, var(--line)); }
+.compose-container-row td { background:color-mix(in srgb, #2563eb 3%, transparent); }
+.compose-file-card + .compose-file-card { margin-top:14px; }
 .docker-overview-note { margin-top:6px; }
 .remote-docker-table { margin-top:12px; }
 .remote-docker-table > table { min-width:980px; }

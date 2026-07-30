@@ -140,6 +140,38 @@
       </div>
     </section>
   {% elif active_tab == "config" %}
+    {% if container.compose %}
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Compose file</h2>
+            <p>Content from the Docker Compose file reported by the container labels.</p>
+          </div>
+        </div>
+        {% if container.compose.file_contents %}
+          {% for compose_file in container.compose.file_contents %}
+            <div class="info-card compose-file-card">
+              <div class="heading-with-action">
+                <h3><code>{{ compose_file.path }}</code></h3>
+                <button class="ghost-button icon-button small-icon-button" type="button" title="Copy compose file path" aria-label="Copy compose file path" data-copy-text="{{ compose_file.path }}">⧉</button>
+              </div>
+              {% if compose_file.ok %}
+                <div class="heading-with-action">
+                  <span class="muted">Compose file content</span>
+                  <button class="ghost-button icon-button small-icon-button" type="button" title="Copy compose file content" aria-label="Copy compose file content" data-copy-target="#compose-file-{{ loop.index0 }}">⧉</button>
+                </div>
+                <pre class="config-preview"><code id="compose-file-{{ loop.index0 }}">{{ compose_file.content }}</code></pre>
+              {% else %}
+                <p class="empty-note">{{ compose_file.message or 'Compose file content could not be loaded.' }}</p>
+              {% endif %}
+            </div>
+          {% endfor %}
+        {% else %}
+          <p class="empty-note">No Compose file path was reported by Docker.</p>
+        {% endif %}
+      </section>
+    {% endif %}
+
     <section class="panel">
       <div class="panel-head">
         <div><h2>Inspect JSON</h2><p>Full output from <code>docker inspect</code>.</p></div>

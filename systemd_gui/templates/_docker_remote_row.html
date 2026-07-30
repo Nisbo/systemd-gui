@@ -29,7 +29,7 @@
               </thead>
               <tbody>
                 {% for container in remote.containers %}
-                  <tr>
+                  <tr class="{% if container.compose %}compose-container-row{% endif %}" {% if container.compose %}title="Compose file: {{ container.compose.primary_config_file or container.compose.config_files or '-' }}"{% endif %}>
                     <td>
                       <strong>{{ container.name or container.short_id }}</strong>
                       <div class="muted"><code>{{ container.short_id }}</code></div>
@@ -43,6 +43,7 @@
                       {% if container.compose %}
                         <span class="tag override">Compose</span>
                         <div class="muted">{{ container.compose.project or '-' }}{% if container.compose.service %} / {{ container.compose.service }}{% endif %}</div>
+                        {% if container.compose.primary_config_file %}<div class="muted"><code>{{ container.compose.primary_config_file }}</code></div>{% endif %}
                       {% else %}
                         <span class="muted">-</span>
                       {% endif %}
