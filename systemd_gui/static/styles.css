@@ -174,8 +174,10 @@ th.actions-heading { text-align:right; }
 .docker-panel-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
 .docker-view-actions { max-width:780px; }
 .docker-view-actions .toggle-label { min-height:34px; }
+.docker-action-stack { display:grid; gap:6px; justify-items:end; }
 .docker-action-group { display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .docker-action-label { color:var(--muted); font-weight:900; font-size:.86rem; }
+.docker-action-separator { color:var(--muted); font-weight:900; padding:0 2px; }
 .docker-table tbody td,.docker-remote-inner tbody td { border-bottom-color:transparent; }
 .docker-row-gap td { height:5px; padding:0; border:0; background:var(--panel); }
 .compose-group-row td { border:0; border-radius:10px 10px 0 0; background:linear-gradient(var(--compose-line), var(--compose-line)) top / 100% 2px no-repeat, var(--compose-head); font-weight:850; }

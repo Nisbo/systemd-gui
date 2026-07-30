@@ -43,15 +43,18 @@
         <p>{{ counts.total }} container{{ '' if counts.total == 1 else 's' }} found. {{ counts.running }} running, {{ counts.exited }} exited.</p>
       </div>
       <div class="docker-panel-actions">
-        <label class="toggle-label compact-toggle" title="Saved in this browser and applied when the Docker page loads.">
-          <input type="checkbox" data-docker-setting="collapseLocalCompose">
-          <span>Load composes collapsed</span>
-        </label>
-        <span class="docker-action-group">
-          <span class="docker-action-label">Composes:</span>
-          <button class="ghost-button compact-button" type="button" data-docker-compose-action="expand-all" data-docker-compose-scope="local">Expand</button>
-          <button class="ghost-button compact-button" type="button" data-docker-compose-action="collapse-all" data-docker-compose-scope="local">Collapse</button>
+        <span class="docker-action-stack">
+          <label class="toggle-label compact-toggle" title="Saved in this browser and applied when the Docker page loads.">
+            <input type="checkbox" data-docker-setting="collapseLocalCompose">
+            <span>Load local composes collapsed</span>
+          </label>
+          <span class="docker-action-group">
+            <span class="docker-action-label">Composes:</span>
+            <button class="ghost-button compact-button" type="button" data-docker-compose-action="expand-all" data-docker-compose-scope="local">Expand</button>
+            <button class="ghost-button compact-button" type="button" data-docker-compose-action="collapse-all" data-docker-compose-scope="local">Collapse</button>
+          </span>
         </span>
+        <span class="docker-action-separator" aria-hidden="true">|</span>
         <a class="ghost-button compact-button" href="{{ url_for('docker_index') }}">Refresh</a>
       </div>
     </div>
@@ -165,7 +168,7 @@
         </label>
         <label class="toggle-label compact-toggle" title="Saved in this browser and applied when the Docker page loads.">
           <input type="checkbox" data-docker-setting="collapseRemoteCompose">
-          <span>Load composes collapsed</span>
+          <span>Load remote composes collapsed</span>
         </label>
         <span class="docker-action-group">
           <span class="docker-action-label">Nodes:</span>
