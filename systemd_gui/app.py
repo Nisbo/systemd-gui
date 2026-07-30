@@ -181,6 +181,7 @@ def create_app() -> Flask:
         return {
             "app_name": APP_NAME,
             "app_version": APP_VERSION,
+            "asset_version": _asset_version(app),
             "repo_url": REPO_URL,
             "csrf_token": session["csrf_token"],
             "current_node": node_navigation["current"],
@@ -1935,6 +1936,17 @@ def _service_metadata(info: dict[str, object]) -> dict[str, str]:
 
 def _app_root(app: Flask) -> Path:
     return Path(app.root_path).parent
+
+
+def _asset_version(app: Flask) -> str:
+    static_folder = Path(app.static_folder or "")
+    newest_mtime = 0
+    for filename in ("styles.css", "app.js"):
+        try:
+            newest_mtime = max(newest_mtime, int((static_folder / filename).stat().st_mtime))
+        except OSError:
+            continue
+    return f"{APP_VERSION}-{newest_mtime}"
 
 
 def _update_result_dict(result) -> dict[str, object]:
