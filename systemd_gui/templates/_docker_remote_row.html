@@ -22,7 +22,7 @@
                   <th>Container</th>
                   <th>Status</th>
                   <th>Image</th>
-                  <th>Compose</th>
+                  <th>Service</th>
                   <th>CPU / RAM</th>
                   <th>Running</th>
                 </tr>
@@ -59,8 +59,8 @@
                     <td><code>{{ container.image or '-' }}</code></td>
                     <td>
                       {% if container.compose %}
-                        <span class="tag override">Compose</span>
-                        <div class="muted">{{ container.compose.project or '-' }}{% if container.compose.service %} / {{ container.compose.service }}{% endif %}</div>
+                        <span>{{ container.compose.service or container.compose.project or '-' }}</span>
+                        {% if container.compose.project %}<div class="muted">{{ container.compose.project }}</div>{% endif %}
                       {% else %}
                         <span class="muted">-</span>
                       {% endif %}

@@ -168,15 +168,16 @@ th.actions-heading { text-align:right; }
 .info-card h3 { margin:0; font-size:1rem; }
 .info-card p { line-height:1.5; }
 .info-meta-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+.docker-table table,.docker-remote-inner table { border-collapse:separate; border-spacing:0; --compose-line:color-mix(in srgb, #2563eb 34%, var(--line)); --compose-bg:color-mix(in srgb, #2563eb 5%, var(--panel)); --compose-head:color-mix(in srgb, #2563eb 8%, var(--panel)); }
 .docker-table table { min-width:1240px; }
-.compose-group-row td { border-top:2px solid color-mix(in srgb, #2563eb 45%, var(--line)); border-right:2px solid color-mix(in srgb, #2563eb 45%, var(--line)); border-left:7px solid color-mix(in srgb, #2563eb 58%, var(--line)); border-radius:8px 8px 0 0; background:color-mix(in srgb, #2563eb 9%, var(--panel)); font-weight:850; }
+.compose-group-row td { border-top:1px solid var(--compose-line); border-right:1px solid var(--compose-line); border-left:6px solid var(--compose-line); border-radius:10px 10px 0 0; background:var(--compose-head); font-weight:850; }
 .compose-group-row td > * { margin-right:7px; }
-.compose-container-row td { background:color-mix(in srgb, #2563eb 2.5%, transparent); }
-.compose-container-row td:first-child { border-left:7px solid color-mix(in srgb, #2563eb 58%, var(--line)); padding-left:28px; }
-.compose-container-row td:last-child { border-right:2px solid color-mix(in srgb, #2563eb 45%, var(--line)); }
-.compose-group-last td { border-bottom:2px solid color-mix(in srgb, #2563eb 45%, var(--line)); }
-.compose-group-last td:first-child { border-radius:0 0 0 8px; }
-.compose-group-last td:last-child { border-radius:0 0 8px 0; }
+.compose-container-row td { background:var(--compose-bg); border-bottom-color:var(--line); }
+.compose-container-row td:first-child { border-left:6px solid var(--compose-line); padding-left:28px; }
+.compose-container-row td:last-child { border-right:1px solid var(--compose-line); }
+.compose-group-last td { border-bottom:1px solid var(--compose-line); }
+.compose-group-last td:first-child { border-radius:0 0 0 10px; }
+.compose-group-last td:last-child { border-radius:0 0 10px 0; }
 .compose-file-card + .compose-file-card { margin-top:14px; }
 .docker-overview-note { margin-top:6px; }
 .remote-docker-table { margin-top:12px; }
