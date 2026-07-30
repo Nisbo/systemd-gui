@@ -105,6 +105,44 @@
   </div>
 {%- endmacro %}
 
+{% macro api_token_create_dialog(api_scope_options, csrf_token) -%}
+  <div class="confirm-modal" data-api-token-modal id="api-token-create" hidden>
+    <div class="confirm-dialog api-token-dialog" role="dialog" aria-modal="true" aria-labelledby="api-token-create-title">
+      <div class="panel-head modal-head">
+        <div>
+          <strong id="api-token-create-title">Create token</strong>
+        </div>
+        <button class="ghost-button small-icon-button" type="button" data-api-token-modal-close aria-label="Close">×</button>
+      </div>
+      <form class="api-token-edit-form" method="post" action="{{ url_for('create_nodes_api_token') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label>
+          Token name
+          <input name="name" placeholder="Living room Pi">
+        </label>
+        <div class="api-scope-box" data-scope-group>
+          <div class="api-scope-head">
+            <strong>Access categories</strong>
+            <button class="ghost-button compact-button" type="button" data-scope-select-all>Select all</button>
+          </div>
+          <div class="scope-list">
+            {% for scope in api_scope_options %}
+              <label class="toggle-label api-scope-toggle">
+                <input type="checkbox" name="scopes" value="{{ scope.id }}" {% if scope.id == 'node:read' %}checked{% endif %}>
+                <span>{{ scope.label }}</span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="primary-button" type="submit">Create token</button>
+          <button class="ghost-button" type="button" data-api-token-modal-close>Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{%- endmacro %}
+
 {% macro api_token_dialog(token, api_scope_options, csrf_token) -%}
   <div class="confirm-modal" data-api-token-modal id="api-token-edit-{{ token.id }}" hidden>
     <div class="confirm-dialog api-token-dialog" role="dialog" aria-modal="true" aria-labelledby="api-token-edit-title-{{ token.id }}">
@@ -332,31 +370,9 @@
           <h3>Access tokens</h3>
           <p>Create separate tokens for different nodes or purposes. Stored tokens are hashed locally and cannot be shown again.</p>
         </div>
+        <button class="primary-button" type="button" data-api-token-edit-open data-target="#api-token-create">Create token</button>
       </div>
-      <form class="api-token-form" method="post" action="{{ url_for('create_nodes_api_token') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <div class="api-token-name-field">
-          <label>
-            Token name
-            <input name="name" placeholder="Living room Pi">
-          </label>
-          <button class="primary-button" type="submit">Create token</button>
-        </div>
-        <div class="api-scope-box api-create-scope-box" data-scope-group>
-          <div class="api-scope-head">
-            <strong>Access categories</strong>
-            <button class="ghost-button compact-button" type="button" data-scope-select-all>Select all</button>
-          </div>
-          <div class="scope-list">
-            {% for scope in api_scope_options %}
-              <label class="toggle-label api-scope-toggle">
-                <input type="checkbox" name="scopes" value="{{ scope.id }}" {% if scope.id == 'node:read' %}checked{% endif %}>
-                <span>{{ scope.label }}</span>
-              </label>
-            {% endfor %}
-          </div>
-        </div>
-      </form>
+      {{ api_token_create_dialog(api_scope_options, csrf_token) }}
 
       {% if api_access.tokens %}
         <div class="table-wrap compact-table api-token-table">
