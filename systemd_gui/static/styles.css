@@ -172,12 +172,12 @@ th.actions-heading { text-align:right; }
 .docker-table table { min-width:1240px; }
 .docker-table tbody td,.docker-remote-inner tbody td { border-bottom-color:transparent; }
 .docker-row-gap td { height:5px; padding:0; border:0; background:var(--panel); }
-.compose-group-row td { border-top:2px solid var(--compose-line); border-right:1px solid var(--compose-line); border-left:6px solid var(--compose-line); border-radius:10px 10px 0 0; background:var(--compose-head); font-weight:850; }
+.compose-group-row td { border-top:2px solid var(--compose-line); border-right:0; border-left:0; border-radius:10px 10px 0 0; background:var(--compose-head); font-weight:850; }
 .compose-group-row.first-docker-item td { border-radius:0; border-top:0; }
 .compose-group-row td > * { margin-right:7px; }
 .compose-container-row td { background:var(--compose-bg); border-bottom-color:transparent; }
-.compose-container-row td:first-child { border-left:6px solid var(--compose-line); padding-left:28px; }
-.compose-container-row td:last-child { border-right:1px solid var(--compose-line); }
+.compose-container-row td:first-child { border-left:0; padding-left:28px; }
+.compose-container-row td:last-child { border-right:0; }
 .compose-group-last td { border-bottom:2px solid var(--compose-line); }
 .compose-group-last td:first-child { border-radius:0 0 0 10px; }
 .compose-group-last td:last-child { border-radius:0 0 10px 0; }
