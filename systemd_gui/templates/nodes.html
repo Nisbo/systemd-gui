@@ -363,13 +363,31 @@
                   <td>
                     <div class="api-token-summary">
                       <strong>{{ token.name }}</strong>
-                      <span class="tag {% if token.enabled %}success{% else %}neutral{% endif %}">{{ 'Enabled' if token.enabled else 'Disabled' }}</span>
+                      <span class="tag api-token-enabled-status {% if token.enabled %}enabled{% else %}neutral{% endif %}">{{ 'Enabled' if token.enabled else 'Disabled' }}</span>
                     </div>
                   </td>
                   <td>
                     <div class="scope-chip-row">
-                      {% for scope in api_scope_options if scope.id in token.scopes %}
-                        <span class="scope-checkbox readonly-scope"><span>{{ scope.label }}</span></span>
+                      {% for scope in api_scope_options %}
+                        {% set scope_enabled = scope.id in token.scopes %}
+                        {% if scope.id == 'node:read' %}
+                          <span class="scope-checkbox readonly-scope active" title="Required base access.">{{ scope.label }}</span>
+                        {% else %}
+                          <form class="scope-toggle-form" method="post" action="{{ url_for('update_nodes_api_token', token_id=token.id) }}" data-confirm="{{ 'Disable ' ~ scope.label ~ ' for ' ~ token.name ~ '?' if scope_enabled else 'Enable ' ~ scope.label ~ ' for ' ~ token.name ~ '?' }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <input type="hidden" name="name" value="{{ token.name }}">
+                            {% if token.enabled %}<input type="hidden" name="enabled" value="1">{% endif %}
+                            {% for existing_scope in token.scopes %}
+                              {% if existing_scope == 'node:read' or existing_scope != scope.id %}
+                                <input type="hidden" name="scopes" value="{{ existing_scope }}">
+                              {% endif %}
+                            {% endfor %}
+                            {% if not scope_enabled %}
+                              <input type="hidden" name="scopes" value="{{ scope.id }}">
+                            {% endif %}
+                            <button class="scope-checkbox scope-toggle-button {% if scope_enabled %}active{% else %}inactive{% endif %}" type="submit" title="{{ 'Disable' if scope_enabled else 'Enable' }} {{ scope.label }}">{{ scope.label }}</button>
+                          </form>
+                        {% endif %}
                       {% endfor %}
                     </div>
                   </td>
@@ -379,7 +397,7 @@
                       <button class="ghost-button icon-button small-icon-button" type="button" data-api-token-edit-open data-target="#api-token-edit-{{ token.id }}" title="Edit token" aria-label="Edit {{ token.name }}">{{ icon("edit") }}</button>
                       <form method="post" action="{{ url_for('delete_nodes_api_token', token_id=token.id) }}" data-confirm="Delete this Remote API token? Nodes using it will no longer connect.">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <button class="danger-button icon-button small-icon-button" type="submit" title="Delete token" aria-label="Delete {{ token.name }}">{{ icon("trash") }}</button>
+                        <button class="danger-button small-icon-button" type="submit" title="Delete token" aria-label="Delete {{ token.name }}">{{ icon("delete") }}</button>
                       </form>
                     </div>
                   </td>

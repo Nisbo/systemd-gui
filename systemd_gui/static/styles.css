@@ -160,9 +160,15 @@ th.actions-heading { text-align:right; }
 .scope-checkbox { display:inline-flex; align-items:center; gap:6px; min-height:30px; border-radius:999px; background:color-mix(in srgb, var(--muted) 10%, transparent); color:var(--muted); font-size:.78rem; font-weight:900; padding:4px 9px; }
 .scope-checkbox input { width:auto; height:auto; }
 .scope-checkbox:has(input:checked) { background:color-mix(in srgb, var(--accent) 14%, transparent); color:var(--accent-strong); }
-.readonly-scope { background:color-mix(in srgb, var(--accent) 13%, transparent); color:var(--accent-strong); pointer-events:none; }
+.readonly-scope,.scope-toggle-button.active { background:color-mix(in srgb, var(--accent) 13%, transparent); color:var(--accent-strong); }
+.scope-toggle-button.inactive { background:color-mix(in srgb, var(--muted) 9%, transparent); color:var(--muted); border-color:transparent; }
+.scope-toggle-form { display:inline-flex; margin:0; }
+.scope-toggle-button { border:0; min-height:30px; cursor:pointer; }
+.scope-toggle-button:hover { border-color:color-mix(in srgb, var(--accent) 45%, var(--line)); filter:brightness(.98); }
 .api-token-summary { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .api-token-summary strong { font-size:1rem; }
+.api-token-enabled-status.enabled { background:color-mix(in srgb, #2563eb 13%, transparent); color:#1d4ed8; }
+:root[data-theme="dark"] .api-token-enabled-status.enabled { color:#93c5fd; }
 .api-token-dialog { max-width:720px; }
 .api-token-edit-form { display:grid; gap:14px; }
 .api-token-edit-grid { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:12px; align-items:end; }
