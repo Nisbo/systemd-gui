@@ -79,7 +79,8 @@
                   </td>
                 </tr>
               {% endif %}
-              <tr class="{% if container.compose %}compose-container-row{% endif %}" {% if container.compose %}title="Compose file: {{ container.compose.primary_config_file or container.compose.config_files or '-' }}"{% endif %}>
+              {% set same_next_group = container.compose and loop.nextitem is defined and loop.nextitem.compose and loop.nextitem.compose.group_key == container.compose.group_key %}
+              <tr class="{% if container.compose %}compose-container-row{% if not same_next_group %} compose-group-last{% endif %}{% endif %}" {% if container.compose %}title="Compose file: {{ container.compose.primary_config_file or container.compose.config_files or '-' }}"{% endif %}>
                 <td>
                   <a class="table-link" href="{{ url_for('docker_detail', container_id=container.id) }}">{{ container.name or container.short_id }}</a>
                   <div class="muted"><code>{{ container.short_id }}</code></div>
@@ -93,7 +94,6 @@
                   {% if container.compose %}
                     <span class="tag override" title="Docker Compose container">Compose</span>
                     <div class="muted">{{ container.compose.project or '-' }}{% if container.compose.service %} / {{ container.compose.service }}{% endif %}</div>
-                    {% if container.compose.primary_config_file %}<div class="muted"><code>{{ container.compose.primary_config_file }}</code></div>{% endif %}
                   {% else %}
                     <span class="muted">-</span>
                   {% endif %}
