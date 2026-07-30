@@ -52,10 +52,10 @@
             <span class="docker-action-label">Composes:</span>
             <button class="ghost-button compact-button" type="button" data-docker-compose-action="expand-all" data-docker-compose-scope="local">Expand</button>
             <button class="ghost-button compact-button" type="button" data-docker-compose-action="collapse-all" data-docker-compose-scope="local">Collapse</button>
+            <span class="docker-action-separator" aria-hidden="true">|</span>
+            <a class="ghost-button compact-button" href="{{ url_for('docker_index') }}">Refresh</a>
           </span>
         </span>
-        <span class="docker-action-separator" aria-hidden="true">|</span>
-        <a class="ghost-button compact-button" href="{{ url_for('docker_index') }}">Refresh</a>
       </div>
     </div>
 
