@@ -61,7 +61,24 @@
             </tr>
           </thead>
           <tbody>
+            {% set compose_group = namespace(key='') %}
             {% for container in containers %}
+              {% if container.compose and container.compose.group_key != compose_group.key %}
+                {% set compose_group.key = container.compose.group_key %}
+                <tr class="compose-group-row">
+                  <td colspan="8">
+                    <span class="tag override">Compose</span>
+                    <strong>{{ container.compose.project or 'Compose project' }}</strong>
+                    {% if container.compose.primary_config_file %}
+                      <span class="muted">·</span>
+                      <code>{{ container.compose.primary_config_file }}</code>
+                    {% elif container.compose.config_files %}
+                      <span class="muted">·</span>
+                      <code>{{ container.compose.config_files }}</code>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endif %}
               <tr class="{% if container.compose %}compose-container-row{% endif %}" {% if container.compose %}title="Compose file: {{ container.compose.primary_config_file or container.compose.config_files or '-' }}"{% endif %}>
                 <td>
                   <a class="table-link" href="{{ url_for('docker_detail', container_id=container.id) }}">{{ container.name or container.short_id }}</a>
