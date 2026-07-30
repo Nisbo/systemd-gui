@@ -171,8 +171,9 @@ th.actions-heading { text-align:right; }
 .docker-table table { min-width:1240px; }
 .compose-group-row td { border-top:2px solid color-mix(in srgb, #2563eb 45%, var(--line)); border-right:2px solid color-mix(in srgb, #2563eb 45%, var(--line)); border-left:7px solid color-mix(in srgb, #2563eb 58%, var(--line)); border-radius:8px 8px 0 0; background:color-mix(in srgb, #2563eb 9%, var(--panel)); font-weight:850; }
 .compose-group-row td > * { margin-right:7px; }
-.compose-container-row td { border-right:2px solid color-mix(in srgb, #2563eb 45%, var(--line)); background:color-mix(in srgb, #2563eb 2.5%, transparent); }
+.compose-container-row td { background:color-mix(in srgb, #2563eb 2.5%, transparent); }
 .compose-container-row td:first-child { border-left:7px solid color-mix(in srgb, #2563eb 58%, var(--line)); padding-left:28px; }
+.compose-container-row td:last-child { border-right:2px solid color-mix(in srgb, #2563eb 45%, var(--line)); }
 .compose-group-last td { border-bottom:2px solid color-mix(in srgb, #2563eb 45%, var(--line)); }
 .compose-group-last td:first-child { border-radius:0 0 0 8px; }
 .compose-group-last td:last-child { border-radius:0 0 8px 0; }
