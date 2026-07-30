@@ -23,6 +23,7 @@ from .api_access import (
     delete_token,
     fetch_remote_logs,
     fetch_remote_docker_containers,
+    regenerate_api_token,
     read_api_access,
     trigger_remote_git_update,
     update_api_settings,
@@ -469,6 +470,19 @@ def create_app() -> Flask:
             flash("Remote API token deleted.", "success")
         else:
             flash("Remote API token not found.", "error")
+        return redirect(url_for("nodes", tab="api"))
+
+    @app.post("/nodes/api-access/tokens/<token_id>/regenerate")
+    def regenerate_nodes_api_token(token_id: str):
+        data = read_api_access(_api_access_path(app))
+        changed, token_name, token_value = regenerate_api_token(data, token_id)
+        if changed:
+            write_api_access(_api_access_path(app), data)
+            session["new_api_token"] = token_value
+            session["new_api_token_name"] = token_name
+            flash("Remote API token regenerated. Copy it now; the old token no longer works.", "success")
+            return redirect(url_for("nodes", tab="api", _anchor="new-api-token"))
+        flash("Remote API token not found.", "error")
         return redirect(url_for("nodes", tab="api"))
 
     @app.post("/nodes/settings")

@@ -116,6 +116,10 @@
       </div>
       <form class="api-token-edit-form" method="post" action="{{ url_for('update_nodes_api_token', token_id=token.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="api-token-prefix-card">
+          <span>Token prefix</span>
+          <code>{{ token.prefix }}...</code>
+        </div>
         <div class="api-token-edit-grid">
           <label>
             Token name
@@ -147,6 +151,14 @@
           <button class="primary-button" type="submit">Save token</button>
           <button class="ghost-button" type="button" data-api-token-modal-close>Cancel</button>
         </div>
+      </form>
+      <form class="api-token-regenerate-form" method="post" action="{{ url_for('regenerate_nodes_api_token', token_id=token.id) }}" data-confirm="Regenerate token for {{ token.name }}? The old token will stop working immediately.">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div>
+          <strong>Forgot the token?</strong>
+          <span>Regenerate it and copy the new value once. Existing nodes using the old token must be updated.</span>
+        </div>
+        <button class="danger-button compact-button" type="submit">Regenerate token</button>
       </form>
     </div>
   </div>
@@ -330,7 +342,7 @@
           </label>
           <button class="primary-button" type="submit">Create token</button>
         </div>
-        <div class="api-scope-box" data-scope-group>
+        <div class="api-scope-box api-create-scope-box" data-scope-group>
           <div class="api-scope-head">
             <strong>Access categories</strong>
             <button class="ghost-button compact-button" type="button" data-scope-select-all>Select all</button>
@@ -394,7 +406,7 @@
                   <td>{{ token.last_used_at or '-' }}</td>
                   <td>
                     <div class="table-actions">
-                      <button class="ghost-button icon-button small-icon-button" type="button" data-api-token-edit-open data-target="#api-token-edit-{{ token.id }}" title="Edit token" aria-label="Edit {{ token.name }}">{{ icon("edit") }}</button>
+                      <button class="ghost-button small-icon-button" type="button" data-api-token-edit-open data-target="#api-token-edit-{{ token.id }}" title="Edit token" aria-label="Edit {{ token.name }}">{{ icon("edit") }}</button>
                       <form method="post" action="{{ url_for('delete_nodes_api_token', token_id=token.id) }}" data-confirm="Delete this Remote API token? Nodes using it will no longer connect.">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                         <button class="danger-button small-icon-button" type="submit" title="Delete token" aria-label="Delete {{ token.name }}">{{ icon("delete") }}</button>

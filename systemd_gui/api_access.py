@@ -167,6 +167,26 @@ def update_api_token(data: dict[str, object], token_id: str, name: str, scopes: 
     return changed
 
 
+def regenerate_api_token(data: dict[str, object], token_id: str) -> tuple[bool, str, str]:
+    token_value = f"sdg_{secrets.token_urlsafe(32)}"
+    changed = False
+    token_name = "Remote API token"
+    tokens = []
+    for token in data.get("tokens") if isinstance(data.get("tokens"), list) else []:
+        if str(token.get("id")) == token_id:
+            token_name = str(token.get("name") or token_name)
+            token = {
+                **token,
+                "prefix": token_value[:12],
+                "token_hash": hash_token(token_value),
+                "last_used_at": "",
+            }
+            changed = True
+        tokens.append(token)
+    data["tokens"] = tokens
+    return changed, token_name, token_value
+
+
 def delete_token(data: dict[str, object], token_id: str) -> bool:
     tokens = list(data.get("tokens") or [])
     kept = [token for token in tokens if str(token.get("id")) != token_id]
