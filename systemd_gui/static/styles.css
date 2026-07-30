@@ -169,18 +169,19 @@ th.actions-heading { text-align:right; }
 .info-card p { line-height:1.5; }
 .info-meta-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
 .docker-table table,.docker-remote-inner table { border-collapse:separate; border-spacing:0; --compose-line:color-mix(in srgb, #2563eb 42%, var(--line)); --compose-bg:color-mix(in srgb, #2563eb 5%, var(--panel)); --compose-head:color-mix(in srgb, #2563eb 8%, var(--panel)); }
+.docker-table,.remote-docker-table { border-left:0; border-right:0; }
 .docker-table table { min-width:1240px; }
 .docker-table tbody td,.docker-remote-inner tbody td { border-bottom-color:transparent; }
 .docker-row-gap td { height:5px; padding:0; border:0; background:var(--panel); }
-.compose-group-row td { border-top:2px solid var(--compose-line); border-right:0; border-left:0; border-radius:0; background:var(--compose-head); font-weight:850; }
-.compose-group-row.first-docker-item td { border-radius:0; border-top:0; }
+.compose-group-row td { border:0; border-radius:10px 10px 0 0; background:linear-gradient(var(--compose-line), var(--compose-line)) top / 100% 2px no-repeat, var(--compose-head); font-weight:850; }
+.compose-group-row.first-docker-item td { border-radius:0; background:var(--compose-head); }
 .compose-group-row td > * { margin-right:7px; }
 .compose-container-row td { background:var(--compose-bg); border-bottom-color:transparent; }
 .compose-container-row td:first-child { border-left:0; padding-left:28px; }
 .compose-container-row td:last-child { border-right:0; }
-.compose-group-last td { border-bottom:2px solid var(--compose-line); }
-.compose-group-last td:first-child { border-radius:0; }
-.compose-group-last td:last-child { border-radius:0; }
+.compose-group-last td { border-bottom:0; background:linear-gradient(to top, var(--compose-line), var(--compose-line)) bottom / 100% 2px no-repeat, var(--compose-bg); }
+.compose-group-last td:first-child { border-radius:0 0 0 10px; }
+.compose-group-last td:last-child { border-radius:0 0 10px 0; }
 .standalone-container-row td { border-top:1px solid var(--line); border-bottom:1px solid var(--line); background:color-mix(in srgb, var(--panel) 96%, var(--accent) 4%); }
 .standalone-container-row td:first-child { border-left:1px solid var(--line); border-radius:8px 0 0 8px; }
 .standalone-container-row td:last-child { border-right:1px solid var(--line); border-radius:0 8px 8px 0; }
