@@ -163,6 +163,7 @@ def _enrich_containers(containers: list[dict[str, object]]) -> None:
                 "finished_at_display": _format_docker_time(finished_at),
                 "running_for": _running_for(started_at) if state.get("Running") else "",
                 "compose": _compose_info(labels),
+                "image_source": _image_source_url(labels),
             })
 
     stats = _container_stats(ids)
@@ -219,6 +220,7 @@ def _container_from_ps(item: dict[str, object]) -> dict[str, object]:
         "finished_at_display": "",
         "compose": {},
         "stats": {},
+        "image_source": "",
     }
 
 
@@ -253,6 +255,7 @@ def _container_from_inspect(raw: dict[str, object]) -> dict[str, object]:
         "env": list(config.get("Env") or []),
         "labels": labels,
         "compose": _compose_info(labels),
+        "image_source": _image_source_url(labels),
         "stats": {},
         "mounts": list(raw.get("Mounts") or []),
         "ports": network_settings.get("Ports") or {},
@@ -298,6 +301,13 @@ def _compose_info(labels: dict[str, str]) -> dict[str, object]:
         "group_key": f"{project}|{primary_config_file or config_files}",
         "group_label": f"{project} · {primary_config_file or config_files}" if project else primary_config_file or config_files,
     }
+
+
+def _image_source_url(labels: dict[str, str]) -> str:
+    source = labels.get("org.opencontainers.image.source", "").strip()
+    if source.startswith("https://github.com/") or source.startswith("http://github.com/"):
+        return source.replace("http://", "https://", 1)
+    return ""
 
 
 def _compose_config_file_paths(working_dir: str, config_files: str) -> list[str]:

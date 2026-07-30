@@ -170,6 +170,7 @@ th.actions-heading { text-align:right; }
 .info-meta-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
 .docker-table table,.docker-remote-inner table { border-collapse:separate; border-spacing:0; --compose-line:color-mix(in srgb, #2563eb 34%, var(--line)); --compose-bg:color-mix(in srgb, #2563eb 5%, var(--panel)); --compose-head:color-mix(in srgb, #2563eb 8%, var(--panel)); }
 .docker-table table { min-width:1240px; }
+.docker-row-gap td { height:5px; padding:0; border:0; background:transparent; }
 .compose-group-row td { border-top:1px solid var(--compose-line); border-right:1px solid var(--compose-line); border-left:6px solid var(--compose-line); border-radius:10px 10px 0 0; background:var(--compose-head); font-weight:850; }
 .compose-group-row td > * { margin-right:7px; }
 .compose-container-row td { background:var(--compose-bg); border-bottom-color:var(--line); }
@@ -178,6 +179,9 @@ th.actions-heading { text-align:right; }
 .compose-group-last td { border-bottom:1px solid var(--compose-line); }
 .compose-group-last td:first-child { border-radius:0 0 0 10px; }
 .compose-group-last td:last-child { border-radius:0 0 10px 0; }
+.standalone-container-row td { border-top:1px solid var(--line); border-bottom:1px solid var(--line); background:color-mix(in srgb, var(--panel) 96%, var(--accent) 4%); }
+.standalone-container-row td:first-child { border-left:1px solid var(--line); border-radius:8px 0 0 8px; }
+.standalone-container-row td:last-child { border-right:1px solid var(--line); border-radius:0 8px 8px 0; }
 .compose-file-card + .compose-file-card { margin-top:14px; }
 .docker-overview-note { margin-top:6px; }
 .remote-docker-table { margin-top:12px; }

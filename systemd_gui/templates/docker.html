@@ -63,7 +63,11 @@
           <tbody>
             {% set compose_group = namespace(key='') %}
             {% for container in containers %}
-              {% if container.compose and container.compose.group_key != compose_group.key %}
+              {% set starts_new_compose = container.compose and container.compose.group_key != compose_group.key %}
+              {% if not loop.first and (starts_new_compose or not container.compose) %}
+                <tr class="docker-row-gap"><td colspan="8"></td></tr>
+              {% endif %}
+              {% if starts_new_compose %}
                 {% set compose_group.key = container.compose.group_key %}
                 <tr class="compose-group-row">
                   <td colspan="8">
@@ -80,7 +84,7 @@
                 </tr>
               {% endif %}
               {% set same_next_group = container.compose and loop.nextitem is defined and loop.nextitem.compose and loop.nextitem.compose.group_key == container.compose.group_key %}
-              <tr class="{% if container.compose %}compose-container-row{% if not same_next_group %} compose-group-last{% endif %}{% endif %}" {% if container.compose %}title="Compose file: {{ container.compose.primary_config_file or container.compose.config_files or '-' }}"{% endif %}>
+              <tr class="{% if container.compose %}compose-container-row{% if not same_next_group %} compose-group-last{% endif %}{% else %}standalone-container-row{% endif %}" {% if container.compose %}title="Compose file: {{ container.compose.primary_config_file or container.compose.config_files or '-' }}"{% endif %}>
                 <td>
                   <a class="table-link" href="{{ url_for('docker_detail', container_id=container.id) }}">{{ container.name or container.short_id }}</a>
                   <div class="muted"><code>{{ container.short_id }}</code></div>
@@ -89,7 +93,13 @@
                   <span class="tag docker-state {{ container.state }}">{{ container.state or 'unknown' }}</span>
                   <div class="muted">{{ container.status or '-' }}</div>
                 </td>
-                <td><code>{{ container.image or '-' }}</code></td>
+                <td>
+                  {% if container.image_source %}
+                    <a class="table-link" href="{{ container.image_source }}" target="_blank" rel="noopener" title="Open GitHub source"><code>{{ container.image or '-' }}</code></a>
+                  {% else %}
+                    <code>{{ container.image or '-' }}</code>
+                  {% endif %}
+                </td>
                 <td>
                   {% if container.compose %}
                     <span>{{ container.compose.service or container.compose.project or '-' }}</span>
