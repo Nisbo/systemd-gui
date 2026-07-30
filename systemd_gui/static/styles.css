@@ -149,7 +149,7 @@ th.actions-heading { text-align:right; }
 .new-token-card { display:grid; gap:10px; align-content:start; border:2px solid color-mix(in srgb, var(--amber) 88%, var(--line)); border-left-width:8px; border-radius:8px; background:color-mix(in srgb, var(--amber) 18%, var(--panel)); margin:0 0 18px; padding:14px; scroll-margin-top:18px; }
 .new-token-card strong { font-size:1.08rem; }
 .new-token-card span { color:var(--muted); }
-.api-token-form { display:grid; grid-template-columns:minmax(280px, .85fr) minmax(0, 1.25fr); gap:14px; align-items:end; }
+.api-token-form { display:grid; grid-template-columns:minmax(280px, .85fr) minmax(0, 1.25fr); gap:14px; align-items:start; }
 .api-token-name-field { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:10px; align-items:end; }
 .api-scope-box { display:grid; gap:10px; border:1px solid var(--line); border-radius:8px; padding:12px; background:color-mix(in srgb, var(--panel) 82%, transparent); }
 .api-create-scope-box { padding:10px 12px; }
@@ -458,7 +458,7 @@ th.actions-heading { text-align:right; }
 .diagnostic { display:grid; gap:4px; border:2px solid color-mix(in srgb, var(--amber) 78%, var(--line)); border-left-width:7px; border-radius:8px; padding:12px 14px; margin-bottom:16px; } .diagnostic.error { border-color:color-mix(in srgb, var(--danger) 72%, var(--line)); } .diagnostic span { color:var(--muted); }
 .diagnostic[hidden] { display:none; }
 button[aria-busy="true"] { opacity:.72; }
-.confirm-modal { position:fixed; inset:0; display:grid; place-items:center; overflow:auto; background:rgba(0,0,0,.38); padding:18px 0; z-index:20; } .confirm-modal[hidden] { display:none; } .confirm-dialog { width:min(460px, calc(100% - 32px)); max-height:calc(100vh - 36px); overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:8px; box-shadow:var(--shadow); padding:18px; } .confirm-dialog p { color:var(--muted); margin-top:8px; } .confirm-extra-toggle { margin-top:14px; } .confirm-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
+.confirm-modal { position:fixed; inset:0; display:grid; place-items:center; overflow:auto; background:rgba(0,0,0,.38); padding:18px 0; z-index:20; } .confirm-modal[data-confirm-modal] { z-index:50; } .confirm-modal[hidden] { display:none; } .confirm-dialog { width:min(460px, calc(100% - 32px)); max-height:calc(100vh - 36px); overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:8px; box-shadow:var(--shadow); padding:18px; } .confirm-dialog p { color:var(--muted); margin-top:8px; } .confirm-extra-toggle { margin-top:14px; } .confirm-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
 .info-dialog { width:min(560px, calc(100% - 32px)); }
 .info-links { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
 .app-footer { display:flex; justify-content:center; gap:10px; color:var(--muted); font-size:.88rem; margin-top:28px; }
