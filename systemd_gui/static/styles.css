@@ -95,6 +95,7 @@ input,textarea,select { width:100%; border:1px solid var(--line); border-radius:
 th.actions-heading { text-align:right; }
 .compact-table table { min-width:620px; }
 .table-link { color:var(--accent-strong); font-weight:850; text-decoration:underline; text-underline-offset:3px; }
+.text-link { color:var(--accent-strong); font-weight:850; text-decoration:underline; text-underline-offset:3px; }
 .muted { color:var(--muted); }
 .name-cell,.panel-actions,.inline-form,.value-with-action { flex-wrap:wrap; }
 .table-actions { flex-wrap:nowrap; justify-content:flex-end; min-width:170px; }
@@ -168,6 +169,7 @@ th.actions-heading { text-align:right; }
 .info-card p { line-height:1.5; }
 .info-meta-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
 .docker-table table { min-width:1240px; }
+.docker-overview-note { margin-top:6px; }
 .remote-docker-table { margin-top:12px; }
 .remote-docker-table > table { min-width:980px; }
 .remote-docker-table > table > tbody > tr > td { padding:0; }
@@ -175,8 +177,6 @@ th.actions-heading { text-align:right; }
 .remote-docker-details summary,.remote-docker-summary { display:flex; align-items:center; justify-content:space-between; gap:14px; list-style:none; padding:14px 16px; background:color-mix(in srgb, var(--panel) 97%, var(--accent) 3%); }
 .remote-docker-details summary { cursor:pointer; }
 .remote-docker-details summary::-webkit-details-marker { display:none; }
-.remote-docker-details summary::before { content:"▸"; flex:0 0 auto; color:var(--muted); font-size:.82rem; transform:translateY(-1px); }
-.remote-docker-details[open] summary::before { content:"▾"; }
 .remote-docker-title { display:flex; align-items:center; gap:7px; min-width:0; flex:1 1 auto; flex-wrap:wrap; text-align:left; }
 .remote-docker-title strong span { color:var(--muted); font-weight:650; }
 .remote-docker-details summary > .tag,.remote-docker-summary > .tag { flex:0 0 auto; }

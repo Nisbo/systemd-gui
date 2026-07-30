@@ -32,6 +32,35 @@
     if (event.key === "Escape") closeNodeSwitchers();
   });
 
+  const replaceRemoteDockerRow = (row, html) => {
+    const template = document.createElement("template");
+    template.innerHTML = html.trim();
+    const replacement = template.content.firstElementChild;
+    if (replacement) row.replaceWith(replacement);
+  };
+  const loadRemoteDockerRows = (rootNode = document) => {
+    rootNode.querySelectorAll("[data-remote-docker-node-url]").forEach((row) => {
+      const url = row.dataset.remoteDockerNodeUrl;
+      if (!url) return;
+      fetch(url, { headers: { "X-Requested-With": "fetch" } })
+        .then((response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.text();
+        })
+        .then((html) => replaceRemoteDockerRow(row, html))
+        .catch((error) => {
+          const message = row.querySelector(".remote-docker-title .muted:last-child");
+          if (message) message.textContent = `Remote Docker overview could not be loaded: ${String(error.message || error)}`;
+          const tag = row.querySelector(".tag");
+          if (tag) {
+            tag.classList.remove("neutral");
+            tag.classList.add("danger");
+            tag.textContent = "error";
+          }
+        });
+    });
+  };
+
   document.querySelectorAll("[data-remote-docker-url]").forEach((target) => {
     const url = target.dataset.remoteDockerUrl;
     if (!url) return;
@@ -42,6 +71,7 @@
       })
       .then((html) => {
         target.innerHTML = html;
+        loadRemoteDockerRows(target);
       })
       .catch((error) => {
         target.replaceChildren();

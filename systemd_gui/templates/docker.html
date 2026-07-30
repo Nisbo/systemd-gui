@@ -5,6 +5,7 @@
       <div>
         <h2>Docker</h2>
         <p>View local Docker containers and use simple start, stop, restart and log actions.</p>
+        <p class="docker-overview-note">This is a simple overview tool, not a replacement for <a class="text-link" href="https://www.portainer.io/" target="_blank" rel="noopener">Portainer</a> or <a class="text-link" href="https://github.com/rcourtman/Pulse" target="_blank" rel="noopener">Pulse</a>.</p>
       </div>
       <span class="tag {% if status.running %}{% elif status.available %}neutral{% else %}danger{% endif %}">
         {% if status.running %}Docker running{% elif status.available %}Daemon unavailable{% else %}Docker missing{% endif %}
@@ -119,7 +120,7 @@
     <div class="panel-head">
       <div>
         <h2>Remote containers</h2>
-        <p>Simple read-only overview from saved nodes. This is not a replacement for <a href="https://www.portainer.io/" target="_blank" rel="noopener">Portainer</a> or <a href="https://github.com/rcourtman/Pulse" target="_blank" rel="noopener">Pulse</a>; remote nodes are queried after the page opens so slow hosts do not block the local view.</p>
+        <p>Read-only container status from saved nodes. Remote nodes load in the background and may appear one after another.</p>
       </div>
     </div>
 

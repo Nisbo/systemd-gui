@@ -669,7 +669,23 @@ def create_app() -> Flask:
 
     @app.get("/docker/remote-fragment")
     def docker_remote_fragment():
-        return render_template("_docker_remote.html", remote_docker=_remote_docker_overview(app))
+        return render_template("_docker_remote.html", remote_nodes=_remote_docker_nodes(app))
+
+    @app.get("/docker/remote-fragment/<node_id>")
+    def docker_remote_node_fragment(node_id: str):
+        node = _remote_docker_node(app, node_id)
+        if not node:
+            remote = {
+                "node": {"id": node_id, "name": "Remote node", "version": ""},
+                "ok": False,
+                "message": "Saved node was not found.",
+                "status": "missing",
+                "containers": [],
+                "counts": {"total": 0, "running": 0, "exited": 0},
+            }
+        else:
+            remote = _remote_docker_result(node)
+        return render_template("_docker_remote_row.html", remote=remote)
 
     @app.get("/docker/<container_id>")
     def docker_detail(container_id: str):
@@ -2131,10 +2147,7 @@ def _combined_journal_logs(
 
 
 def _remote_docker_overview(app: Flask) -> list[dict[str, object]]:
-    data = read_nodes(_nodes_path(app))
-    raw_nodes = data.get("nodes") if isinstance(data.get("nodes"), list) else []
-    nodes = [node for node in raw_nodes if isinstance(node, dict)]
-    nodes.sort(key=lambda item: str(item.get("name") or "Remote node").lower())
+    nodes = _remote_docker_nodes(app)
     if not nodes:
         return []
 
@@ -2144,28 +2157,48 @@ def _remote_docker_overview(app: Flask) -> list[dict[str, object]]:
     with ThreadPoolExecutor(max_workers=min(6, len(nodes))) as executor:
         results = list(executor.map(load, nodes))
 
-    overview = []
-    for node, result in zip(nodes, results):
-        containers = list(result.containers)
-        node_info = {**result.node, "id": str(node.get("id") or result.node.get("id") or "")}
-        if not str(node_info.get("version") or "").strip():
-            metadata = node_runtime_metadata(node, timeout=0.7)
-            version = str(metadata.get("version") or "").strip()
-            if version:
-                node_info["version"] = version
-        overview.append({
-            "node": node_info,
-            "ok": result.ok,
-            "message": result.message,
-            "status": result.status,
-            "containers": containers,
-            "counts": {
-                "total": len(containers),
-                "running": sum(1 for item in containers if item.get("state") == "running"),
-                "exited": sum(1 for item in containers if item.get("state") == "exited"),
-            },
-        })
-    return overview
+    return [_remote_docker_payload(node, result) for node, result in zip(nodes, results)]
+
+
+def _remote_docker_nodes(app: Flask) -> list[dict[str, object]]:
+    data = read_nodes(_nodes_path(app))
+    raw_nodes = data.get("nodes") if isinstance(data.get("nodes"), list) else []
+    nodes = [node for node in raw_nodes if isinstance(node, dict)]
+    nodes.sort(key=lambda item: str(item.get("name") or "Remote node").lower())
+    return nodes
+
+
+def _remote_docker_node(app: Flask, node_id: str) -> dict[str, object] | None:
+    for node in _remote_docker_nodes(app):
+        if str(node.get("id") or "") == node_id:
+            return node
+    return None
+
+
+def _remote_docker_result(node: dict[str, object]) -> dict[str, object]:
+    return _remote_docker_payload(node, fetch_remote_docker_containers(node))
+
+
+def _remote_docker_payload(node: dict[str, object], result) -> dict[str, object]:
+    containers = list(result.containers)
+    node_info = {**result.node, "id": str(node.get("id") or result.node.get("id") or "")}
+    if not str(node_info.get("version") or "").strip():
+        metadata = node_runtime_metadata(node, timeout=0.7)
+        version = str(metadata.get("version") or "").strip()
+        if version:
+            node_info["version"] = version
+    return {
+        "node": node_info,
+        "ok": result.ok,
+        "message": result.message,
+        "status": result.status,
+        "containers": containers,
+        "counts": {
+            "total": len(containers),
+            "running": sum(1 for item in containers if item.get("state") == "running"),
+            "exited": sum(1 for item in containers if item.get("state") == "exited"),
+        },
+    }
 
 
 def _decorate_log_entry(entry: dict[str, object], node: dict[str, object]) -> dict[str, object]:
