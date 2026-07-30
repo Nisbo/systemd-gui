@@ -67,9 +67,12 @@
               {% if not loop.first and (starts_new_compose or not container.compose) %}
                 <tr class="docker-row-gap"><td colspan="8"></td></tr>
               {% endif %}
+              {% if not container.compose %}
+                {% set compose_group.key = '' %}
+              {% endif %}
               {% if starts_new_compose %}
                 {% set compose_group.key = container.compose.group_key %}
-                <tr class="compose-group-row">
+                <tr class="compose-group-row {% if loop.first %}first-docker-item{% endif %}">
                   <td colspan="8">
                     <span class="tag override">Compose</span>
                     <strong>{{ container.compose.project or 'Compose project' }}</strong>
@@ -84,7 +87,7 @@
                 </tr>
               {% endif %}
               {% set same_next_group = container.compose and loop.nextitem is defined and loop.nextitem.compose and loop.nextitem.compose.group_key == container.compose.group_key %}
-              <tr class="{% if container.compose %}compose-container-row{% if not same_next_group %} compose-group-last{% endif %}{% else %}standalone-container-row{% endif %}" {% if container.compose %}title="Compose file: {{ container.compose.primary_config_file or container.compose.config_files or '-' }}"{% endif %}>
+              <tr class="{% if container.compose %}compose-container-row{% if not same_next_group %} compose-group-last{% endif %}{% else %}standalone-container-row{% if loop.first %} first-docker-item{% endif %}{% endif %}" {% if container.compose %}title="Compose file: {{ container.compose.primary_config_file or container.compose.config_files or '-' }}"{% endif %}>
                 <td>
                   <a class="table-link" href="{{ url_for('docker_detail', container_id=container.id) }}">{{ container.name or container.short_id }}</a>
                   <div class="muted"><code>{{ container.short_id }}</code></div>
