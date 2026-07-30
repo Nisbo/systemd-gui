@@ -105,6 +105,53 @@
   </div>
 {%- endmacro %}
 
+{% macro api_token_dialog(token, api_scope_options, csrf_token) -%}
+  <div class="confirm-modal" data-api-token-modal id="api-token-edit-{{ token.id }}" hidden>
+    <div class="confirm-dialog api-token-dialog" role="dialog" aria-modal="true" aria-labelledby="api-token-edit-title-{{ token.id }}">
+      <div class="panel-head modal-head">
+        <div>
+          <strong id="api-token-edit-title-{{ token.id }}">Edit {{ token.name }}</strong>
+        </div>
+        <button class="ghost-button small-icon-button" type="button" data-api-token-modal-close aria-label="Close">×</button>
+      </div>
+      <form class="api-token-edit-form" method="post" action="{{ url_for('update_nodes_api_token', token_id=token.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="api-token-edit-grid">
+          <label>
+            Token name
+            <input name="name" value="{{ token.name }}">
+          </label>
+          <label class="toggle-label api-token-enabled-card">
+            <input type="checkbox" name="enabled" value="1" {% if token.enabled %}checked{% endif %}>
+            <span>Enabled</span>
+          </label>
+        </div>
+        <div class="api-scope-box" data-scope-group>
+          <div class="api-scope-head">
+            <strong>Access categories</strong>
+            <button class="ghost-button compact-button" type="button" data-scope-select-all>Select all</button>
+          </div>
+          <div class="scope-list">
+            {% for scope in api_scope_options %}
+              <label class="toggle-label api-scope-toggle">
+                <input type="checkbox" name="scopes" value="{{ scope.id }}" {% if scope.id in token.scopes %}checked{% endif %} {% if scope.id == 'node:read' %}disabled{% endif %}>
+                {% if scope.id == 'node:read' %}
+                  <input type="hidden" name="scopes" value="node:read">
+                {% endif %}
+                <span>{{ scope.label }}</span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="primary-button" type="submit">Save token</button>
+          <button class="ghost-button" type="button" data-api-token-modal-close>Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{%- endmacro %}
+
 {% block content %}
   <section class="panel settings-tabs-panel">
     <div class="panel-head">
@@ -305,7 +352,6 @@
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Prefix</th>
                 <th>Access categories</th>
                 <th>Last used</th>
                 <th class="actions-heading">Actions</th>
@@ -315,45 +361,25 @@
               {% for token in api_access.tokens %}
                 <tr>
                   <td>
-                    <form id="api-token-form-{{ token.id }}" method="post" action="{{ url_for('update_nodes_api_token', token_id=token.id) }}">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                      <label class="sr-only" for="api-token-name-{{ token.id }}">Token name</label>
-                      <div class="api-token-edit-main">
-                        <label class="toggle-label compact-toggle api-token-enabled">
-                          <input form="api-token-form-{{ token.id }}" type="checkbox" name="enabled" value="1" {% if token.enabled %}checked{% endif %}>
-                          <span>Enabled</span>
-                        </label>
-                        <input id="api-token-name-{{ token.id }}" name="name" value="{{ token.name }}">
-                      </div>
-                    </form>
+                    <div class="api-token-summary">
+                      <strong>{{ token.name }}</strong>
+                      <span class="tag {% if token.enabled %}success{% else %}neutral{% endif %}">{{ 'Enabled' if token.enabled else 'Disabled' }}</span>
+                    </div>
                   </td>
-                  <td><code>{{ token.prefix }}...</code></td>
                   <td>
-                    <div class="api-scope-box compact-scope-box" data-scope-group>
-                      <div class="api-scope-head compact-scope-head">
-                        <span>Allowed access</span>
-                        <button class="ghost-button compact-button" type="button" data-scope-select-all>Select all</button>
-                      </div>
-                      <div class="scope-chip-row">
-                        {% for scope in api_scope_options %}
-                          <label class="scope-checkbox">
-                            <input form="api-token-form-{{ token.id }}" type="checkbox" name="scopes" value="{{ scope.id }}" {% if scope.id in token.scopes %}checked{% endif %} {% if scope.id == 'node:read' %}disabled{% endif %}>
-                            {% if scope.id == 'node:read' %}
-                              <input form="api-token-form-{{ token.id }}" type="hidden" name="scopes" value="node:read">
-                            {% endif %}
-                            <span>{{ scope.label }}</span>
-                          </label>
-                        {% endfor %}
-                      </div>
+                    <div class="scope-chip-row">
+                      {% for scope in api_scope_options if scope.id in token.scopes %}
+                        <span class="scope-checkbox readonly-scope"><span>{{ scope.label }}</span></span>
+                      {% endfor %}
                     </div>
                   </td>
                   <td>{{ token.last_used_at or '-' }}</td>
                   <td>
                     <div class="table-actions">
-                      <button form="api-token-form-{{ token.id }}" class="primary-button compact-button" type="submit">Save</button>
+                      <button class="ghost-button icon-button small-icon-button" type="button" data-api-token-edit-open data-target="#api-token-edit-{{ token.id }}" title="Edit token" aria-label="Edit {{ token.name }}">{{ icon("edit") }}</button>
                       <form method="post" action="{{ url_for('delete_nodes_api_token', token_id=token.id) }}" data-confirm="Delete this Remote API token? Nodes using it will no longer connect.">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <button class="danger-button compact-button" type="submit">Delete</button>
+                        <button class="danger-button icon-button small-icon-button" type="submit" title="Delete token" aria-label="Delete {{ token.name }}">{{ icon("trash") }}</button>
                       </form>
                     </div>
                   </td>
@@ -362,6 +388,9 @@
             </tbody>
           </table>
         </div>
+        {% for token in api_access.tokens %}
+          {{ api_token_dialog(token, api_scope_options, csrf_token) }}
+        {% endfor %}
       {% else %}
         <p class="empty-note">No Remote API tokens have been created yet.</p>
       {% endif %}

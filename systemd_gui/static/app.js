@@ -424,6 +424,28 @@
   });
   document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeNodeModals(); });
 
+  const closeApiTokenModals = () => {
+    document.querySelectorAll("[data-api-token-modal]").forEach((modalNode) => { modalNode.hidden = true; });
+  };
+  document.addEventListener("click", (event) => {
+    const editButton = event.target.closest("[data-api-token-edit-open]");
+    if (editButton) {
+      const target = editButton.dataset.target ? document.querySelector(editButton.dataset.target) : null;
+      if (target) {
+        target.hidden = false;
+        target.querySelector("input[name='name']")?.focus();
+      }
+      return;
+    }
+    if (event.target.closest("[data-api-token-modal-close]")) {
+      closeApiTokenModals();
+      return;
+    }
+    const tokenModal = event.target.closest("[data-api-token-modal]");
+    if (tokenModal && event.target === tokenModal) closeApiTokenModals();
+  });
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeApiTokenModals(); });
+
   document.addEventListener("click", (event) => {
     const link = event.target.closest("[data-log-window]");
     if (!link) return;
