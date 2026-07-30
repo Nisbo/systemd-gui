@@ -43,9 +43,12 @@
         <p>{{ counts.total }} container{{ '' if counts.total == 1 else 's' }} found. {{ counts.running }} running, {{ counts.exited }} exited.</p>
       </div>
       <div class="docker-panel-actions">
-        <button class="ghost-button compact-button" type="button" data-docker-compose-action="expand-all">Expand compose</button>
-        <button class="ghost-button compact-button" type="button" data-docker-compose-action="collapse-all">Collapse compose</button>
-        <a class="ghost-button" href="{{ url_for('docker_index') }}">Refresh</a>
+        <span class="docker-action-group">
+          <span class="docker-action-label">Composes:</span>
+          <button class="ghost-button compact-button" type="button" data-docker-compose-action="expand-all">Expand</button>
+          <button class="ghost-button compact-button" type="button" data-docker-compose-action="collapse-all">Collapse</button>
+        </span>
+        <a class="ghost-button compact-button" href="{{ url_for('docker_index') }}">Refresh</a>
       </div>
     </div>
 
