@@ -124,92 +124,102 @@
     </div>
 
     {% if remote_docker %}
-      <div class="remote-docker-stack">
-        {% for remote in remote_docker %}
-          <div class="remote-docker-node">
-            <div class="remote-docker-head">
-              <div>
-                <h3>{{ remote.node.name }}</h3>
-                <p>
-                  {% if remote.node.version %}{{ remote.node.version }} · {% endif %}
+      <div class="table-wrap compact-table remote-docker-table">
+        <table>
+          <tbody>
+            {% for remote in remote_docker %}
+              <tr class="remote-docker-row">
+                <td>
                   {% if remote.ok %}
-                    {{ remote.counts.total }} container{% if remote.counts.total != 1 %}s{% endif %},
-                    {{ remote.counts.running }} running
-                  {% else %}
-                    {{ remote.message }}
-                  {% endif %}
-                </p>
-              </div>
-              <span class="tag {% if remote.ok %}neutral{% else %}danger{% endif %}">{{ 'Connected' if remote.ok else remote.status }}</span>
-            </div>
+                    <details class="remote-docker-details" open>
+                      <summary>
+                        <span class="remote-docker-title">
+                          <strong>{{ remote.node.name }}{% if remote.node.version %} <span>({{ remote.node.version }})</span>{% endif %}</strong>
+                          <span class="muted">·</span>
+                          <span class="muted">
+                            {{ remote.counts.total }} container{% if remote.counts.total != 1 %}s{% endif %},
+                            {{ remote.counts.running }} running
+                          </span>
+                        </span>
+                        <span class="tag neutral">connected</span>
+                      </summary>
 
-            {% if remote.ok and remote.containers %}
-              <div class="table-wrap compact-table docker-remote-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Container</th>
-                      <th>Status</th>
-                      <th>Image</th>
-                      <th>Compose</th>
-                      <th>CPU / RAM</th>
-                      <th>Running</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for container in remote.containers %}
-                      <tr>
-                        <td>
-                          <strong>{{ container.name or container.short_id }}</strong>
-                          <div class="muted"><code>{{ container.short_id }}</code></div>
-                        </td>
-                        <td>
-                          <span class="tag docker-state {{ container.state }}">{{ container.state or 'unknown' }}</span>
-                          <div class="muted">{{ container.status or '-' }}</div>
-                        </td>
-                        <td><code>{{ container.image or '-' }}</code></td>
-                        <td>
-                          {% if container.compose %}
-                            <span class="tag override">Compose</span>
-                            <div class="muted">{{ container.compose.project or '-' }}{% if container.compose.service %} / {{ container.compose.service }}{% endif %}</div>
-                          {% else %}
-                            <span class="muted">-</span>
-                          {% endif %}
-                        </td>
-                        <td>
-                          {% if container.stats %}
-                            <strong>{{ container.stats.cpu or '-' }}</strong>
-                            <div class="muted">{{ container.stats.memory or '-' }}</div>
-                          {% else %}
-                            <span class="muted">-</span>
-                          {% endif %}
-                        </td>
-                        <td>
-                          {% if container.running_for %}
-                            {{ container.running_for }}
-                            <div class="muted">{{ container.started_at_display or container.started_at or '-' }}</div>
-                          {% elif container.finished_at %}
-                            <span class="muted">Stopped</span>
-                            <div class="muted">{{ container.finished_at_display or container.finished_at }}</div>
-                          {% else %}
-                            <span class="muted">{{ container.created or '-' }}</span>
-                          {% endif %}
-                        </td>
-                      </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-            {% elif remote.ok %}
-              <p class="empty-note remote-docker-message">No containers reported by this node.</p>
-            {% else %}
-              <div class="remote-docker-message">
-                <span class="tag danger">{{ remote.status }}</span>
-                <span class="muted">{{ remote.message }}</span>
-              </div>
-            {% endif %}
-          </div>
-        {% endfor %}
+                      {% if remote.containers %}
+                        <div class="docker-remote-inner">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Container</th>
+                                <th>Status</th>
+                                <th>Image</th>
+                                <th>Compose</th>
+                                <th>CPU / RAM</th>
+                                <th>Running</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {% for container in remote.containers %}
+                                <tr>
+                                  <td>
+                                    <strong>{{ container.name or container.short_id }}</strong>
+                                    <div class="muted"><code>{{ container.short_id }}</code></div>
+                                  </td>
+                                  <td>
+                                    <span class="tag docker-state {{ container.state }}">{{ container.state or 'unknown' }}</span>
+                                    <div class="muted">{{ container.status or '-' }}</div>
+                                  </td>
+                                  <td><code>{{ container.image or '-' }}</code></td>
+                                  <td>
+                                    {% if container.compose %}
+                                      <span class="tag override">Compose</span>
+                                      <div class="muted">{{ container.compose.project or '-' }}{% if container.compose.service %} / {{ container.compose.service }}{% endif %}</div>
+                                    {% else %}
+                                      <span class="muted">-</span>
+                                    {% endif %}
+                                  </td>
+                                  <td>
+                                    {% if container.stats %}
+                                      <strong>{{ container.stats.cpu or '-' }}</strong>
+                                      <div class="muted">{{ container.stats.memory or '-' }}</div>
+                                    {% else %}
+                                      <span class="muted">-</span>
+                                    {% endif %}
+                                  </td>
+                                  <td>
+                                    {% if container.running_for %}
+                                      {{ container.running_for }}
+                                      <div class="muted">{{ container.started_at_display or container.started_at or '-' }}</div>
+                                    {% elif container.finished_at %}
+                                      <span class="muted">Stopped</span>
+                                      <div class="muted">{{ container.finished_at_display or container.finished_at }}</div>
+                                    {% else %}
+                                      <span class="muted">{{ container.created or '-' }}</span>
+                                    {% endif %}
+                                  </td>
+                                </tr>
+                              {% endfor %}
+                            </tbody>
+                          </table>
+                        </div>
+                      {% else %}
+                        <p class="empty-note remote-docker-message">No containers reported by this node.</p>
+                      {% endif %}
+                    </details>
+                  {% else %}
+                    <div class="remote-docker-summary">
+                      <span class="remote-docker-title">
+                        <strong>{{ remote.node.name }}{% if remote.node.version %} <span>({{ remote.node.version }})</span>{% endif %}</strong>
+                        <span class="muted">·</span>
+                        <span class="muted">{{ remote.message }}</span>
+                      </span>
+                      <span class="tag danger">{{ remote.status }}</span>
+                    </div>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     {% else %}
       <p class="empty-note">No saved nodes are configured yet.</p>
