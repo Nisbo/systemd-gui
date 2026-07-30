@@ -43,10 +43,14 @@
         <p>{{ counts.total }} container{{ '' if counts.total == 1 else 's' }} found. {{ counts.running }} running, {{ counts.exited }} exited.</p>
       </div>
       <div class="docker-panel-actions">
+        <label class="toggle-label compact-toggle" title="Saved in this browser and applied when the Docker page loads.">
+          <input type="checkbox" data-docker-setting="collapseLocalCompose">
+          <span>Load composes collapsed</span>
+        </label>
         <span class="docker-action-group">
           <span class="docker-action-label">Composes:</span>
-          <button class="ghost-button compact-button" type="button" data-docker-compose-action="expand-all">Expand</button>
-          <button class="ghost-button compact-button" type="button" data-docker-compose-action="collapse-all">Collapse</button>
+          <button class="ghost-button compact-button" type="button" data-docker-compose-action="expand-all" data-docker-compose-scope="local">Expand</button>
+          <button class="ghost-button compact-button" type="button" data-docker-compose-action="collapse-all" data-docker-compose-scope="local">Collapse</button>
         </span>
         <a class="ghost-button compact-button" href="{{ url_for('docker_index') }}">Refresh</a>
       </div>
@@ -155,13 +159,13 @@
         <p>Read-only container status from saved nodes. Remote nodes load in the background and may appear one after another.</p>
       </div>
       <div class="docker-panel-actions docker-view-actions" data-docker-view-controls>
-        <label class="toggle-label compact-toggle">
+        <label class="toggle-label compact-toggle" title="Saved in this browser and applied when the Docker page loads.">
           <input type="checkbox" data-docker-setting="collapseRemoteNodes">
-          <span>Collapse all remote nodes</span>
+          <span>Load nodes collapsed</span>
         </label>
-        <label class="toggle-label compact-toggle">
-          <input type="checkbox" data-docker-setting="collapseCompose">
-          <span>Collapse all compose</span>
+        <label class="toggle-label compact-toggle" title="Saved in this browser and applied when the Docker page loads.">
+          <input type="checkbox" data-docker-setting="collapseRemoteCompose">
+          <span>Load composes collapsed</span>
         </label>
         <span class="docker-action-group">
           <span class="docker-action-label">Nodes:</span>
@@ -170,8 +174,8 @@
         </span>
         <span class="docker-action-group">
           <span class="docker-action-label">Composes:</span>
-          <button class="ghost-button compact-button" type="button" data-docker-compose-action="expand-all">Expand</button>
-          <button class="ghost-button compact-button" type="button" data-docker-compose-action="collapse-all">Collapse</button>
+          <button class="ghost-button compact-button" type="button" data-docker-compose-action="expand-all" data-docker-compose-scope="remote">Expand</button>
+          <button class="ghost-button compact-button" type="button" data-docker-compose-action="collapse-all" data-docker-compose-scope="remote">Collapse</button>
         </span>
       </div>
     </div>

@@ -89,10 +89,16 @@
   });
 
   const dockerSettingsKey = "systemd-gui-docker-view";
-  const dockerDefaults = { collapseRemoteNodes: false, collapseCompose: false };
+  const dockerDefaults = { collapseRemoteNodes: false, collapseLocalCompose: false, collapseRemoteCompose: false };
   const readDockerSettings = () => {
     try {
-      return { ...dockerDefaults, ...JSON.parse(window.localStorage.getItem(dockerSettingsKey) || "{}") };
+      const stored = JSON.parse(window.localStorage.getItem(dockerSettingsKey) || "{}");
+      if (Object.prototype.hasOwnProperty.call(stored, "collapseCompose")) {
+        stored.collapseLocalCompose = Boolean(stored.collapseCompose);
+        stored.collapseRemoteCompose = Boolean(stored.collapseCompose);
+        delete stored.collapseCompose;
+      }
+      return { ...dockerDefaults, ...stored };
     } catch {
       return { ...dockerDefaults };
     }
@@ -118,6 +124,11 @@
   const setComposeGroupsCollapsed = (rootNode, collapsed) => {
     rootNode.querySelectorAll("[data-docker-compose-header]").forEach((header) => setComposeGroupCollapsed(header, collapsed));
   };
+  const dockerComposeScopeRoot = (scope) => {
+    if (scope === "local") return document.querySelector(".docker-table") || document;
+    if (scope === "remote") return document.querySelector(".remote-docker-table") || document;
+    return document;
+  };
   const initDockerSettingsControls = () => {
     const settings = readDockerSettings();
     document.querySelectorAll("[data-docker-setting]").forEach((input) => {
@@ -129,17 +140,16 @@
       input.addEventListener("change", () => {
         const next = { ...readDockerSettings(), [name]: input.checked };
         writeDockerSettings(next);
-        if (name === "collapseRemoteNodes") {
-          document.querySelectorAll(".remote-docker-details").forEach((details) => { details.open = !input.checked; });
-        }
-        if (name === "collapseCompose") setComposeGroupsCollapsed(document, input.checked);
       });
     });
   };
   const applyDockerDefaults = (rootNode = document) => {
     const settings = readDockerSettings();
     rootNode.querySelectorAll(".remote-docker-details").forEach((details) => { details.open = !settings.collapseRemoteNodes; });
-    setComposeGroupsCollapsed(rootNode, settings.collapseCompose);
+    rootNode.querySelectorAll("[data-docker-compose-header]").forEach((header) => {
+      const isRemote = Boolean(header.closest(".remote-docker-table"));
+      setComposeGroupCollapsed(header, isRemote ? settings.collapseRemoteCompose : settings.collapseLocalCompose);
+    });
   };
   const initDockerView = (rootNode = document) => {
     initDockerSettingsControls();
@@ -155,7 +165,7 @@
       if (button.dataset.dockerActionBound === "true") return;
       button.dataset.dockerActionBound = "true";
       button.addEventListener("click", () => {
-        setComposeGroupsCollapsed(document, button.dataset.dockerComposeAction === "collapse-all");
+        setComposeGroupsCollapsed(dockerComposeScopeRoot(button.dataset.dockerComposeScope), button.dataset.dockerComposeAction === "collapse-all");
       });
     });
     rootNode.querySelectorAll("[data-docker-node-compose-action]").forEach((button) => {
