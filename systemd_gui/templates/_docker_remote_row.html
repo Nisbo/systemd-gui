@@ -11,7 +11,11 @@
               {{ remote.counts.running }} running
             </span>
           </span>
-          <span class="tag success">connected</span>
+          <span class="remote-docker-summary-actions">
+            <button class="ghost-button compact-button" type="button" data-docker-node-compose-action="expand" title="Expand compose groups for this node">Expand compose</button>
+            <button class="ghost-button compact-button" type="button" data-docker-node-compose-action="collapse" title="Collapse compose groups for this node">Collapse compose</button>
+            <span class="tag success">connected</span>
+          </span>
         </summary>
 
         {% if remote.containers %}
@@ -28,7 +32,7 @@
                 </tr>
               </thead>
               <tbody>
-                {% set compose_group = namespace(key='') %}
+                {% set compose_group = namespace(key='', id='', index=0) %}
                 {% for container in remote.containers %}
                   {% set starts_new_compose = container.compose and container.compose.group_key != compose_group.key %}
                   {% if not loop.first and (starts_new_compose or not container.compose) %}
@@ -39,7 +43,9 @@
                   {% endif %}
                   {% if starts_new_compose %}
                     {% set compose_group.key = container.compose.group_key %}
-                    <tr class="compose-group-row {% if loop.first %}first-docker-item{% endif %}">
+                    {% set compose_group.index = compose_group.index + 1 %}
+                    {% set compose_group.id = 'remote-' ~ remote.node.id ~ '-' ~ compose_group.index %}
+                    <tr class="compose-group-row {% if loop.first %}first-docker-item{% endif %}" data-docker-compose-header data-compose-id="{{ compose_group.id }}">
                       <td colspan="6">
                         <span class="tag override">Compose</span>
                         <strong>{{ container.compose.project or 'Compose project' }}</strong>
@@ -50,12 +56,13 @@
                           <span class="muted">·</span>
                           <code>{{ container.compose.config_files }}</code>
                         {% endif %}
+                        <button class="ghost-button small-icon-button compose-toggle-button" type="button" data-docker-compose-toggle title="Collapse compose group" aria-label="Collapse compose group">-</button>
                       </td>
                     </tr>
                   {% endif %}
                   {% set same_next_group = container.compose and loop.nextitem is defined and loop.nextitem.compose and loop.nextitem.compose.group_key == container.compose.group_key %}
                   {% set remote_container_url = remote.node.url.rstrip('/') ~ '/docker/' ~ container.id if remote.node.url and container.id else '' %}
-                  <tr class="{% if container.compose %}compose-container-row{% if not same_next_group %} compose-group-last{% endif %}{% else %}standalone-container-row{% if loop.first %} first-docker-item{% endif %}{% endif %}" {% if container.compose %}title="Compose file: {{ container.compose.primary_config_file or container.compose.config_files or '-' }}"{% endif %}>
+                  <tr class="{% if container.compose %}compose-container-row{% if not same_next_group %} compose-group-last{% endif %}{% else %}standalone-container-row{% if loop.first %} first-docker-item{% endif %}{% endif %}" {% if container.compose %}data-compose-child="{{ compose_group.id }}" title="Compose file: {{ container.compose.primary_config_file or container.compose.config_files or '-' }}"{% endif %}>
                     <td>
                       {% if remote_container_url %}
                         <a class="table-link" href="{{ remote_container_url }}" target="_blank" rel="noopener"><strong>{{ container.name or container.short_id }}</strong></a>

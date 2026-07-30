@@ -171,11 +171,17 @@ th.actions-heading { text-align:right; }
 .docker-table table,.docker-remote-inner table { border-collapse:separate; border-spacing:0; --compose-line:color-mix(in srgb, #2563eb 42%, var(--line)); --compose-bg:color-mix(in srgb, #2563eb 5%, var(--panel)); --compose-head:color-mix(in srgb, #2563eb 8%, var(--panel)); }
 .docker-table,.remote-docker-table { border-left:0; border-right:0; }
 .docker-table table { min-width:940px; }
+.docker-panel-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+.docker-view-actions { max-width:780px; }
+.docker-view-actions .toggle-label { min-height:34px; }
 .docker-table tbody td,.docker-remote-inner tbody td { border-bottom-color:transparent; }
 .docker-row-gap td { height:5px; padding:0; border:0; background:var(--panel); }
 .compose-group-row td { border:0; border-radius:10px 10px 0 0; background:linear-gradient(var(--compose-line), var(--compose-line)) top / 100% 2px no-repeat, var(--compose-head); font-weight:850; }
 .compose-group-row.first-docker-item td { border-radius:0; background:var(--compose-head); }
 .compose-group-row td > * { margin-right:7px; }
+.compose-group-row[data-collapsed="true"] td { border-radius:10px; background:linear-gradient(var(--compose-line), var(--compose-line)) top / 100% 2px no-repeat, linear-gradient(to top, var(--compose-line), var(--compose-line)) bottom / 100% 2px no-repeat, var(--compose-head); }
+.compose-group-row.first-docker-item[data-collapsed="true"] td { border-radius:0 0 10px 10px; }
+.compose-toggle-button { float:right; margin-right:0; }
 .compose-container-row td { background:var(--compose-bg); border-bottom-color:transparent; }
 .compose-container-row td:first-child { border-left:0; padding-left:28px; }
 .compose-container-row td:last-child { border-right:0; }
@@ -200,6 +206,7 @@ th.actions-heading { text-align:right; }
 .remote-docker-title { display:flex; align-items:center; gap:7px; min-width:0; flex:1 1 auto; flex-wrap:wrap; text-align:left; }
 .remote-docker-title strong span { color:var(--muted); font-weight:650; }
 .remote-docker-details summary > .tag,.remote-docker-summary > .tag { flex:0 0 auto; }
+.remote-docker-summary-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; flex:0 0 auto; }
 .docker-remote-inner { overflow:auto; border-top:1px solid var(--line); padding-bottom:5px; }
 .docker-remote-inner table { min-width:940px; }
 .remote-docker-message { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:14px 16px; }

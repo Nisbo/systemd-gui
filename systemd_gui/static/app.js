@@ -36,7 +36,11 @@
     const template = document.createElement("template");
     template.innerHTML = html.trim();
     const replacement = template.content.firstElementChild;
-    if (replacement) row.replaceWith(replacement);
+    if (replacement) {
+      row.replaceWith(replacement);
+      initDockerView(replacement);
+      applyDockerDefaults(replacement);
+    }
   };
   const loadRemoteDockerRows = (rootNode = document) => {
     rootNode.querySelectorAll("[data-remote-docker-node-url]").forEach((row) => {
@@ -71,6 +75,8 @@
       })
       .then((html) => {
         target.innerHTML = html;
+        initDockerView(target);
+        applyDockerDefaults(target);
         loadRemoteDockerRows(target);
       })
       .catch((error) => {
@@ -81,6 +87,102 @@
         target.append(message);
       });
   });
+
+  const dockerSettingsKey = "systemd-gui-docker-view";
+  const dockerDefaults = { collapseRemoteNodes: false, collapseCompose: false };
+  const readDockerSettings = () => {
+    try {
+      return { ...dockerDefaults, ...JSON.parse(window.localStorage.getItem(dockerSettingsKey) || "{}") };
+    } catch {
+      return { ...dockerDefaults };
+    }
+  };
+  const writeDockerSettings = (settings) => {
+    window.localStorage.setItem(dockerSettingsKey, JSON.stringify({ ...dockerDefaults, ...settings }));
+  };
+  const setComposeGroupCollapsed = (header, collapsed) => {
+    const composeId = header.dataset.composeId;
+    if (!composeId) return;
+    header.dataset.collapsed = collapsed ? "true" : "false";
+    const button = header.querySelector("[data-docker-compose-toggle]");
+    if (button) {
+      button.textContent = collapsed ? "+" : "-";
+      button.title = collapsed ? "Expand compose group" : "Collapse compose group";
+      button.setAttribute("aria-label", button.title);
+    }
+    const table = header.closest("table") || document;
+    table.querySelectorAll(`[data-compose-child="${CSS.escape(composeId)}"]`).forEach((row) => {
+      row.hidden = collapsed;
+    });
+  };
+  const setComposeGroupsCollapsed = (rootNode, collapsed) => {
+    rootNode.querySelectorAll("[data-docker-compose-header]").forEach((header) => setComposeGroupCollapsed(header, collapsed));
+  };
+  const initDockerSettingsControls = () => {
+    const settings = readDockerSettings();
+    document.querySelectorAll("[data-docker-setting]").forEach((input) => {
+      const name = input.dataset.dockerSetting;
+      if (!name) return;
+      input.checked = Boolean(settings[name]);
+      if (input.dataset.dockerSettingBound === "true") return;
+      input.dataset.dockerSettingBound = "true";
+      input.addEventListener("change", () => {
+        const next = { ...readDockerSettings(), [name]: input.checked };
+        writeDockerSettings(next);
+        if (name === "collapseRemoteNodes") {
+          document.querySelectorAll(".remote-docker-details").forEach((details) => { details.open = !input.checked; });
+        }
+        if (name === "collapseCompose") setComposeGroupsCollapsed(document, input.checked);
+      });
+    });
+  };
+  const applyDockerDefaults = (rootNode = document) => {
+    const settings = readDockerSettings();
+    rootNode.querySelectorAll(".remote-docker-details").forEach((details) => { details.open = !settings.collapseRemoteNodes; });
+    setComposeGroupsCollapsed(rootNode, settings.collapseCompose);
+  };
+  const initDockerView = (rootNode = document) => {
+    initDockerSettingsControls();
+    rootNode.querySelectorAll("[data-docker-node-action]").forEach((button) => {
+      if (button.dataset.dockerActionBound === "true") return;
+      button.dataset.dockerActionBound = "true";
+      button.addEventListener("click", () => {
+        const open = button.dataset.dockerNodeAction === "expand-all";
+        document.querySelectorAll(".remote-docker-details").forEach((details) => { details.open = open; });
+      });
+    });
+    rootNode.querySelectorAll("[data-docker-compose-action]").forEach((button) => {
+      if (button.dataset.dockerActionBound === "true") return;
+      button.dataset.dockerActionBound = "true";
+      button.addEventListener("click", () => {
+        setComposeGroupsCollapsed(document, button.dataset.dockerComposeAction === "collapse-all");
+      });
+    });
+    rootNode.querySelectorAll("[data-docker-node-compose-action]").forEach((button) => {
+      if (button.dataset.dockerActionBound === "true") return;
+      button.dataset.dockerActionBound = "true";
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const details = button.closest(".remote-docker-details");
+        if (!details) return;
+        setComposeGroupsCollapsed(details, button.dataset.dockerNodeComposeAction === "collapse");
+      });
+    });
+    rootNode.querySelectorAll("[data-docker-compose-toggle]").forEach((button) => {
+      if (button.dataset.dockerActionBound === "true") return;
+      button.dataset.dockerActionBound = "true";
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const header = button.closest("[data-docker-compose-header]");
+        if (!header) return;
+        setComposeGroupCollapsed(header, header.dataset.collapsed !== "true");
+      });
+    });
+  };
+  initDockerView(document);
+  applyDockerDefaults(document);
 
   const modal = document.querySelector("[data-confirm-modal]");
   const message = document.querySelector("[data-confirm-message]");

@@ -42,7 +42,11 @@
         <h2>Containers</h2>
         <p>{{ counts.total }} container{{ '' if counts.total == 1 else 's' }} found. {{ counts.running }} running, {{ counts.exited }} exited.</p>
       </div>
-      <a class="ghost-button" href="{{ url_for('docker_index') }}">Refresh</a>
+      <div class="docker-panel-actions">
+        <button class="ghost-button compact-button" type="button" data-docker-compose-action="expand-all">Expand compose</button>
+        <button class="ghost-button compact-button" type="button" data-docker-compose-action="collapse-all">Collapse compose</button>
+        <a class="ghost-button" href="{{ url_for('docker_index') }}">Refresh</a>
+      </div>
     </div>
 
     {% if containers %}
@@ -59,7 +63,7 @@
             </tr>
           </thead>
           <tbody>
-            {% set compose_group = namespace(key='') %}
+            {% set compose_group = namespace(key='', id='', index=0) %}
             {% for container in containers %}
               {% set starts_new_compose = container.compose and container.compose.group_key != compose_group.key %}
               {% if not loop.first and (starts_new_compose or not container.compose) %}
@@ -70,7 +74,9 @@
               {% endif %}
               {% if starts_new_compose %}
                 {% set compose_group.key = container.compose.group_key %}
-                <tr class="compose-group-row {% if loop.first %}first-docker-item{% endif %}">
+                {% set compose_group.index = compose_group.index + 1 %}
+                {% set compose_group.id = 'local-' ~ compose_group.index %}
+                <tr class="compose-group-row {% if loop.first %}first-docker-item{% endif %}" data-docker-compose-header data-compose-id="{{ compose_group.id }}">
                   <td colspan="6">
                     <span class="tag override">Compose</span>
                     <strong>{{ container.compose.project or 'Compose project' }}</strong>
@@ -81,11 +87,12 @@
                       <span class="muted">·</span>
                       <code>{{ container.compose.config_files }}</code>
                     {% endif %}
+                    <button class="ghost-button small-icon-button compose-toggle-button" type="button" data-docker-compose-toggle title="Collapse compose group" aria-label="Collapse compose group">-</button>
                   </td>
                 </tr>
               {% endif %}
               {% set same_next_group = container.compose and loop.nextitem is defined and loop.nextitem.compose and loop.nextitem.compose.group_key == container.compose.group_key %}
-              <tr class="{% if container.compose %}compose-container-row{% if not same_next_group %} compose-group-last{% endif %}{% else %}standalone-container-row{% if loop.first %} first-docker-item{% endif %}{% endif %}" {% if container.compose %}title="Compose file: {{ container.compose.primary_config_file or container.compose.config_files or '-' }}"{% endif %}>
+              <tr class="{% if container.compose %}compose-container-row{% if not same_next_group %} compose-group-last{% endif %}{% else %}standalone-container-row{% if loop.first %} first-docker-item{% endif %}{% endif %}" {% if container.compose %}data-compose-child="{{ compose_group.id }}" title="Compose file: {{ container.compose.primary_config_file or container.compose.config_files or '-' }}"{% endif %}>
                 <td>
                   <a class="table-link" href="{{ url_for('docker_detail', container_id=container.id) }}">{{ container.name or container.short_id }}</a>
                   <div class="muted"><code>{{ container.short_id }}</code></div>
@@ -143,6 +150,20 @@
       <div>
         <h2>Remote containers</h2>
         <p>Read-only container status from saved nodes. Remote nodes load in the background and may appear one after another.</p>
+      </div>
+      <div class="docker-panel-actions docker-view-actions" data-docker-view-controls>
+        <label class="toggle-label compact-toggle">
+          <input type="checkbox" data-docker-setting="collapseRemoteNodes">
+          <span>Collapse all remote nodes</span>
+        </label>
+        <label class="toggle-label compact-toggle">
+          <input type="checkbox" data-docker-setting="collapseCompose">
+          <span>Collapse all compose</span>
+        </label>
+        <button class="ghost-button compact-button" type="button" data-docker-node-action="expand-all">Expand all nodes</button>
+        <button class="ghost-button compact-button" type="button" data-docker-node-action="collapse-all">Collapse all nodes</button>
+        <button class="ghost-button compact-button" type="button" data-docker-compose-action="expand-all">Expand all compose</button>
+        <button class="ghost-button compact-button" type="button" data-docker-compose-action="collapse-all">Collapse all compose</button>
       </div>
     </div>
 
