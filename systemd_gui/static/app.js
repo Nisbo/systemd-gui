@@ -1013,6 +1013,10 @@
     const timeSelect = logControls?.querySelector("[data-log-time]");
     const sinceInput = logControls?.querySelector("[data-log-since]");
     const untilInput = logControls?.querySelector("[data-log-until]");
+    const timeButton = logControls?.querySelector("[data-log-time-open]");
+    const timeModal = logControls?.querySelector("[data-log-time-modal]");
+    const timeApplyButton = logControls?.querySelector("[data-log-time-apply]");
+    const timeClearButton = logControls?.querySelector("[data-log-time-clear]");
     const prioritySelect = logControls?.querySelector("[data-log-priority]");
     const wrapCheckbox = logControls?.querySelector("[data-log-wrap]");
     const smallLinesCheckbox = logControls?.querySelector("[data-log-small]");
@@ -1112,12 +1116,26 @@
       return Number.isFinite(seconds) && seconds > 0 ? seconds : 5;
     };
     const refreshEnabled = () => intervalSelect ? intervalSelect.value !== "off" : logPanel.dataset.refreshEnabled === "true";
+    const selectedTimeLabel = () => timeSelect?.selectedOptions?.[0]?.textContent?.trim() || "All time";
     const syncTimeFields = () => {
       const mode = selectedTime();
       logControls?.querySelectorAll("[data-log-time-custom]").forEach((field) => {
         const fieldName = field.dataset.logTimeCustom || "";
         field.hidden = mode !== "between" && !(mode === "since" && fieldName === "since");
       });
+      if (timeButton) {
+        const active = mode !== "all";
+        timeButton.classList.toggle("active", active);
+        timeButton.title = `Time filter: ${selectedTimeLabel()}`;
+        timeButton.setAttribute("aria-label", active ? `Time filter active: ${selectedTimeLabel()}` : "Open time filter");
+      }
+    };
+    const openTimeModal = () => {
+      syncTimeFields();
+      if (timeModal) timeModal.hidden = false;
+    };
+    const closeTimeModal = () => {
+      if (timeModal) timeModal.hidden = true;
     };
     const applyTimeParams = (params) => {
       if (selectedTime() && selectedTime() !== "all") params.set("time", selectedTime());
@@ -1213,7 +1231,7 @@
         choice.dataset.logStatus = status;
         choice.dataset.logStatusMessage = message;
         choice.classList.toggle("log-node-error", status === "error");
-        if (countTarget) countTarget.textContent = status === "error" ? "Error" : (loaded || visible ? `${visible}/${loaded}` : "");
+        if (countTarget) countTarget.textContent = status === "error" ? "Error" : loaded > 0 ? `${visible}/${loaded}` : visible ? String(visible) : "";
         if (status === "error") choice.title = message ? `${nodeName}: ${message}` : `${nodeName}: log access failed.`;
         else if (loaded || visible) choice.title = `${nodeName}: ${visible} visible, ${loaded} loaded from this node.`;
       });
@@ -1434,12 +1452,24 @@
     renderLogText(document.querySelector("[data-log-output]")?.dataset.rawLog || document.querySelector("[data-log-output] code")?.textContent || "");
     linesSelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
     perNodeSelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
-    timeSelect?.addEventListener("change", () => {
+    timeButton?.addEventListener("click", openTimeModal);
+    timeModal?.addEventListener("click", (event) => {
+      if (event.target === timeModal || event.target.closest("[data-log-time-close]")) closeTimeModal();
+    });
+    timeSelect?.addEventListener("change", syncTimeFields);
+    timeApplyButton?.addEventListener("click", () => {
       syncTimeFields();
+      closeTimeModal();
       applyLogControls({ refresh: true });
     });
-    sinceInput?.addEventListener("change", () => applyLogControls({ refresh: selectedTime() === "since" || selectedTime() === "between" }));
-    untilInput?.addEventListener("change", () => applyLogControls({ refresh: selectedTime() === "between" }));
+    timeClearButton?.addEventListener("click", () => {
+      if (timeSelect) timeSelect.value = "all";
+      if (sinceInput) sinceInput.value = "";
+      if (untilInput) untilInput.value = "";
+      syncTimeFields();
+      closeTimeModal();
+      applyLogControls({ refresh: true });
+    });
     prioritySelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
     logControls?.querySelectorAll("input[name='node']").forEach((checkbox) => {
       checkbox.addEventListener("change", () => applyLogControls({ refresh: true }));
@@ -1475,6 +1505,10 @@
     });
     document.addEventListener("keydown", (event) => {
       if (event.key !== "Escape") return;
+      if (timeModal && !timeModal.hidden) {
+        closeTimeModal();
+        return;
+      }
       if (!logPanel.classList.contains("log-panel-maximized") && !logPanel.classList.contains("log-output-maximized")) return;
       logPanel.classList.remove("log-panel-maximized", "log-output-maximized");
       syncMaximizeButtons();

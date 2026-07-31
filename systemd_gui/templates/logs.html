@@ -29,22 +29,40 @@
           {% endfor %}
         </select>
       </label>
-      <label>
-        Time
-        <select name="time" data-log-time>
-          {% for value, label in log_time_options %}
-            <option value="{{ value }}" {% if log_time_filter == value %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="log-time-custom" data-log-time-custom="since" hidden>
-        Since
-        <input name="since" type="datetime-local" value="{{ log_since }}" data-log-since>
-      </label>
-      <label class="log-time-custom" data-log-time-custom="until" hidden>
-        Until
-        <input name="until" type="datetime-local" value="{{ log_until }}" data-log-until>
-      </label>
+      <button class="ghost-button icon-button log-time-button {% if log_time_filter != 'all' %}active{% endif %}" type="button" data-log-time-open title="Time filter: {{ dict(log_time_options).get(log_time_filter, 'All time') }}" aria-label="Open time filter">{{ icon("clock") }}</button>
+      <div class="confirm-modal" data-log-time-modal hidden>
+        <div class="confirm-dialog log-time-dialog" role="dialog" aria-modal="true" aria-labelledby="log-time-title">
+          <div class="panel-head modal-head">
+            <div>
+              <strong id="log-time-title">Time filter</strong>
+              <p>Limit loaded journal entries by time without changing the per-node line limit.</p>
+            </div>
+            <button class="ghost-button small-icon-button" type="button" data-log-time-close aria-label="Close">×</button>
+          </div>
+          <div class="form-grid two">
+            <label>
+              Time
+              <select name="time" data-log-time>
+                {% for value, label in log_time_options %}
+                  <option value="{{ value }}" {% if log_time_filter == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label class="log-time-custom" data-log-time-custom="since" hidden>
+              Since
+              <input name="since" type="datetime-local" value="{{ log_since }}" data-log-since>
+            </label>
+            <label class="log-time-custom" data-log-time-custom="until" hidden>
+              Until
+              <input name="until" type="datetime-local" value="{{ log_until }}" data-log-until>
+            </label>
+          </div>
+          <div class="confirm-actions">
+            <button class="ghost-button" type="button" data-log-time-clear>Clear</button>
+            <button class="primary-button" type="button" data-log-time-apply>Apply</button>
+          </div>
+        </div>
+      </div>
       <label>
         Level
         <select name="priority" data-log-priority>

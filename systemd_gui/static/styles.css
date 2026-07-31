@@ -386,8 +386,12 @@ th.actions-heading { text-align:right; }
 .coming-soon { display:grid; gap:8px; border:1px dashed var(--line); border-radius:8px; color:var(--muted); margin-top:14px; padding:14px; }
 .coming-soon strong { color:var(--ink); }
 .restart-card { display:flex; align-items:center; justify-content:space-between; gap:14px; border-style:solid; border-left:7px solid color-mix(in srgb, var(--amber) 78%, var(--line)); }
-.log-controls { display:grid; grid-template-columns:minmax(100px, 140px) minmax(120px, 170px) minmax(110px, 155px) minmax(130px, 170px) minmax(130px, 170px) minmax(170px, 1fr) auto; gap:10px; align-items:end; margin-bottom:10px; }
+.log-controls { display:grid; grid-template-columns:minmax(100px, 150px) minmax(120px, 170px) auto minmax(130px, 170px) minmax(130px, 170px) minmax(170px, 1fr) auto; gap:10px; align-items:end; margin-bottom:10px; }
 .log-time-custom[hidden] { display:none; }
+.log-time-button { align-self:end; }
+.log-time-button.active { color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, var(--panel)); border-color:color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.log-time-dialog { width:min(560px, calc(100% - 32px)); }
+.log-time-dialog .modal-head p { margin:4px 0 0; }
 .log-node-select { grid-column:1 / -1; display:flex; align-items:center; gap:8px; flex-wrap:wrap; border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
 .log-node-select-title { color:var(--muted); font-size:.78rem; font-weight:900; text-transform:uppercase; }
 .log-node-choice { display:inline-flex; align-items:center; gap:6px; min-height:30px; border-radius:999px; background:color-mix(in srgb, var(--muted) 10%, transparent); color:var(--muted); font-size:.82rem; font-weight:900; padding:4px 9px; }
