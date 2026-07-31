@@ -1,4 +1,5 @@
 <!doctype html>
+{% from "base.html" import icon %}
 <html lang="en">
   <head>
     <meta charset="utf-8">
@@ -43,6 +44,11 @@
               </details>
             </div>
             <h1>{{ info.name }}</h1>
+          </div>
+          <div class="panel-actions">
+            <button class="ghost-button icon-button" type="button" data-log-save-settings title="Save current log settings in this browser" aria-label="Save current log settings in this browser">{{ icon("save") }}</button>
+            <button class="ghost-button icon-button" type="button" data-log-appearance-open title="Log appearance" aria-label="Open log appearance">{{ icon("palette") }}</button>
+            {% include "_log_appearance_modal.html" %}
           </div>
         </div>
         <form class="log-controls" method="get" action="{{ log_window_action or url_for('service_logs_window', name=info.name) }}" data-log-controls>

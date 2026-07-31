@@ -1017,6 +1017,11 @@
     const timeModal = logControls?.querySelector("[data-log-time-modal]");
     const timeApplyButton = logControls?.querySelector("[data-log-time-apply]");
     const timeClearButton = logControls?.querySelector("[data-log-time-clear]");
+    const appearanceButton = logPanel.querySelector("[data-log-appearance-open]");
+    const appearanceModal = logPanel.querySelector("[data-log-appearance-modal]");
+    const nodeColorsCheckbox = logPanel.querySelector("[data-log-node-colors]");
+    const levelColorsCheckbox = logPanel.querySelector("[data-log-level-colors]");
+    const backgroundModeRadios = logPanel.querySelectorAll("[data-log-background-mode]");
     const prioritySelect = logControls?.querySelector("[data-log-priority]");
     const wrapCheckbox = logControls?.querySelector("[data-log-wrap]");
     const smallLinesCheckbox = logControls?.querySelector("[data-log-small]");
@@ -1044,6 +1049,12 @@
     const selectedPriority = () => prioritySelect?.value || "all";
     const selectedSmallLines = () => Boolean(smallLinesCheckbox?.checked);
     const selectedExcludeSearch = () => Boolean(excludeSearchCheckbox?.checked);
+    const selectedNodeColors = () => !nodeColorsCheckbox || Boolean(nodeColorsCheckbox.checked);
+    const selectedLevelColors = () => !levelColorsCheckbox || Boolean(levelColorsCheckbox.checked);
+    const selectedBackgroundMode = () => {
+      const selected = Array.from(backgroundModeRadios).find((radio) => radio.checked);
+      return selected?.value === "terminal" ? "terminal" : "theme";
+    };
     const logSettingsKey = "systemd-gui-log-settings";
     const logUrlHasExplicitSettings = () => {
       const params = new URLSearchParams(window.location.search);
@@ -1136,6 +1147,26 @@
     };
     const closeTimeModal = () => {
       if (timeModal) timeModal.hidden = true;
+    };
+    const openAppearanceModal = () => {
+      if (appearanceModal) appearanceModal.hidden = false;
+    };
+    const closeAppearanceModal = () => {
+      if (appearanceModal) appearanceModal.hidden = true;
+    };
+    const syncAppearanceButton = () => {
+      if (!appearanceButton) return;
+      const custom = !selectedNodeColors() || !selectedLevelColors() || selectedBackgroundMode() === "terminal";
+      appearanceButton.classList.toggle("active", custom);
+      appearanceButton.title = custom ? "Log appearance customized" : "Log appearance";
+      appearanceButton.setAttribute("aria-label", appearanceButton.title);
+    };
+    const applyLogAppearance = () => {
+      const terminal = selectedBackgroundMode() === "terminal";
+      logPanel.classList.toggle("log-neutral-nodes", !selectedNodeColors());
+      logPanel.classList.toggle("log-neutral-levels", !selectedLevelColors());
+      logPanel.classList.toggle("log-terminal-mode", terminal);
+      syncAppearanceButton();
     };
     const applyTimeParams = (params) => {
       if (selectedTime() && selectedTime() !== "all") params.set("time", selectedTime());
@@ -1396,13 +1427,22 @@
       if (refresh) refreshLogs({ followBottom: false });
     };
     const applySavedLogSettings = () => {
+      const settings = readSavedLogSettings();
+      if (settings && typeof settings === "object") {
+        if (nodeColorsCheckbox && typeof settings.nodeColors === "boolean") nodeColorsCheckbox.checked = settings.nodeColors;
+        if (levelColorsCheckbox && typeof settings.levelColors === "boolean") levelColorsCheckbox.checked = settings.levelColors;
+        if (backgroundModeRadios.length && ["theme", "terminal"].includes(settings.backgroundMode)) {
+          backgroundModeRadios.forEach((radio) => {
+            radio.checked = radio.value === settings.backgroundMode;
+          });
+        }
+      }
       if (logUrlHasExplicitSettings()) {
         const params = new URLSearchParams(window.location.search);
         if (smallLinesCheckbox) smallLinesCheckbox.checked = params.get("small") === "1";
         if (excludeSearchCheckbox) excludeSearchCheckbox.checked = params.get("exclude") === "1";
         return false;
       }
-      const settings = readSavedLogSettings();
       if (!settings || typeof settings !== "object") return false;
       if (linesSelect && settings.lines) linesSelect.value = settings.lines;
       if (perNodeSelect && settings.perNode) perNodeSelect.value = settings.perNode;
@@ -1436,6 +1476,9 @@
         exclude: selectedExcludeSearch(),
         wrap: wrapEnabled(),
         small: selectedSmallLines(),
+        nodeColors: selectedNodeColors(),
+        levelColors: selectedLevelColors(),
+        backgroundMode: selectedBackgroundMode(),
         nodes: selectedNodes(),
       };
       try {
@@ -1448,6 +1491,7 @@
     };
 
     const restoredLogSettings = applySavedLogSettings();
+    applyLogAppearance();
     captureNodeColors(document);
     renderLogText(document.querySelector("[data-log-output]")?.dataset.rawLog || document.querySelector("[data-log-output] code")?.textContent || "");
     linesSelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
@@ -1470,6 +1514,13 @@
       closeTimeModal();
       applyLogControls({ refresh: true });
     });
+    appearanceButton?.addEventListener("click", openAppearanceModal);
+    appearanceModal?.addEventListener("click", (event) => {
+      if (event.target === appearanceModal || event.target.closest("[data-log-appearance-close]")) closeAppearanceModal();
+    });
+    nodeColorsCheckbox?.addEventListener("change", applyLogAppearance);
+    levelColorsCheckbox?.addEventListener("change", applyLogAppearance);
+    backgroundModeRadios.forEach((radio) => radio.addEventListener("change", applyLogAppearance));
     prioritySelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
     logControls?.querySelectorAll("input[name='node']").forEach((checkbox) => {
       checkbox.addEventListener("change", () => applyLogControls({ refresh: true }));
@@ -1507,6 +1558,10 @@
       if (event.key !== "Escape") return;
       if (timeModal && !timeModal.hidden) {
         closeTimeModal();
+        return;
+      }
+      if (appearanceModal && !appearanceModal.hidden) {
+        closeAppearanceModal();
         return;
       }
       if (!logPanel.classList.contains("log-panel-maximized") && !logPanel.classList.contains("log-output-maximized")) return;

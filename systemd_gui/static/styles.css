@@ -389,9 +389,17 @@ th.actions-heading { text-align:right; }
 .log-controls { display:grid; grid-template-columns:minmax(100px, 150px) minmax(120px, 170px) auto minmax(130px, 170px) minmax(130px, 170px) minmax(170px, 1fr) auto; gap:10px; align-items:end; margin-bottom:10px; }
 .log-time-custom[hidden] { display:none; }
 .log-time-button { align-self:end; }
-.log-time-button.active { color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, var(--panel)); border-color:color-mix(in srgb, var(--accent) 45%, var(--line)); }
-.log-time-dialog { width:min(560px, calc(100% - 32px)); }
-.log-time-dialog .modal-head p { margin:4px 0 0; }
+.log-time-button.active,.panel-actions [data-log-appearance-open].active { color:var(--accent); background:color-mix(in srgb, var(--accent) 12%, var(--panel)); border-color:color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.log-time-dialog,.log-appearance-dialog { width:min(560px, calc(100% - 32px)); }
+.log-time-dialog .modal-head p,.log-appearance-dialog .modal-head p { margin:4px 0 0; }
+.log-appearance-options { display:grid; gap:14px; margin-top:16px; }
+.log-appearance-options .toggle-label { justify-content:flex-start; min-height:28px; }
+.log-appearance-options .segmented-field { border:0; margin:0; padding:0; }
+.log-appearance-options .segmented-field legend { color:var(--muted); font-size:.78rem; font-weight:900; text-transform:uppercase; margin-bottom:8px; }
+.log-appearance-options .segmented-control { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+.log-appearance-options .segmented-control label { position:relative; display:flex; align-items:center; justify-content:center; min-height:44px; border:1px solid var(--line); border-radius:8px; background:var(--panel); color:var(--muted); font-weight:900; cursor:pointer; }
+.log-appearance-options .segmented-control input { position:absolute; opacity:0; pointer-events:none; }
+.log-appearance-options .segmented-control label:has(input:checked) { border-color:var(--accent); background:var(--accent); color:white; }
 .log-node-select { grid-column:1 / -1; display:flex; align-items:center; gap:8px; flex-wrap:wrap; border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
 .log-node-select-title { color:var(--muted); font-size:.78rem; font-weight:900; text-transform:uppercase; }
 .log-node-choice { display:inline-flex; align-items:center; gap:6px; min-height:30px; border-radius:999px; background:color-mix(in srgb, var(--muted) 10%, transparent); color:var(--muted); font-size:.82rem; font-weight:900; padding:4px 9px; }
@@ -447,6 +455,15 @@ th.actions-heading { text-align:right; }
 .log-level-warning { color:#956300; font-weight:800; }
 .log-level-notice { color:#1d4ed8; }
 .log-level-debug { color:var(--muted); }
+.log-terminal-mode .log-output-shell { background:#050505; border-radius:8px; }
+.log-terminal-mode .log-preview { background:#050505; border-color:#2a2a2a; color:#f4f4f5; }
+.log-terminal-mode .log-preview code { color:#f4f4f5; }
+.log-terminal-mode .log-level { color:#d4d4d8; }
+.log-terminal-mode .log-level-emergency,.log-terminal-mode .log-level-alert,.log-terminal-mode .log-level-critical,.log-terminal-mode .log-level-error { color:#ff7b72; }
+.log-terminal-mode .log-level-warning { color:#facc15; }
+.log-terminal-mode .log-level-notice { color:#93c5fd; }
+.log-terminal-mode .log-level-debug { color:#a1a1aa; }
+.log-terminal-mode .log-scroll-button,.log-terminal-mode .log-output-overlay-button { background:#111; border-color:#333; color:#f4f4f5; }
 :root[data-theme="dark"] .log-level-warning { color:#f7c948; }
 :root[data-theme="dark"] .log-level-notice { color:#93c5fd; }
 :root[data-theme="dark"] .log-node-local { background:color-mix(in srgb, var(--muted) 20%, transparent); color:#d1d5db; }
@@ -461,6 +478,11 @@ th.actions-heading { text-align:right; }
 :root[data-theme="dark"] .log-node-color-9 { background:color-mix(in srgb, #bef264 20%, transparent); color:#d9f99d; }
 :root[data-theme="dark"] .log-node-color-10 { background:color-mix(in srgb, #fb923c 22%, transparent); color:#fed7aa; }
 .log-preview mark { background:color-mix(in srgb, var(--amber) 46%, transparent); color:var(--ink); border-radius:3px; padding:0 2px; }
+.log-neutral-nodes .log-node-choice,.log-neutral-nodes .log-node-chip { background:color-mix(in srgb, var(--muted) 12%, transparent); color:var(--muted); }
+.log-neutral-levels .log-level { color:var(--muted); font-weight:900; }
+.log-terminal-mode .log-preview mark { background:#facc15; color:#050505; }
+.log-terminal-mode.log-neutral-levels .log-level { color:#d4d4d8; }
+.log-terminal-mode.log-neutral-nodes .log-node-choice,.log-terminal-mode.log-neutral-nodes .log-node-chip { background:#27272a; color:#e4e4e7; }
 .log-window-body { height:100vh; min-height:0; overflow:hidden; background:var(--bg); }
 .log-window-shell { width:100%; height:100vh; padding:12px; overflow:hidden; }
 .log-window-panel { display:flex; flex-direction:column; height:calc(100vh - 24px); min-height:0; margin:0; overflow:hidden; }

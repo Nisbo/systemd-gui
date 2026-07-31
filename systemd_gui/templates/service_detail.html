@@ -334,6 +334,8 @@
         </div>
         <div class="panel-actions">
           <button class="ghost-button icon-button" type="button" data-log-save-settings title="Save current log settings in this browser" aria-label="Save current log settings in this browser">{{ icon("save") }}</button>
+          <button class="ghost-button icon-button" type="button" data-log-appearance-open title="Log appearance" aria-label="Open log appearance">{{ icon("palette") }}</button>
+          {% include "_log_appearance_modal.html" %}
           <button class="ghost-button icon-button maximize-toggle" type="button" data-log-maximize-panel title="Maximize log panel" aria-label="Maximize log panel" aria-pressed="false"><span class="maximize-icon-expand">{{ icon("maximize") }}</span><span class="maximize-icon-restore">{{ icon("restore") }}</span></button>
         </div>
       </div>

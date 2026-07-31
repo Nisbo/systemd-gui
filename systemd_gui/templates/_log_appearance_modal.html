@@ -1,0 +1,37 @@
+<div class="confirm-modal" data-log-appearance-modal hidden>
+  <div class="confirm-dialog log-appearance-dialog" role="dialog" aria-modal="true" aria-labelledby="log-appearance-title">
+    <div class="panel-head modal-head">
+      <div>
+        <strong id="log-appearance-title">Log appearance</strong>
+        <p>Change how journal messages are displayed in this browser.</p>
+      </div>
+      <button class="ghost-button small-icon-button" type="button" data-log-appearance-close aria-label="Close">×</button>
+    </div>
+    <div class="log-appearance-options">
+      <label class="toggle-label">
+        <input type="checkbox" data-log-node-colors checked>
+        Colored nodes
+      </label>
+      <label class="toggle-label">
+        <input type="checkbox" data-log-level-colors checked>
+        Colored messages
+      </label>
+      <fieldset class="segmented-field">
+        <legend>Background</legend>
+        <div class="segmented-control">
+          <label>
+            <input type="radio" name="log_background_mode" value="theme" data-log-background-mode checked>
+            <span>Mode color</span>
+          </label>
+          <label>
+            <input type="radio" name="log_background_mode" value="terminal" data-log-background-mode>
+            <span>Black</span>
+          </label>
+        </div>
+      </fieldset>
+    </div>
+    <div class="confirm-actions">
+      <button class="ghost-button" type="button" data-log-appearance-close>Close</button>
+    </div>
+  </div>
+</div>
