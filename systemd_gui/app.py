@@ -339,7 +339,9 @@ def create_app() -> Flask:
         if access:
             return access
         payload = request.get_json(silent=True) or {}
-        branch = str(payload.get("branch") or "").strip() if isinstance(payload, dict) else ""
+        branch = request.args.get("branch", "").strip() or request.form.get("branch", "").strip()
+        if not branch and isinstance(payload, dict):
+            branch = str(payload.get("branch") or "").strip()
         result = update_from_git(_app_root(app), branch or None)
         data = read_nodes(_nodes_path(app))
         settings = data.get("settings") or {}

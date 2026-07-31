@@ -135,6 +135,12 @@ def update_from_git(app_root: Path, branch: str | None = None) -> UpdateResult:
     if not checkout.ok:
         return UpdateResult(False, "Git checkout failed. Check the output below.", details, backup_path)
 
+    current_branch = _git(app_root, ["branch", "--show-current"])
+    details.append(_format_command_result("git branch --show-current", current_branch))
+    if not current_branch.ok or current_branch.output.strip() != branch:
+        actual = current_branch.output.strip() if current_branch.ok else "unknown"
+        return UpdateResult(False, f"Git checkout finished, but the active branch is {actual}, not {branch}.", details, backup_path)
+
     return UpdateResult(True, f"Git update completed from {remote_ref}. Restart Systemd Gui to run the new code.", details, backup_path)
 
 

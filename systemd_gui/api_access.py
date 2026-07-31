@@ -345,9 +345,13 @@ def trigger_remote_git_update(node: dict[str, object], branch: str | None = None
     if not token:
         return RemoteUpdateResult(False, "No Remote API token is saved for this node.", node_info, "missing")
     try:
-        body = json.dumps({"branch": str(branch or "").strip()}).encode("utf-8") if branch else b""
+        branch = str(branch or "").strip()
+        body = json.dumps({"branch": branch}).encode("utf-8") if branch else b""
+        endpoint = "api/v1/update/git"
+        if branch:
+            endpoint = f"{endpoint}?{urlencode({'branch': branch})}"
         request = Request(
-            urljoin(f"{url.rstrip('/')}/", "api/v1/update/git"),
+            urljoin(f"{url.rstrip('/')}/", endpoint),
             data=body,
             headers={
                 "Authorization": f"Bearer {token}",
