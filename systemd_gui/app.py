@@ -275,6 +275,7 @@ def create_app() -> Flask:
             time_filter = "between" if raw_until else "since"
         since_arg, until_arg = _log_time_args(time_filter, raw_since, raw_until)
         logs = run_journalctl_entries(unit, lines, priority, since_arg, until_arg)
+        log_entries = _filter_log_entries_by_time(logs.entries, since_arg, until_arg)
         data = read_nodes(_nodes_path(app))
         settings = data.get("settings") or {}
         node = {
@@ -287,7 +288,7 @@ def create_app() -> Flask:
             "app": "systemd-gui",
             "node": node,
             "ok": logs.ok,
-            "entries": [_decorate_log_entry(entry, node) for entry in logs.entries],
+            "entries": [_decorate_log_entry(entry, node) for entry in log_entries],
             "output": logs.output,
         })
 
@@ -2215,8 +2216,9 @@ def _datetime_local_value(value: str | None) -> str:
     value = (value or "").strip()
     if not value:
         return ""
+    normalized = value.replace(" ", "T")
     try:
-        parsed = datetime.strptime(value[:16], "%Y-%m-%dT%H:%M")
+        parsed = datetime.strptime(normalized[:16], "%Y-%m-%dT%H:%M")
     except ValueError:
         return ""
     return parsed.strftime("%Y-%m-%dT%H:%M")
@@ -2227,6 +2229,30 @@ def _journalctl_datetime(value: str | None) -> str:
     if not clean_value:
         return ""
     return datetime.strptime(clean_value, "%Y-%m-%dT%H:%M").strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _journalctl_datetime_sort(value: str) -> int:
+    clean_value = _datetime_local_value(value)
+    if not clean_value:
+        return 0
+    parsed = datetime.strptime(clean_value, "%Y-%m-%dT%H:%M")
+    return int(parsed.timestamp() * 1_000_000)
+
+
+def _filter_log_entries_by_time(entries: list[dict[str, object]], since: str = "", until: str = "") -> list[dict[str, object]]:
+    since_sort = _journalctl_datetime_sort(since)
+    until_sort = _journalctl_datetime_sort(until)
+    if not since_sort and not until_sort:
+        return entries
+    filtered = []
+    for entry in entries:
+        entry_sort = int(entry.get("timestamp_sort") or 0)
+        if since_sort and entry_sort and entry_sort < since_sort:
+            continue
+        if until_sort and entry_sort and entry_sort > until_sort:
+            continue
+        filtered.append(entry)
+    return filtered
 
 
 def _log_time_args(time_filter: str, since_value: str = "", until_value: str = "") -> tuple[str, str]:
@@ -2344,13 +2370,14 @@ def _combined_journal_logs(
             "log_color_class": color_by_id.get("local", "log-node-local"),
         }
         local_logs = run_journalctl_entries(service, per_node_lines, priority, since, until)
+        local_entries = _filter_log_entries_by_time(local_logs.entries, since, until)
         ok = ok and local_logs.ok
-        loaded_by_id["local"] = len(local_logs.entries)
+        loaded_by_id["local"] = len(local_entries)
         if not local_logs.ok:
             status_by_id["local"] = "error"
             message_by_id["local"] = local_logs.output or "Local journalctl failed."
-        entries.extend(_decorate_log_entry(entry, local_node) for entry in local_logs.entries)
-        if not local_logs.ok and not local_logs.entries:
+        entries.extend(_decorate_log_entry(entry, local_node) for entry in local_entries)
+        if not local_logs.ok and not local_entries:
             entries.append(_log_error_entry(local_node, local_logs.output or "Local journalctl failed."))
 
     data = read_nodes(_nodes_path(app))
@@ -2358,9 +2385,10 @@ def _combined_journal_logs(
         if not isinstance(node, dict) or str(node.get("id") or "") not in selected_set:
             continue
         result = fetch_remote_logs(node, service, per_node_lines, priority, since, until)
+        remote_entries = _filter_log_entries_by_time(result.entries, since, until)
         ok = ok and result.ok
         option_id = str(node.get("id") or "")
-        loaded_by_id[option_id] = len(result.entries)
+        loaded_by_id[option_id] = len(remote_entries)
         if not result.ok:
             status_by_id[option_id] = "error"
             message_by_id[option_id] = result.message
@@ -2371,8 +2399,8 @@ def _combined_journal_logs(
             "name": configured_name or str(result.node.get("name") or "Remote node"),
             "log_color_class": color_by_id.get(option_id, ""),
         }
-        if result.entries:
-            entries.extend(_decorate_log_entry(entry, remote_node) for entry in result.entries)
+        if remote_entries:
+            entries.extend(_decorate_log_entry(entry, remote_node) for entry in remote_entries)
         if not result.ok:
             entries.append(_log_error_entry(remote_node, result.message))
 
