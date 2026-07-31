@@ -236,7 +236,7 @@
 
       <div class="update-section-title">
         <strong>Advanced developer update</strong>
-        <span>Use this only when you intentionally want the current git branch. It may include code that has not been published as an official release yet.</span>
+        <span>Use this when you want to test a branch directly. <code>main</code> stays close to releases; <code>dev</code> can contain unfinished features.</span>
       </div>
 
       <dl class="detail-grid two update-detail-grid">
@@ -253,14 +253,28 @@
           class="update-card"
           method="post"
           action="{{ url_for('apply_git_update') }}"
-          data-confirm="Update from git branch? Systemd Gui will create an app backup, fetch origin, then reset local app files to the configured remote branch."
+          data-git-update-form
+          data-confirm="Update from selected git branch? Systemd Gui will create an app backup, fetch origin, then reset local app files to that branch."
           data-confirm-checkbox-name="remote_update"
-          data-confirm-checkbox-label="Update and restart all connected nodes"
+          data-confirm-checkbox-label="Update and restart all connected nodes on the same branch"
           data-confirm-checkbox-value="1"
         >
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <strong>Update from git branch</strong>
-          <span>Creates an app backup, fetches <code>origin</code>, then resets local app files to the configured remote branch, normally <code>origin/main</code>. The optional remote update uses saved nodes with Remote API tokens that allow remote updates.</span>
+          <strong>Update channel</strong>
+          <span>Select the branch this installation should follow. Switching creates an app backup first, then checks out <code>origin/main</code> or <code>origin/dev</code>.</span>
+          <label>
+            Branch
+            {% set current_branch = git_state.branch if git_state.branch in git_state.supported_branches else 'main' %}
+            <select name="branch">
+              <option value="main" {% if current_branch == 'main' %}selected{% endif %}>Stable branch: main</option>
+              <option value="dev" {% if current_branch == 'dev' %}selected{% endif %}>Development branch: dev</option>
+            </select>
+            <span class="field-help">Choose <code>dev</code> only when you want to test newer code before the next release.</span>
+          </label>
+          <div class="diagnostic warning">
+            <strong>Dev branch warning</strong>
+            <span>Dev builds can be unfinished. If you enable the remote update checkbox while <code>dev</code> is selected, connected nodes with Remote API update permission will also be switched to <code>dev</code> and restarted.</span>
+          </div>
           <button class="ghost-button" type="submit" {% if not git_state.available or not git_state.remote %}disabled{% endif %}>Update from git</button>
         </form>
       </div>

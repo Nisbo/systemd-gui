@@ -338,7 +338,9 @@ def create_app() -> Flask:
         access = _require_remote_api_access(app, "updates:write")
         if access:
             return access
-        result = update_from_git(_app_root(app))
+        payload = request.get_json(silent=True) or {}
+        branch = str(payload.get("branch") or "").strip() if isinstance(payload, dict) else ""
+        result = update_from_git(_app_root(app), branch or None)
         data = read_nodes(_nodes_path(app))
         settings = data.get("settings") or {}
         node = {
@@ -1122,13 +1124,14 @@ def create_app() -> Flask:
 
     @app.post("/settings/update/git")
     def apply_git_update():
-        result = update_from_git(_app_root(app))
+        branch = request.form.get("branch", "").strip()
+        result = update_from_git(_app_root(app), branch or None)
         session["update_result"] = _update_result_dict(result)
         if result.ok:
             session["app_update_pending_restart"] = True
         flash(result.message, "success" if result.ok else "error")
         if result.ok and request.form.get("remote_update") == "1":
-            _flash_remote_git_update_results(app)
+            _flash_remote_git_update_results(app, branch or None)
             restart_ok, restart_message = _request_systemd_gui_restart(app, delay_seconds=3)
             if restart_ok:
                 session.pop("app_update_pending_restart", None)
@@ -1693,7 +1696,7 @@ def _request_systemd_gui_restart(app: Flask, delay_seconds: int = 1) -> tuple[bo
     return True, "Systemd Gui restart requested. Reload the page in a few seconds."
 
 
-def _flash_remote_git_update_results(app: Flask) -> None:
+def _flash_remote_git_update_results(app: Flask, branch: str | None = None) -> None:
     data = read_nodes(_nodes_path(app))
     settings = data.get("settings") if isinstance(data.get("settings"), dict) else {}
     local_node_id = str(settings.get("node_id") or "").strip()
@@ -1712,13 +1715,14 @@ def _flash_remote_git_update_results(app: Flask) -> None:
         return
 
     with ThreadPoolExecutor(max_workers=min(6, len(candidates))) as executor:
-        results = list(executor.map(trigger_remote_git_update, candidates))
+        results = list(executor.map(lambda node: trigger_remote_git_update(node, branch), candidates))
 
     ok_results = [result for result in results if result.ok]
     failed = [result for result in results if not result.ok]
     if ok_results:
         names = ", ".join(str(result.node.get("name") or "Remote node") for result in ok_results)
-        flash(f"Remote git update requested for {len(ok_results)} node(s): {names}.", "success")
+        branch_label = f" on {branch}" if branch else ""
+        flash(f"Remote git update{branch_label} requested for {len(ok_results)} node(s): {names}.", "success")
     if failed:
         parts = [
             f"{result.node.get('name') or 'Remote node'}: {result.message}"

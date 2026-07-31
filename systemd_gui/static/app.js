@@ -214,6 +214,12 @@
   const renderConfirmExtra = (form) => {
     if (!extra) return;
     extra.innerHTML = "";
+    if (form.dataset.confirmWarning) {
+      const warning = document.createElement("div");
+      warning.className = "confirm-warning";
+      warning.textContent = form.dataset.confirmWarning;
+      extra.appendChild(warning);
+    }
     if (!form.dataset.confirmCheckboxName) return;
     const label = document.createElement("label");
     label.className = "toggle-label confirm-extra-toggle";
@@ -231,6 +237,11 @@
   document.querySelectorAll("form[data-confirm]").forEach((form) => {
     form.addEventListener("submit", (event) => {
       if (form.dataset.confirmed === "true") { delete form.dataset.confirmed; return; }
+      if (form.matches("[data-git-update-form]")) {
+        const branch = form.querySelector("[name='branch']")?.value || "main";
+        form.dataset.confirm = `Update from origin/${branch}? Systemd Gui will create an app backup, fetch origin, then reset local app files to this branch.`;
+        form.dataset.confirmWarning = branch === "dev" ? "DEV branch selected. If you also update connected nodes, those remote servers will be switched to dev and restarted too." : "";
+      }
       event.preventDefault(); pending = form; if (message) message.textContent = form.dataset.confirm || "Continue?"; renderConfirmExtra(form); if (modal) modal.hidden = false;
     });
   });

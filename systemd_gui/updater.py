@@ -21,6 +21,7 @@ PROJECT_DIRS = ("systemd_gui", "scripts")
 PROJECT_FILES = ("run.py", "README.md", "LICENSE", ".gitignore")
 RUNTIME_DATA_ITEMS = ("favorites.json", "service-notes.json", "quick-shell.json", "quick-shell-runs.json", "nodes.json", "api-access.json", "unit-backups", "drop-in-backups", "env-backups")
 APP_BACKUP_META_FILE = "backup-meta.txt"
+SUPPORTED_GIT_BRANCHES = ("main", "dev")
 
 
 @dataclass
@@ -63,7 +64,7 @@ class UpdateStatus:
     no_releases: bool = False
 
 
-def git_update_state(app_root: Path) -> dict[str, str | bool]:
+def git_update_state(app_root: Path) -> dict[str, object]:
     if not (app_root / ".git").exists():
         return {
             "available": False,
@@ -72,6 +73,7 @@ def git_update_state(app_root: Path) -> dict[str, str | bool]:
             "commit": "",
             "remote": "",
             "message": "This installation is not a git checkout.",
+            "supported_branches": list(SUPPORTED_GIT_BRANCHES),
         }
     if not shutil.which("git"):
         return {
@@ -81,6 +83,7 @@ def git_update_state(app_root: Path) -> dict[str, str | bool]:
             "commit": "",
             "remote": "",
             "message": "git is not available in this environment.",
+            "supported_branches": list(SUPPORTED_GIT_BRANCHES),
         }
 
     status = _git(app_root, ["status", "--short"])
@@ -99,22 +102,23 @@ def git_update_state(app_root: Path) -> dict[str, str | bool]:
         "commit": commit.output.strip() if commit.ok else "",
         "remote": remote.output.strip() if remote.ok else "",
         "message": message,
+        "supported_branches": list(SUPPORTED_GIT_BRANCHES),
     }
 
 
-def update_from_git(app_root: Path) -> UpdateResult:
+def update_from_git(app_root: Path, branch: str | None = None) -> UpdateResult:
     state = git_update_state(app_root)
     if not state["available"]:
         return UpdateResult(False, str(state["message"]), [])
     if not state["remote"]:
         return UpdateResult(False, "Git update refused because no origin remote is configured.", [])
 
-    branch = str(state["branch"] or "main")
-    if branch == "HEAD":
-        branch = "main"
+    branch = _normalize_git_branch(branch or str(state["branch"] or "main"))
+    if not branch:
+        return UpdateResult(False, f"Git branch must be one of: {', '.join(SUPPORTED_GIT_BRANCHES)}.", [])
     remote_ref = f"origin/{branch}"
     backup_path = create_app_backup(app_root, "Before Git update", f"Created automatically before moving Systemd Gui {APP_VERSION} to {remote_ref}.")
-    details = [f"Backup created: {backup_path}"]
+    details = [f"Target branch: {branch}", f"Backup created: {backup_path}"]
 
     fetch = _git(app_root, ["fetch", "--tags", "--prune", "origin"], timeout=60)
     details.append(_format_command_result("git fetch --tags --prune origin", fetch))
@@ -131,7 +135,14 @@ def update_from_git(app_root: Path) -> UpdateResult:
     if not checkout.ok:
         return UpdateResult(False, "Git checkout failed. Check the output below.", details, backup_path)
 
-    return UpdateResult(True, "Git update completed. Restart Systemd Gui to run the new code.", details, backup_path)
+    return UpdateResult(True, f"Git update completed from {remote_ref}. Restart Systemd Gui to run the new code.", details, backup_path)
+
+
+def _normalize_git_branch(branch: object) -> str:
+    value = str(branch or "").strip()
+    if value == "HEAD":
+        value = "main"
+    return value if value in SUPPORTED_GIT_BRANCHES else ""
 
 
 def check_for_update(timeout: int = 5) -> UpdateStatus:

@@ -330,7 +330,7 @@ def fetch_remote_logs(
     )
 
 
-def trigger_remote_git_update(node: dict[str, object], timeout: float = 90.0) -> RemoteUpdateResult:
+def trigger_remote_git_update(node: dict[str, object], branch: str | None = None, timeout: float = 90.0) -> RemoteUpdateResult:
     url = str(node.get("url") or "").strip()
     token = str(node.get("api_token") or "").strip()
     node_info = {
@@ -345,10 +345,14 @@ def trigger_remote_git_update(node: dict[str, object], timeout: float = 90.0) ->
     if not token:
         return RemoteUpdateResult(False, "No Remote API token is saved for this node.", node_info, "missing")
     try:
+        body = json.dumps({"branch": str(branch or "").strip()}).encode("utf-8") if branch else b""
         request = Request(
             urljoin(f"{url.rstrip('/')}/", "api/v1/update/git"),
-            data=b"",
-            headers={"Authorization": f"Bearer {token}"},
+            data=body,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
             method="POST",
         )
         with urlopen(request, timeout=timeout) as response:
