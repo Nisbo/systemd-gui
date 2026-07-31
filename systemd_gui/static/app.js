@@ -1010,6 +1010,9 @@
     const logControls = document.querySelector("[data-log-controls]");
     const linesSelect = logControls?.querySelector("[data-log-lines]");
     const perNodeSelect = logControls?.querySelector("[data-log-per-node]");
+    const timeSelect = logControls?.querySelector("[data-log-time]");
+    const sinceInput = logControls?.querySelector("[data-log-since]");
+    const untilInput = logControls?.querySelector("[data-log-until]");
     const prioritySelect = logControls?.querySelector("[data-log-priority]");
     const wrapCheckbox = logControls?.querySelector("[data-log-wrap]");
     const smallLinesCheckbox = logControls?.querySelector("[data-log-small]");
@@ -1031,13 +1034,16 @@
 
     const selectedLines = () => linesSelect?.value || "200";
     const selectedPerNode = () => perNodeSelect?.value || selectedLines();
+    const selectedTime = () => timeSelect?.value || "all";
+    const selectedSince = () => sinceInput?.value || "";
+    const selectedUntil = () => untilInput?.value || "";
     const selectedPriority = () => prioritySelect?.value || "all";
     const selectedSmallLines = () => Boolean(smallLinesCheckbox?.checked);
     const selectedExcludeSearch = () => Boolean(excludeSearchCheckbox?.checked);
     const logSettingsKey = "systemd-gui-log-settings";
     const logUrlHasExplicitSettings = () => {
       const params = new URLSearchParams(window.location.search);
-      return ["lines", "per_node", "priority", "refresh", "interval", "log_q", "wrap", "small", "exclude", "node"].some((key) => params.has(key));
+      return ["lines", "per_node", "time", "since", "until", "priority", "refresh", "interval", "log_q", "wrap", "small", "exclude", "node"].some((key) => params.has(key));
     };
     const readSavedLogSettings = () => {
       try {
@@ -1106,11 +1112,35 @@
       return Number.isFinite(seconds) && seconds > 0 ? seconds : 5;
     };
     const refreshEnabled = () => intervalSelect ? intervalSelect.value !== "off" : logPanel.dataset.refreshEnabled === "true";
+    const syncTimeFields = () => {
+      const mode = selectedTime();
+      logControls?.querySelectorAll("[data-log-time-custom]").forEach((field) => {
+        const fieldName = field.dataset.logTimeCustom || "";
+        field.hidden = mode !== "between" && !(mode === "since" && fieldName === "since");
+      });
+    };
+    const applyTimeParams = (params) => {
+      if (selectedTime() && selectedTime() !== "all") params.set("time", selectedTime());
+      else params.delete("time");
+      if (selectedTime() === "since" || selectedTime() === "between") {
+        if (selectedSince()) params.set("since", selectedSince());
+        else params.delete("since");
+      } else {
+        params.delete("since");
+      }
+      if (selectedTime() === "between") {
+        if (selectedUntil()) params.set("until", selectedUntil());
+        else params.delete("until");
+      } else {
+        params.delete("until");
+      }
+    };
     const syncLogUrl = () => {
       const url = new URL(window.location.href);
       if (url.pathname.indexOf("/logs") === -1) url.searchParams.set("tab", "logs");
       url.searchParams.set("lines", selectedLines());
       url.searchParams.set("per_node", selectedPerNode());
+      applyTimeParams(url.searchParams);
       url.searchParams.delete("node");
       selectedNodes().forEach((node) => url.searchParams.append("node", node));
       if (selectedPriority() && selectedPriority() !== "all") url.searchParams.set("priority", selectedPriority());
@@ -1135,6 +1165,7 @@
         const windowUrl = new URL(logWindowLink.href, window.location.href);
         windowUrl.searchParams.set("lines", selectedLines());
         windowUrl.searchParams.set("per_node", selectedPerNode());
+        applyTimeParams(windowUrl.searchParams);
         windowUrl.searchParams.delete("node");
         selectedNodes().forEach((node) => windowUrl.searchParams.append("node", node));
         if (selectedPriority() && selectedPriority() !== "all") windowUrl.searchParams.set("priority", selectedPriority());
@@ -1158,7 +1189,7 @@
       }
     };
     const updateLineCountLabel = () => {
-      if (lineCountLabel) lineCountLabel.textContent = selectedLines();
+      if (lineCountLabel) lineCountLabel.textContent = selectedLines() === "all" ? "all" : selectedLines();
     };
     const updateNodeChoiceCounts = (lines) => {
       const visibleCounts = new Map();
@@ -1307,6 +1338,7 @@
         const params = new URLSearchParams();
         params.set("lines", selectedLines());
         params.set("per_node", selectedPerNode());
+        applyTimeParams(params);
         selectedNodes().forEach((node) => params.append("node", node));
         if (selectedPriority() && selectedPriority() !== "all") params.set("priority", selectedPriority());
         if (!wrapEnabled()) params.set("wrap", "0");
@@ -1356,6 +1388,9 @@
       if (!settings || typeof settings !== "object") return false;
       if (linesSelect && settings.lines) linesSelect.value = settings.lines;
       if (perNodeSelect && settings.perNode) perNodeSelect.value = settings.perNode;
+      if (timeSelect && settings.time) timeSelect.value = settings.time;
+      if (sinceInput && typeof settings.since === "string") sinceInput.value = settings.since;
+      if (untilInput && typeof settings.until === "string") untilInput.value = settings.until;
       if (prioritySelect && settings.priority) prioritySelect.value = settings.priority;
       if (intervalSelect) intervalSelect.value = settings.refresh ? String(settings.interval || "5") : "off";
       if (searchInput && typeof settings.search === "string") searchInput.value = settings.search;
@@ -1373,6 +1408,9 @@
       const settings = {
         lines: selectedLines(),
         perNode: selectedPerNode(),
+        time: selectedTime(),
+        since: selectedSince(),
+        until: selectedUntil(),
         priority: selectedPriority(),
         refresh: refreshEnabled(),
         interval: selectedInterval(),
@@ -1396,6 +1434,12 @@
     renderLogText(document.querySelector("[data-log-output]")?.dataset.rawLog || document.querySelector("[data-log-output] code")?.textContent || "");
     linesSelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
     perNodeSelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
+    timeSelect?.addEventListener("change", () => {
+      syncTimeFields();
+      applyLogControls({ refresh: true });
+    });
+    sinceInput?.addEventListener("change", () => applyLogControls({ refresh: selectedTime() === "since" || selectedTime() === "between" }));
+    untilInput?.addEventListener("change", () => applyLogControls({ refresh: selectedTime() === "between" }));
     prioritySelect?.addEventListener("change", () => applyLogControls({ refresh: true }));
     logControls?.querySelectorAll("input[name='node']").forEach((checkbox) => {
       checkbox.addEventListener("change", () => applyLogControls({ refresh: true }));
@@ -1436,6 +1480,7 @@
       syncMaximizeButtons();
     });
     applyLogSearch();
+    syncTimeFields();
     updateLineCountLabel();
     updateRefreshPaused();
     syncMaximizeButtons();

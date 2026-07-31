@@ -129,12 +129,12 @@ def run_systemctl(args: list[str], timeout: int = 12) -> CommandResult:
     return CommandResult(result.returncode == 0, output, result.returncode)
 
 
-def run_journalctl(service: str = "", lines: int = 200, priority: str = "") -> CommandResult:
-    result = run_journalctl_entries(service, lines, priority)
+def run_journalctl(service: str = "", lines: int = 200, priority: str = "", since: str = "", until: str = "") -> CommandResult:
+    result = run_journalctl_entries(service, lines, priority, since, until)
     return CommandResult(result.ok, result.output, result.returncode)
 
 
-def run_journalctl_entries(service: str = "", lines: int = 200, priority: str = "") -> JournalResult:
+def run_journalctl_entries(service: str = "", lines: int = 200, priority: str = "", since: str = "", until: str = "") -> JournalResult:
     journalctl = shutil.which("journalctl")
     if not journalctl:
         return JournalResult(False, "journalctl is not available in this environment.", 127, [])
@@ -143,6 +143,10 @@ def run_journalctl_entries(service: str = "", lines: int = 200, priority: str = 
         command.extend(["-u", service])
     if priority and priority != "all":
         command.extend(["-p", priority])
+    if since:
+        command.extend(["--since", since])
+    if until:
+        command.extend(["--until", until])
     command.extend(["-n", str(lines), "--no-pager", "--output=json"])
     try:
         result = subprocess.run(

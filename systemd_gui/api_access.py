@@ -277,6 +277,8 @@ def fetch_remote_logs(
     service: str = "",
     lines: int = 200,
     priority: str = "all",
+    since: str = "",
+    until: str = "",
     timeout: float = 5.0,
 ) -> RemoteLogsResult:
     url = str(node.get("url") or "").strip()
@@ -292,7 +294,12 @@ def fetch_remote_logs(
         return RemoteLogsResult(False, "No GUI URL is configured for this node.", node_info, [], "missing")
     if not token:
         return RemoteLogsResult(False, "No Remote API token is saved for this node.", node_info, [], "missing")
-    query = urlencode({"lines": int(lines), "priority": priority or "all", "unit": service})
+    query_args = {"lines": int(lines), "priority": priority or "all", "unit": service}
+    if since:
+        query_args["since"] = since
+    if until:
+        query_args["until"] = until
+    query = urlencode(query_args)
     try:
         request = Request(
             urljoin(f"{url.rstrip('/')}/", f"api/v1/logs?{query}"),

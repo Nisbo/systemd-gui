@@ -142,6 +142,16 @@ LOG_PRIORITY_OPTIONS = [
     ("warning", "Warning and above"),
     ("err", "Error and above"),
 ]
+LOG_LINE_OPTIONS = [50, 100, 200, 500, 1000]
+LOG_TIME_OPTIONS = [
+    ("all", "All time"),
+    ("1h", "Last hour"),
+    ("12h", "Last 12 hours"),
+    ("1d", "Last day"),
+    ("1w", "Last week"),
+    ("since", "Since..."),
+    ("between", "Between..."),
+]
 NO_AUTOSTART_STATES = {"static", "alias", "unknown", "generated", "transient"}
 BLOCKED_UNIT_FILE_STATES = {"bad", "masked"}
 
@@ -258,7 +268,9 @@ def create_app() -> Flask:
             return jsonify({"error": "Only .service units are supported."}), 400
         lines = _log_line_count(request.args.get("lines", "200"))
         priority = _log_priority(request.args.get("priority", "all"))
-        logs = run_journalctl_entries(unit, lines, priority)
+        time_filter = _log_time_filter(request.args.get("time", "all"))
+        since_arg, until_arg = _log_time_args(time_filter, request.args.get("since", ""), request.args.get("until", ""))
+        logs = run_journalctl_entries(unit, lines, priority, since_arg, until_arg)
         data = read_nodes(_nodes_path(app))
         settings = data.get("settings") or {}
         node = {
@@ -628,20 +640,29 @@ def create_app() -> Flask:
 
     @app.get("/logs")
     def logs():
-        log_lines = _log_line_count(request.args.get("lines", "200"))
-        log_per_node = _log_line_count(request.args.get("per_node", str(log_lines)))
-        log_priority = _log_priority(request.args.get("priority", "all"))
+        log_settings = _log_request_settings()
+        log_lines = log_settings["lines"]
+        log_lines_value = str(log_settings["lines_value"])
+        log_per_node = int(log_settings["per_node"])
+        log_priority = str(log_settings["priority"])
         log_wrap = _log_wrap(request.args.get("wrap", "1"))
         log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
         log_refresh = _log_refresh_enabled(request.args.get("refresh"), request.args.get("interval"))
         selected_nodes = _selected_log_nodes()
-        journal_logs, log_entries, log_node_options = _combined_journal_logs(app, "", log_lines, log_per_node, log_priority, selected_nodes)
+        journal_logs, log_entries, log_node_options = _combined_journal_logs(app, "", log_lines, log_per_node, log_priority, selected_nodes, str(log_settings["since_arg"]), str(log_settings["until_arg"]))
         return render_template(
             "logs.html",
             log_lines=log_lines,
+            log_lines_value=log_lines_value,
+            log_lines_label=log_settings["lines_label"],
+            log_line_options=LOG_LINE_OPTIONS,
             log_per_node=log_per_node,
             log_priority=log_priority,
             log_priority_options=LOG_PRIORITY_OPTIONS,
+            log_time_options=LOG_TIME_OPTIONS,
+            log_time_filter=log_settings["time_filter"],
+            log_since=log_settings["since_value"],
+            log_until=log_settings["until_value"],
             log_refresh=log_refresh,
             log_refresh_interval=log_refresh_interval,
             log_wrap=log_wrap,
@@ -650,36 +671,46 @@ def create_app() -> Flask:
             log_node_options=log_node_options,
             selected_log_nodes=selected_nodes,
             log_source_label="All journal logs",
-            log_command_label=_journalctl_label("", log_priority),
+            log_command_label=_journalctl_label("", log_priority, str(log_settings["since_arg"]), str(log_settings["until_arg"])),
         )
 
     @app.get("/logs/fragment")
     def logs_fragment():
-        log_lines = _log_line_count(request.args.get("lines", "200"))
-        log_per_node = _log_line_count(request.args.get("per_node", str(log_lines)))
-        log_priority = _log_priority(request.args.get("priority", "all"))
+        log_settings = _log_request_settings()
+        log_lines = log_settings["lines"]
+        log_per_node = int(log_settings["per_node"])
+        log_priority = str(log_settings["priority"])
         log_wrap = _log_wrap(request.args.get("wrap", "1"))
-        journal_logs, log_entries, log_node_options = _combined_journal_logs(app, "", log_lines, log_per_node, log_priority, _selected_log_nodes())
+        journal_logs, log_entries, log_node_options = _combined_journal_logs(app, "", log_lines, log_per_node, log_priority, _selected_log_nodes(), str(log_settings["since_arg"]), str(log_settings["until_arg"]))
         return render_template("_service_logs.html", logs=journal_logs, log_entries=log_entries, log_node_options=log_node_options, log_wrap=log_wrap)
 
     @app.get("/logs/window")
     def logs_window():
-        log_lines = _log_line_count(request.args.get("lines", "200"))
-        log_per_node = _log_line_count(request.args.get("per_node", str(log_lines)))
-        log_priority = _log_priority(request.args.get("priority", "all"))
+        log_settings = _log_request_settings()
+        log_lines = log_settings["lines"]
+        log_lines_value = str(log_settings["lines_value"])
+        log_per_node = int(log_settings["per_node"])
+        log_priority = str(log_settings["priority"])
         log_wrap = _log_wrap(request.args.get("wrap", "1"))
         log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
         log_refresh = _log_refresh_enabled(request.args.get("refresh"), request.args.get("interval"))
         selected_nodes = _selected_log_nodes()
-        journal_logs, log_entries, log_node_options = _combined_journal_logs(app, "", log_lines, log_per_node, log_priority, selected_nodes)
+        journal_logs, log_entries, log_node_options = _combined_journal_logs(app, "", log_lines, log_per_node, log_priority, selected_nodes, str(log_settings["since_arg"]), str(log_settings["until_arg"]))
         return render_template(
             "service_logs_window.html",
             info={"name": "All journal logs"},
             log_lines=log_lines,
+            log_lines_value=log_lines_value,
+            log_lines_label=log_settings["lines_label"],
+            log_line_options=LOG_LINE_OPTIONS,
             log_per_node=log_per_node,
             log_priority=log_priority,
             log_priority_options=LOG_PRIORITY_OPTIONS,
-            log_command_label=_journalctl_label("", log_priority),
+            log_time_options=LOG_TIME_OPTIONS,
+            log_time_filter=log_settings["time_filter"],
+            log_since=log_settings["since_value"],
+            log_until=log_settings["until_value"],
+            log_command_label=_journalctl_label("", log_priority, str(log_settings["since_arg"]), str(log_settings["until_arg"])),
             log_refresh=log_refresh,
             log_refresh_interval=log_refresh_interval,
             log_wrap=log_wrap,
@@ -1231,9 +1262,11 @@ def create_app() -> Flask:
         active_tab = request.args.get("tab", "unit")
         if active_tab not in {"unit", "override", "logs", "backups", "info"}:
             active_tab = "unit"
-        log_lines = _log_line_count(request.args.get("lines", "200"))
-        log_per_node = _log_line_count(request.args.get("per_node", str(log_lines)))
-        log_priority = _log_priority(request.args.get("priority", "all"))
+        log_settings = _log_request_settings()
+        log_lines = log_settings["lines"]
+        log_lines_value = str(log_settings["lines_value"])
+        log_per_node = int(log_settings["per_node"])
+        log_priority = str(log_settings["priority"])
         log_wrap = _log_wrap(request.args.get("wrap", "1"))
         log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
         log_refresh = _log_refresh_enabled(request.args.get("refresh"), request.args.get("interval"))
@@ -1246,7 +1279,7 @@ def create_app() -> Flask:
             *list(info.get("local_drop_in_paths") or []),
         ]))
         flattened_unit = flattened_unit_preview(original_content, drop_in_paths) if original_content else {"lines": [], "text": ""}
-        logs, log_entries, log_node_options = _combined_journal_logs(app, name, log_lines, log_per_node, log_priority, selected_nodes)
+        logs, log_entries, log_node_options = _combined_journal_logs(app, name, log_lines, log_per_node, log_priority, selected_nodes, str(log_settings["since_arg"]), str(log_settings["until_arg"]))
         editable = _editable(name)
         backups = list_unit_backups(name, _backup_dir(app))
         override_path, override_content, override_exists = read_drop_in_override(name)
@@ -1260,10 +1293,17 @@ def create_app() -> Flask:
             "service_detail.html",
             active_tab=active_tab,
             log_lines=log_lines,
+            log_lines_value=log_lines_value,
+            log_lines_label=log_settings["lines_label"],
+            log_line_options=LOG_LINE_OPTIONS,
             log_per_node=log_per_node,
             log_priority=log_priority,
             log_priority_options=LOG_PRIORITY_OPTIONS,
-            log_command_label=_journalctl_label(name, log_priority),
+            log_time_options=LOG_TIME_OPTIONS,
+            log_time_filter=log_settings["time_filter"],
+            log_since=log_settings["since_value"],
+            log_until=log_settings["until_value"],
+            log_command_label=_journalctl_label(name, log_priority, str(log_settings["since_arg"]), str(log_settings["until_arg"])),
             log_refresh=log_refresh,
             log_refresh_interval=log_refresh_interval,
             log_wrap=log_wrap,
@@ -1307,33 +1347,43 @@ def create_app() -> Flask:
     def service_logs_fragment(name: str):
         if not valid_service_name(name):
             return "Only .service units are supported.", 400
-        log_lines = _log_line_count(request.args.get("lines", "200"))
-        log_per_node = _log_line_count(request.args.get("per_node", str(log_lines)))
-        log_priority = _log_priority(request.args.get("priority", "all"))
+        log_settings = _log_request_settings()
+        log_lines = log_settings["lines"]
+        log_per_node = int(log_settings["per_node"])
+        log_priority = str(log_settings["priority"])
         log_wrap = _log_wrap(request.args.get("wrap", "1"))
-        logs, log_entries, log_node_options = _combined_journal_logs(app, name, log_lines, log_per_node, log_priority, _selected_log_nodes())
+        logs, log_entries, log_node_options = _combined_journal_logs(app, name, log_lines, log_per_node, log_priority, _selected_log_nodes(), str(log_settings["since_arg"]), str(log_settings["until_arg"]))
         return render_template("_service_logs.html", logs=logs, log_entries=log_entries, log_node_options=log_node_options, log_wrap=log_wrap)
 
     @app.get("/service/<name>/logs")
     def service_logs_window(name: str):
         if not _valid_or_flash(name):
             return redirect(url_for("index"))
-        log_lines = _log_line_count(request.args.get("lines", "200"))
-        log_per_node = _log_line_count(request.args.get("per_node", str(log_lines)))
-        log_priority = _log_priority(request.args.get("priority", "all"))
+        log_settings = _log_request_settings()
+        log_lines = log_settings["lines"]
+        log_lines_value = str(log_settings["lines_value"])
+        log_per_node = int(log_settings["per_node"])
+        log_priority = str(log_settings["priority"])
         log_wrap = _log_wrap(request.args.get("wrap", "1"))
         log_refresh_interval = _log_refresh_interval(request.args.get("interval", "5"))
         log_refresh = _log_refresh_enabled(request.args.get("refresh"), request.args.get("interval"))
         selected_nodes = _selected_log_nodes()
         info = service_info(name)
-        logs, log_entries, log_node_options = _combined_journal_logs(app, name, log_lines, log_per_node, log_priority, selected_nodes)
+        logs, log_entries, log_node_options = _combined_journal_logs(app, name, log_lines, log_per_node, log_priority, selected_nodes, str(log_settings["since_arg"]), str(log_settings["until_arg"]))
         return render_template(
             "service_logs_window.html",
             info=info,
             log_lines=log_lines,
+            log_lines_value=log_lines_value,
+            log_lines_label=log_settings["lines_label"],
+            log_line_options=LOG_LINE_OPTIONS,
             log_per_node=log_per_node,
             log_priority=log_priority,
             log_priority_options=LOG_PRIORITY_OPTIONS,
+            log_time_options=LOG_TIME_OPTIONS,
+            log_time_filter=log_settings["time_filter"],
+            log_since=log_settings["since_value"],
+            log_until=log_settings["until_value"],
             log_refresh=log_refresh,
             log_refresh_interval=log_refresh_interval,
             log_wrap=log_wrap,
@@ -2134,13 +2184,83 @@ def _log_line_count(value: str) -> int:
         lines = int(value)
     except (TypeError, ValueError):
         return 200
-    return lines if lines in {50, 100, 200, 500, 1000} else 200
+    return lines if lines in set(LOG_LINE_OPTIONS) else 200
+
+
+def _log_display_lines_value(value: str | None) -> str:
+    return "all" if str(value or "").strip().lower() == "all" else str(_log_line_count(value or "200"))
+
+
+def _log_lines_label(value: str) -> str:
+    return "all" if value == "all" else value
 
 
 def _log_priority(value: str) -> str:
     value = (value or "all").strip()
     allowed = {option[0] for option in LOG_PRIORITY_OPTIONS}
     return value if value in allowed else "all"
+
+
+def _log_time_filter(value: str | None) -> str:
+    value = (value or "all").strip()
+    allowed = {option[0] for option in LOG_TIME_OPTIONS}
+    return value if value in allowed else "all"
+
+
+def _datetime_local_value(value: str | None) -> str:
+    value = (value or "").strip()
+    if not value:
+        return ""
+    try:
+        parsed = datetime.strptime(value[:16], "%Y-%m-%dT%H:%M")
+    except ValueError:
+        return ""
+    return parsed.strftime("%Y-%m-%dT%H:%M")
+
+
+def _journalctl_datetime(value: str | None) -> str:
+    clean_value = _datetime_local_value(value)
+    if not clean_value:
+        return ""
+    return datetime.strptime(clean_value, "%Y-%m-%dT%H:%M").strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _log_time_args(time_filter: str, since_value: str = "", until_value: str = "") -> tuple[str, str]:
+    presets = {
+        "1h": "-1 hour",
+        "12h": "-12 hours",
+        "1d": "-1 day",
+        "1w": "-1 week",
+    }
+    if time_filter in presets:
+        return presets[time_filter], ""
+    if time_filter == "since":
+        return _journalctl_datetime(since_value), ""
+    if time_filter == "between":
+        return _journalctl_datetime(since_value), _journalctl_datetime(until_value)
+    return "", ""
+
+
+def _log_request_settings() -> dict[str, object]:
+    lines_value = _log_display_lines_value(request.args.get("lines", "200"))
+    display_lines = None if lines_value == "all" else int(lines_value)
+    per_node_default = "200" if display_lines is None else str(display_lines)
+    time_filter = _log_time_filter(request.args.get("time", "all"))
+    since_value = _datetime_local_value(request.args.get("since", ""))
+    until_value = _datetime_local_value(request.args.get("until", ""))
+    since_arg, until_arg = _log_time_args(time_filter, since_value, until_value)
+    return {
+        "lines": display_lines,
+        "lines_value": lines_value,
+        "lines_label": _log_lines_label(lines_value),
+        "per_node": _log_line_count(request.args.get("per_node", per_node_default)),
+        "priority": _log_priority(request.args.get("priority", "all")),
+        "time_filter": time_filter,
+        "since_value": since_value,
+        "until_value": until_value,
+        "since_arg": since_arg,
+        "until_arg": until_arg,
+    }
 
 
 def _log_wrap(value: str) -> bool:
@@ -2192,10 +2312,12 @@ def _log_node_options(app: Flask, selected: list[str]) -> list[dict[str, object]
 def _combined_journal_logs(
     app: Flask,
     service: str,
-    display_lines: int,
+    display_lines: int | None,
     per_node_lines: int,
     priority: str,
     selected_nodes: list[str],
+    since: str = "",
+    until: str = "",
 ) -> tuple[CommandResult, list[dict[str, object]], list[dict[str, object]]]:
     options = _log_node_options(app, selected_nodes)
     color_by_id = {str(option.get("id") or ""): str(option.get("log_color_class") or "") for option in options}
@@ -2216,7 +2338,7 @@ def _combined_journal_logs(
             "remote": False,
             "log_color_class": color_by_id.get("local", "log-node-local"),
         }
-        local_logs = run_journalctl_entries(service, per_node_lines, priority)
+        local_logs = run_journalctl_entries(service, per_node_lines, priority, since, until)
         ok = ok and local_logs.ok
         loaded_by_id["local"] = len(local_logs.entries)
         if not local_logs.ok:
@@ -2230,7 +2352,7 @@ def _combined_journal_logs(
     for node in data.get("nodes") if isinstance(data.get("nodes"), list) else []:
         if not isinstance(node, dict) or str(node.get("id") or "") not in selected_set:
             continue
-        result = fetch_remote_logs(node, service, per_node_lines, priority)
+        result = fetch_remote_logs(node, service, per_node_lines, priority, since, until)
         ok = ok and result.ok
         option_id = str(node.get("id") or "")
         loaded_by_id[option_id] = len(result.entries)
@@ -2243,7 +2365,8 @@ def _combined_journal_logs(
         if not result.ok:
             entries.append(_log_error_entry(remote_node, result.message))
 
-    newest = sorted(entries, key=lambda entry: int(entry.get("timestamp_sort") or 0), reverse=True)[:display_lines]
+    sorted_newest = sorted(entries, key=lambda entry: int(entry.get("timestamp_sort") or 0), reverse=True)
+    newest = sorted_newest if display_lines is None else sorted_newest[:display_lines]
     visible_entries = sorted(newest, key=lambda entry: int(entry.get("timestamp_sort") or 0))
     output = "\n".join(str(entry.get("text") or entry.get("formatted") or entry.get("message") or "") for entry in visible_entries)
     for option in options:
@@ -2371,12 +2494,16 @@ def _log_level_class(priority: str) -> str:
     return value
 
 
-def _journalctl_label(service: str = "", priority: str = "all") -> str:
+def _journalctl_label(service: str = "", priority: str = "all", since: str = "", until: str = "") -> str:
     parts = ["journalctl"]
     if service:
         parts.extend(["-u", service])
     if priority and priority != "all":
         parts.extend(["-p", priority])
+    if since:
+        parts.extend(["--since", shlex.quote(since)])
+    if until:
+        parts.extend(["--until", shlex.quote(until)])
     return " ".join(parts)
 
 

@@ -49,18 +49,35 @@
           <label>
             Show newest
             <select name="lines" data-log-lines>
-              {% for option in [50, 100, 200, 500, 1000] %}
-                <option value="{{ option }}" {% if log_lines == option %}selected{% endif %}>{{ option }}</option>
+              <option value="all" {% if log_lines_value == "all" %}selected{% endif %}>All loaded</option>
+              {% for option in log_line_options %}
+                <option value="{{ option }}" {% if log_lines_value == option|string %}selected{% endif %}>{{ option }}</option>
               {% endfor %}
             </select>
           </label>
           <label>
             Read from each node
             <select name="per_node" data-log-per-node>
-              {% for option in [50, 100, 200, 500, 1000] %}
+              {% for option in log_line_options %}
                 <option value="{{ option }}" {% if log_per_node == option %}selected{% endif %}>{{ option }}</option>
               {% endfor %}
             </select>
+          </label>
+          <label>
+            Time
+            <select name="time" data-log-time>
+              {% for value, label in log_time_options %}
+                <option value="{{ value }}" {% if log_time_filter == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="log-time-custom" data-log-time-custom="since" hidden>
+            Since
+            <input name="since" type="datetime-local" value="{{ log_since }}" data-log-since>
+          </label>
+          <label class="log-time-custom" data-log-time-custom="until" hidden>
+            Until
+            <input name="until" type="datetime-local" value="{{ log_until }}" data-log-until>
           </label>
           <label>
             Level
