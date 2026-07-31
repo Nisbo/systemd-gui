@@ -2359,7 +2359,13 @@ def _combined_journal_logs(
         if not result.ok:
             status_by_id[option_id] = "error"
             message_by_id[option_id] = result.message
-        remote_node = {**result.node, "id": option_id, "log_color_class": color_by_id.get(option_id, "")}
+        configured_name = str(node.get("name") or "").strip()
+        remote_node = {
+            **result.node,
+            "id": option_id,
+            "name": configured_name or str(result.node.get("name") or "Remote node"),
+            "log_color_class": color_by_id.get(option_id, ""),
+        }
         if result.entries:
             entries.extend(_decorate_log_entry(entry, remote_node) for entry in result.entries)
         if not result.ok:
