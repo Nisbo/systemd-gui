@@ -7,7 +7,7 @@ import shlex
 import shutil
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from flask import Flask, Response, flash, jsonify, redirect, render_template, request, session, url_for
@@ -268,8 +268,12 @@ def create_app() -> Flask:
             return jsonify({"error": "Only .service units are supported."}), 400
         lines = _log_line_count(request.args.get("lines", "200"))
         priority = _log_priority(request.args.get("priority", "all"))
+        raw_since = request.args.get("since", "")
+        raw_until = request.args.get("until", "")
         time_filter = _log_time_filter(request.args.get("time", "all"))
-        since_arg, until_arg = _log_time_args(time_filter, request.args.get("since", ""), request.args.get("until", ""))
+        if time_filter == "all" and (raw_since or raw_until):
+            time_filter = "between" if raw_until else "since"
+        since_arg, until_arg = _log_time_args(time_filter, raw_since, raw_until)
         logs = run_journalctl_entries(unit, lines, priority, since_arg, until_arg)
         data = read_nodes(_nodes_path(app))
         settings = data.get("settings") or {}
@@ -2226,14 +2230,15 @@ def _journalctl_datetime(value: str | None) -> str:
 
 
 def _log_time_args(time_filter: str, since_value: str = "", until_value: str = "") -> tuple[str, str]:
+    now = datetime.now()
     presets = {
-        "1h": "-1 hour",
-        "12h": "-12 hours",
-        "1d": "-1 day",
-        "1w": "-1 week",
+        "1h": now - timedelta(hours=1),
+        "12h": now - timedelta(hours=12),
+        "1d": now - timedelta(days=1),
+        "1w": now - timedelta(weeks=1),
     }
     if time_filter in presets:
-        return presets[time_filter], ""
+        return presets[time_filter].strftime("%Y-%m-%d %H:%M:%S"), ""
     if time_filter == "since":
         return _journalctl_datetime(since_value), ""
     if time_filter == "between":

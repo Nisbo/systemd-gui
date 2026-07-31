@@ -296,8 +296,10 @@ def fetch_remote_logs(
         return RemoteLogsResult(False, "No Remote API token is saved for this node.", node_info, [], "missing")
     query_args = {"lines": int(lines), "priority": priority or "all", "unit": service}
     if since:
+        query_args["time"] = "between" if until else "since"
         query_args["since"] = since
     if until:
+        query_args["time"] = "between"
         query_args["until"] = until
     query = urlencode(query_args)
     try:
