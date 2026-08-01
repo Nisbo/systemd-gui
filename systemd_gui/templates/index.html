@@ -14,7 +14,7 @@
       </form>
     </div>
 
-    <form class="search-row" method="get" action="{{ url_for('index') }}" data-live-search data-fragment-url="{{ url_for('services_fragment') }}">
+    <form class="search-row" method="get" action="{{ url_for('services') }}" data-live-search data-fragment-url="{{ url_for('services_fragment') }}">
       <input name="q" value="{{ query }}" placeholder="Search service name or description" autocomplete="off">
       <select name="state" aria-label="Filter by status">
         <option value="">All states</option>
@@ -34,7 +34,7 @@
           <option value="{{ autostart }}" {% if autostart_filter == autostart %}selected{% endif %}>{{ autostart }}</option>
         {% endfor %}
       </select>
-      {% if query or state_filter or sub_filter or autostart_filter %}<a class="ghost-button" href="{{ url_for('index') }}">Clear</a>{% endif %}
+      {% if query or state_filter or sub_filter or autostart_filter %}<a class="ghost-button" href="{{ url_for('services') }}">Clear</a>{% endif %}
     </form>
 
     {% include "_services_table.html" %}

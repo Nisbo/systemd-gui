@@ -375,6 +375,10 @@ def create_app() -> Flask:
 
     @app.get("/")
     def index():
+        return render_template("dashboard.html", dashboard=_dashboard_data(app))
+
+    @app.get("/services")
+    def services():
         query = request.args.get("q", "").strip()
         state_filter = request.args.get("state", "").strip()
         sub_filter = request.args.get("sub", "").strip()
@@ -2003,6 +2007,149 @@ def _service_stats(services: list[dict[str, str | bool]]) -> dict[str, int]:
         "failed_count": sum(1 for item in services if item["active"] == "failed"),
         "protected_count": sum(1 for item in services if item["protected"]),
     }
+
+
+def _dashboard_data(app: Flask) -> dict[str, object]:
+    favorites = read_favorites(_favorites_path(app))
+    services = list_services("", favorites)
+    service_stats = _service_stats(services)
+    failed_services = [service for service in services if service.get("active") == "failed"][:6]
+    override_count = sum(1 for service in services if service.get("override"))
+
+    docker_status, containers = list_containers()
+    docker_counts = {
+        "total": len(containers),
+        "running": sum(1 for item in containers if item.get("state") == "running"),
+        "exited": sum(1 for item in containers if item.get("state") == "exited"),
+    }
+
+    nodes_data = read_nodes(_nodes_path(app))
+    raw_nodes = [node for node in nodes_data.get("nodes") if isinstance(node, dict)] if isinstance(nodes_data.get("nodes"), list) else []
+    saved_nodes = saved_nodes_with_status(raw_nodes, timeout=0.45)
+    online_nodes = sum(1 for node in saved_nodes if (node.get("online_status") or {}).get("ok"))
+
+    quick_shell_data = read_quick_shell(_quick_shell_path(app))
+    quick_shell_counts = _quick_shell_counts(quick_shell_data)
+    helper_status = quick_shell_helper_status(_quick_shell_bin(app), _app_root(app), _data_dir(app))
+
+    release_status = check_for_update(timeout=2)
+    git_state = git_update_state(_app_root(app))
+    action_items = _dashboard_action_items(
+        service_stats,
+        failed_services,
+        docker_status,
+        docker_counts,
+        saved_nodes,
+        release_status,
+        git_state,
+    )
+    return {
+        "services": {
+            **service_stats,
+            "failed": failed_services,
+            "overrides": override_count,
+        },
+        "docker": {
+            "status": docker_status,
+            "counts": docker_counts,
+        },
+        "nodes": {
+            "total": len(saved_nodes),
+            "online": online_nodes,
+            "offline": len(saved_nodes) - online_nodes,
+        },
+        "quick_shell": {
+            **quick_shell_counts,
+            "helper_ready": helper_status.ready,
+            "helper_message": helper_status.message,
+        },
+        "updates": {
+            "release": release_status,
+            "git": git_state,
+            "restart_pending": session.get("app_update_pending_restart", False),
+        },
+        "actions": action_items,
+    }
+
+
+def _dashboard_action_items(
+    service_stats: dict[str, int],
+    failed_services: list[dict[str, str | bool]],
+    docker_status: dict[str, object],
+    docker_counts: dict[str, int],
+    saved_nodes: list[dict[str, object]],
+    release_status,
+    git_state: dict[str, object],
+) -> list[dict[str, str]]:
+    actions = []
+    if service_stats["failed_count"]:
+        names = ", ".join(str(service.get("name")) for service in failed_services[:3])
+        actions.append({
+            "level": "danger",
+            "title": f"{service_stats['failed_count']} failed service{'s' if service_stats['failed_count'] != 1 else ''}",
+            "text": names or "Open Services to inspect failures.",
+            "url": url_for("services", state="failed"),
+        })
+    if docker_status.get("available") and docker_status.get("running") and docker_counts.get("exited", 0):
+        actions.append({
+            "level": "warning",
+            "title": f"{docker_counts['exited']} exited Docker container{'s' if docker_counts['exited'] != 1 else ''}",
+            "text": "Open Docker to inspect stopped containers.",
+            "url": url_for("docker_index"),
+        })
+    offline_nodes = [node for node in saved_nodes if not (node.get("online_status") or {}).get("ok")]
+    if offline_nodes:
+        actions.append({
+            "level": "warning",
+            "title": f"{len(offline_nodes)} saved node{'s are' if len(offline_nodes) != 1 else ' is'} offline",
+            "text": ", ".join(str(node.get("name") or "Remote node") for node in offline_nodes[:3]),
+            "url": url_for("nodes"),
+        })
+    if release_status.update_available:
+        actions.append({
+            "level": "info",
+            "title": f"Release {release_status.latest_version} is available",
+            "text": f"This server is running {release_status.current_version}.",
+            "url": url_for("settings", tab="updates"),
+        })
+    if git_state.get("commit_update_available"):
+        actions.append({
+            "level": "info",
+            "title": "Git commits are available",
+            "text": f"{git_state.get('behind')} newer commit(s) on {git_state.get('remote_ref')}.",
+            "url": url_for("settings", tab="updates"),
+        })
+    if session.get("app_update_pending_restart"):
+        actions.append({
+            "level": "warning",
+            "title": "Restart required",
+            "text": "Updated files are on disk, but the running app still uses old code.",
+            "url": url_for("settings", tab="updates"),
+        })
+    return actions
+
+
+def _quick_shell_counts(data: dict[str, object]) -> dict[str, int]:
+    counts = {"categories": 0, "commands": 0, "sequences": 0}
+
+    def walk(items: object) -> None:
+        if not isinstance(items, list):
+            return
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            item_type = str(item.get("type") or "")
+            if item_type == "category":
+                counts["categories"] += 1
+                walk(item.get("children"))
+            elif item_type == "sequence":
+                counts["sequences"] += 1
+            else:
+                counts["commands"] += 1
+
+    walk(data.get("items"))
+    counts["total"] = counts["categories"] + counts["commands"] + counts["sequences"]
+    return counts
 
 
 def _service_filter_options(services: list[dict[str, str | bool]]) -> dict[str, list[str]]:

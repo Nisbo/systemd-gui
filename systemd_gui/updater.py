@@ -88,18 +88,31 @@ def git_update_state(app_root: Path) -> dict[str, object]:
 
     status = _git(app_root, ["status", "--short"])
     branch = _git(app_root, ["branch", "--show-current"])
+    branch_name = branch.output.strip() if branch.ok else ""
     commit = _git(app_root, ["rev-parse", "--short", "HEAD"])
+    remote_ref = f"origin/{branch_name}" if branch_name else ""
+    remote_commit = _git(app_root, ["rev-parse", "--short", remote_ref]) if remote_ref else _CommandResult(False, "")
+    behind = _git(app_root, ["rev-list", "--count", f"HEAD..{remote_ref}"]) if remote_ref and remote_commit.ok else _CommandResult(False, "0")
+    ahead = _git(app_root, ["rev-list", "--count", f"{remote_ref}..HEAD"]) if remote_ref and remote_commit.ok else _CommandResult(False, "0")
     remote = _git(app_root, ["remote", "get-url", "origin"])
     dirty = bool(status.output.strip()) if status.ok else True
     message = "Local changes are present." if dirty else "Working tree is clean."
     if not remote.ok:
         message = "No git remote named origin is configured."
+    elif remote_ref and remote_commit.ok and _int_output(behind) > 0:
+        count = _int_output(behind)
+        message = f"{count} new commit{' is' if count == 1 else 's are'} available from {remote_ref}."
 
     return {
         "available": True,
         "dirty": dirty,
-        "branch": branch.output.strip() if branch.ok else "",
+        "branch": branch_name,
         "commit": commit.output.strip() if commit.ok else "",
+        "remote_ref": remote_ref,
+        "remote_commit": remote_commit.output.strip() if remote_commit.ok else "",
+        "behind": _int_output(behind),
+        "ahead": _int_output(ahead),
+        "commit_update_available": bool(remote_ref and remote_commit.ok and _int_output(behind) > 0),
         "remote": remote.output.strip() if remote.ok else "",
         "message": message,
         "supported_branches": list(SUPPORTED_GIT_BRANCHES),
@@ -149,6 +162,13 @@ def _normalize_git_branch(branch: object) -> str:
     if value == "HEAD":
         value = "main"
     return value if value in SUPPORTED_GIT_BRANCHES else ""
+
+
+def _int_output(result: _CommandResult) -> int:
+    try:
+        return int(result.output.strip().splitlines()[0])
+    except (IndexError, ValueError):
+        return 0
 
 
 def check_for_update(timeout: int = 5) -> UpdateStatus:

@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block content %}
+  <section class="panel dashboard-hero">
+    <div class="panel-head">
+      <div>
+        <h2>Dashboard</h2>
+        <p>Quick status for this Systemd Gui node.</p>
+      </div>
+      <span class="tag neutral">Version {{ app_version }}</span>
+    </div>
+
+    {% if dashboard.actions %}
+      <div class="dashboard-actions">
+        {% for item in dashboard.actions %}
+          <a class="dashboard-action {{ item.level }}" href="{{ item.url }}">
+            <strong>{{ item.title }}</strong>
+            <span>{{ item.text }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="dashboard-ok">
+        <strong>No immediate action</strong>
+        <span>Services, nodes, Docker and update checks do not report urgent issues.</span>
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="dashboard-grid" aria-label="Dashboard overview">
+    <article class="panel dashboard-card">
+      <div class="dashboard-card-head">
+        <div>
+          <h2>Services</h2>
+          <p>{{ dashboard.services.total }} units loaded from systemctl.</p>
+        </div>
+        <a class="ghost-button compact-button" href="{{ url_for('services') }}">Open</a>
+      </div>
+      <div class="dashboard-metrics">
+        <span><strong>{{ dashboard.services.active_count }}</strong> active</span>
+        <span><strong>{{ dashboard.services.failed_count }}</strong> failed</span>
+        <span><strong>{{ dashboard.services.overrides }}</strong> overrides</span>
+        <span><strong>{{ dashboard.services.protected_count }}</strong> protected</span>
+      </div>
+      {% if dashboard.services.failed %}
+        <div class="dashboard-list">
+          {% for service in dashboard.services.failed %}
+            <a href="{{ url_for('service_detail', name=service.name) }}">{{ service.name }}</a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">No failed service units detected.</p>
+      {% endif %}
+    </article>
+
+    <article class="panel dashboard-card">
+      <div class="dashboard-card-head">
+        <div>
+          <h2>Logs</h2>
+          <p>Open journal logs across this node and connected nodes.</p>
+        </div>
+        <a class="ghost-button compact-button" href="{{ url_for('logs') }}">Open</a>
+      </div>
+      <div class="dashboard-metrics">
+        <span><strong>All</strong> journal</span>
+        <span><strong>Remote</strong> nodes</span>
+        <span><strong>Filters</strong> levels</span>
+      </div>
+      <p class="muted">Use saved log filters, time ranges and node selection from the Logs page.</p>
+    </article>
+
+    <article class="panel dashboard-card">
+      <div class="dashboard-card-head">
+        <div>
+          <h2>Docker</h2>
+          <p>{{ dashboard.docker.status.message }}</p>
+        </div>
+        <a class="ghost-button compact-button" href="{{ url_for('docker_index') }}">Open</a>
+      </div>
+      <div class="dashboard-metrics">
+        <span><strong>{{ dashboard.docker.counts.total }}</strong> containers</span>
+        <span><strong>{{ dashboard.docker.counts.running }}</strong> running</span>
+        <span><strong>{{ dashboard.docker.counts.exited }}</strong> exited</span>
+      </div>
+      <span class="tag {% if dashboard.docker.status.running %}{% elif dashboard.docker.status.available %}neutral{% else %}danger{% endif %}">
+        {% if dashboard.docker.status.running %}Docker reachable{% elif dashboard.docker.status.available %}Daemon unavailable{% else %}Docker missing{% endif %}
+      </span>
+    </article>
+
+    <article class="panel dashboard-card">
+      <div class="dashboard-card-head">
+        <div>
+          <h2>Nodes</h2>
+          <p>Saved Systemd Gui nodes and current reachability.</p>
+        </div>
+        <a class="ghost-button compact-button" href="{{ url_for('nodes') }}">Open</a>
+      </div>
+      <div class="dashboard-metrics">
+        <span><strong>{{ dashboard.nodes.total }}</strong> saved</span>
+        <span><strong>{{ dashboard.nodes.online }}</strong> online</span>
+        <span><strong>{{ dashboard.nodes.offline }}</strong> offline</span>
+      </div>
+      <p class="muted">Remote API tokens control logs, Docker overview, Quick Shell exports and remote updates.</p>
+    </article>
+
+    <article class="panel dashboard-card">
+      <div class="dashboard-card-head">
+        <div>
+          <h2>Quick Shell</h2>
+          <p>{{ dashboard.quick_shell.helper_message }}</p>
+        </div>
+        <a class="ghost-button compact-button" href="{{ url_for('quick_shell') }}">Open</a>
+      </div>
+      <div class="dashboard-metrics">
+        <span><strong>{{ dashboard.quick_shell.commands }}</strong> commands</span>
+        <span><strong>{{ dashboard.quick_shell.sequences }}</strong> sequences</span>
+        <span><strong>{{ dashboard.quick_shell.categories }}</strong> categories</span>
+      </div>
+      <span class="tag {% if dashboard.quick_shell.helper_ready %}{% else %}neutral{% endif %}">
+        {{ 'Helper ready' if dashboard.quick_shell.helper_ready else 'Helper needs setup' }}
+      </span>
+    </article>
+
+    <article class="panel dashboard-card">
+      <div class="dashboard-card-head">
+        <div>
+          <h2>Updates</h2>
+          <p>Release and Git checkout status.</p>
+        </div>
+        <a class="ghost-button compact-button" href="{{ url_for('settings', tab='updates') }}">Open</a>
+      </div>
+      <div class="dashboard-update-status">
+        <div>
+          <span>Release</span>
+          {% if dashboard.updates.release.error %}
+            <strong>Check failed</strong>
+            <small>{{ dashboard.updates.release.error }}</small>
+          {% elif dashboard.updates.release.update_available %}
+            <strong>{{ dashboard.updates.release.latest_version }} available</strong>
+            <small>Current version {{ dashboard.updates.release.current_version }}</small>
+          {% elif dashboard.updates.release.latest_version %}
+            <strong>Up to date</strong>
+            <small>Latest release {{ dashboard.updates.release.latest_version }}</small>
+          {% else %}
+            <strong>No release data</strong>
+            <small>No official release was found.</small>
+          {% endif %}
+        </div>
+        <div>
+          <span>Git</span>
+          {% if dashboard.updates.git.available %}
+            {% if dashboard.updates.git.commit_update_available %}
+              <strong>{{ dashboard.updates.git.behind }} new commit(s)</strong>
+              <small>{{ dashboard.updates.git.branch }} · {{ dashboard.updates.git.commit }} → {{ dashboard.updates.git.remote_commit }}</small>
+            {% else %}
+              <strong>{{ dashboard.updates.git.branch or 'Git checkout' }}</strong>
+              <small>{{ dashboard.updates.git.message }}</small>
+            {% endif %}
+          {% else %}
+            <strong>Not a git checkout</strong>
+            <small>{{ dashboard.updates.git.message }}</small>
+          {% endif %}
+        </div>
+      </div>
+      {% if dashboard.updates.restart_pending %}
+        <div class="dashboard-ok warning">
+          <strong>Restart required</strong>
+          <span>The running Python process still uses old code.</span>
+        </div>
+      {% endif %}
+    </article>
+  </section>
+{% endblock %}

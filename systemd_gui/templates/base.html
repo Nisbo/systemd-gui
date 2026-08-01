@@ -1,6 +1,8 @@
 {% macro icon(name) -%}
   {% if name == "home" %}
     <svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 10v10h14V10"/><path d="M9.5 20v-6h5v6"/></svg>
+  {% elif name == "services" %}
+    <svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M5 4h14"/><path d="M5 12h14"/><path d="M5 20h14"/><circle cx="8" cy="4" r="1"/><circle cx="8" cy="12" r="1"/><circle cx="8" cy="20" r="1"/></svg>
   {% elif name == "logs" %}
     <svg class="button-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M6 3h9l3 3v15H6z"/><path d="M14 3v4h4"/><path d="M9 11h6"/><path d="M9 15h6"/><path d="M9 19h4"/></svg>
   {% elif name == "shell" %}
@@ -83,14 +85,16 @@
         </div>
         <div class="top-actions">
           {% set endpoint = request.endpoint or '' %}
-          {% set home_active = endpoint in ['index', 'service_detail', 'edit_service', 'view_service_backup'] %}
+          {% set home_active = endpoint == 'index' %}
+          {% set services_active = endpoint in ['services', 'service_detail', 'edit_service', 'view_service_backup'] %}
           {% set logs_active = endpoint in ['logs', 'logs_window'] %}
           {% set docker_active = endpoint in ['docker_index', 'docker_detail'] %}
           {% set quick_shell_active = 'quick_shell' in endpoint %}
           {% set nodes_active = endpoint == 'nodes' %}
           {% set settings_active = endpoint == 'settings' %}
           <nav class="top-nav" aria-label="Main navigation">
-            <a class="ghost-button nav-button {% if home_active %}active{% endif %}" href="{{ url_for('index') }}" {% if home_active %}aria-current="page"{% endif %}>{{ icon("home") }}<span>Home</span></a>
+            <a class="ghost-button nav-button {% if home_active %}active{% endif %}" href="{{ url_for('index') }}" {% if home_active %}aria-current="page"{% endif %}>{{ icon("home") }}<span>Dashboard</span></a>
+            <a class="ghost-button nav-button {% if services_active %}active{% endif %}" href="{{ url_for('services') }}" {% if services_active %}aria-current="page"{% endif %}>{{ icon("services") }}<span>Services</span></a>
             <a class="ghost-button nav-button {% if logs_active %}active{% endif %}" href="{{ url_for('logs') }}" {% if logs_active %}aria-current="page"{% endif %}>{{ icon("logs") }}<span>Logs</span></a>
             <a class="ghost-button nav-button {% if docker_active %}active{% endif %}" href="{{ url_for('docker_index') }}" {% if docker_active %}aria-current="page"{% endif %}>{{ icon("docker") }}<span>Docker</span></a>
             <a class="ghost-button nav-button {% if quick_shell_active %}active{% endif %}" href="{{ url_for('quick_shell') }}" {% if quick_shell_active %}aria-current="page"{% endif %}>{{ icon("shell") }}<span>Quick Shell</span></a>
