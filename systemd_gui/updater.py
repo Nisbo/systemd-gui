@@ -157,6 +157,19 @@ def update_from_git(app_root: Path, branch: str | None = None) -> UpdateResult:
     return UpdateResult(True, f"Git update completed from {remote_ref}. Restart Systemd Gui to run the new code.", details, backup_path)
 
 
+def refresh_git_update_state(app_root: Path) -> dict[str, object]:
+    state = git_update_state(app_root)
+    if not state.get("available") or not state.get("remote"):
+        return {**state, "fetch_ok": False, "fetch_message": str(state.get("message") or "")}
+    fetch = _git(app_root, ["fetch", "--tags", "--prune", "origin"], timeout=30)
+    refreshed = git_update_state(app_root)
+    return {
+        **refreshed,
+        "fetch_ok": fetch.ok,
+        "fetch_message": fetch.output.strip() if fetch.output.strip() else ("Fetch completed." if fetch.ok else "Git fetch failed."),
+    }
+
+
 def _normalize_git_branch(branch: object) -> str:
     value = str(branch or "").strip()
     if value == "HEAD":

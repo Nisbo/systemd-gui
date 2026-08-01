@@ -376,6 +376,8 @@ th.actions-heading { text-align:right; }
 :root[data-theme="dark"] .quick-shell-direct,:root[data-theme="dark"] .quick-shell-direct code { color:#93c5fd; }
 .quick-shell-command-field[hidden],.quick-shell-confirm-field[hidden] { display:none; }
 .dashboard-hero { display:grid; gap:14px; }
+.dashboard-version-link { text-decoration:none; }
+.dashboard-version-link:hover { border-color:var(--accent); color:var(--accent); }
 .dashboard-actions { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
 .dashboard-action,.dashboard-ok { display:grid; gap:4px; border:1px solid var(--line); border-left:7px solid var(--accent); border-radius:8px; background:color-mix(in srgb, var(--accent) 6%, transparent); color:var(--ink); padding:12px 14px; text-decoration:none; }
 .dashboard-action span,.dashboard-ok span { color:var(--muted); line-height:1.35; }

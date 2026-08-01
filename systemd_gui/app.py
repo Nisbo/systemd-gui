@@ -115,6 +115,7 @@ from .updater import (
     delete_app_backup,
     git_update_state,
     list_app_backups,
+    refresh_git_update_state,
     restore_app_backup,
     update_from_git,
     update_from_release,
@@ -376,6 +377,22 @@ def create_app() -> Flask:
     @app.get("/")
     def index():
         return render_template("dashboard.html", dashboard=_dashboard_data(app))
+
+    @app.get("/dashboard/updates-fragment")
+    def dashboard_updates_fragment():
+        release_status = check_for_update(timeout=5)
+        git_state = refresh_git_update_state(_app_root(app))
+        return render_template(
+            "_dashboard_update_status.html",
+            release=release_status,
+            git=git_state,
+            restart_pending=session.get("app_update_pending_restart", False),
+        )
+
+    @app.get("/dashboard/nodes-fragment")
+    def dashboard_nodes_fragment():
+        nodes = _dashboard_nodes_data(app, include_discovery=True)
+        return render_template("_dashboard_nodes_status.html", nodes=nodes)
 
     @app.get("/services")
     def services():
@@ -2023,24 +2040,20 @@ def _dashboard_data(app: Flask) -> dict[str, object]:
         "exited": sum(1 for item in containers if item.get("state") == "exited"),
     }
 
-    nodes_data = read_nodes(_nodes_path(app))
-    raw_nodes = [node for node in nodes_data.get("nodes") if isinstance(node, dict)] if isinstance(nodes_data.get("nodes"), list) else []
-    saved_nodes = saved_nodes_with_status(raw_nodes, timeout=0.45)
-    online_nodes = sum(1 for node in saved_nodes if _dashboard_node_online(node))
+    nodes = _dashboard_nodes_data(app, include_discovery=False)
 
     quick_shell_data = read_quick_shell(_quick_shell_path(app))
     quick_shell_counts = _quick_shell_counts(quick_shell_data)
     helper_status = quick_shell_helper_status(_quick_shell_bin(app), _app_root(app), _data_dir(app))
 
-    release_status = check_for_update(timeout=2)
     git_state = git_update_state(_app_root(app))
     action_items = _dashboard_action_items(
         service_stats,
         failed_services,
         docker_status,
         docker_counts,
-        saved_nodes,
-        release_status,
+        nodes["saved_nodes"],
+        {"checking": True, "update_available": False},
         git_state,
     )
     return {
@@ -2053,18 +2066,14 @@ def _dashboard_data(app: Flask) -> dict[str, object]:
             "status": docker_status,
             "counts": docker_counts,
         },
-        "nodes": {
-            "total": len(saved_nodes),
-            "online": online_nodes,
-            "offline": len(saved_nodes) - online_nodes,
-        },
+        "nodes": nodes,
         "quick_shell": {
             **quick_shell_counts,
             "helper_ready": helper_status.ready,
             "helper_message": helper_status.message,
         },
         "updates": {
-            "release": release_status,
+            "release": {"checking": True},
             "git": git_state,
             "restart_pending": session.get("app_update_pending_restart", False),
         },
@@ -2109,11 +2118,14 @@ def _dashboard_action_items(
             "text": offline_text,
             "url": url_for("nodes"),
         })
-    if release_status.update_available:
+    release_available = release_status.update_available if hasattr(release_status, "update_available") else bool(release_status.get("update_available")) if isinstance(release_status, dict) else False
+    release_latest = release_status.latest_version if hasattr(release_status, "latest_version") else release_status.get("latest_version") if isinstance(release_status, dict) else ""
+    release_current = release_status.current_version if hasattr(release_status, "current_version") else release_status.get("current_version") if isinstance(release_status, dict) else APP_VERSION
+    if release_available:
         actions.append({
             "level": "info",
-            "title": f"Release {release_status.latest_version} is available",
-            "text": f"This server is running {release_status.current_version}.",
+            "title": f"Release {release_latest} is available",
+            "text": f"This server is running {release_current}.",
             "url": url_for("settings", tab="updates"),
         })
     if git_state.get("commit_update_available"):
@@ -2136,6 +2148,31 @@ def _dashboard_action_items(
 def _dashboard_node_online(node: dict[str, object]) -> bool:
     status = node.get("online_status")
     return isinstance(status, dict) and status.get("state") == "online"
+
+
+def _dashboard_nodes_data(app: Flask, include_discovery: bool = False) -> dict[str, object]:
+    nodes_data = read_nodes(_nodes_path(app))
+    raw_nodes = [node for node in nodes_data.get("nodes") if isinstance(node, dict)] if isinstance(nodes_data.get("nodes"), list) else []
+    saved_nodes = saved_nodes_with_status(raw_nodes, timeout=0.45)
+    online_nodes = sum(1 for node in saved_nodes if _dashboard_node_online(node))
+    discovered_unsaved: list[dict[str, object]] = []
+    discovery = {"available": False, "message": "Discovery not checked yet.", "checking": not include_discovery}
+    if include_discovery:
+        settings = nodes_data.get("settings") if isinstance(nodes_data.get("settings"), dict) else {}
+        result = discover_nodes()
+        discovered_raw = [node for node in result.nodes if node.get("node_id") != settings.get("node_id")]
+        discovered = merge_discovered_with_saved(saved_nodes, discovered_raw)
+        discovered_unsaved = [node for node in discovered if not node.get("saved")]
+        discovery = {"available": result.available, "message": result.message, "checking": False}
+    return {
+        "saved_nodes": saved_nodes,
+        "total": len(saved_nodes),
+        "online": online_nodes,
+        "offline": len(saved_nodes) - online_nodes,
+        "discovered_unsaved": discovered_unsaved,
+        "discovered_count": len(discovered_unsaved),
+        "discovery": discovery,
+    }
 
 
 def _quick_shell_counts(data: dict[str, object]) -> dict[str, int]:

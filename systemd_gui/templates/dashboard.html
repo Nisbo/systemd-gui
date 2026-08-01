@@ -6,7 +6,7 @@
         <h2>Dashboard</h2>
         <p>Quick status for this Systemd Gui node.</p>
       </div>
-      <span class="tag neutral">Version {{ app_version }}</span>
+      <a class="tag neutral dashboard-version-link" href="{{ url_for('settings', tab='updates') }}">Version {{ app_version }}</a>
     </div>
 
     {% if dashboard.actions %}
@@ -94,12 +94,10 @@
         </div>
         <a class="ghost-button compact-button" href="{{ url_for('nodes') }}">Open</a>
       </div>
-      <div class="dashboard-metrics">
-        <span><strong>{{ dashboard.nodes.total }}</strong> saved</span>
-        <span><strong>{{ dashboard.nodes.online }}</strong> online</span>
-        <span><strong>{{ dashboard.nodes.offline }}</strong> offline</span>
+      <div data-dashboard-fragment-url="{{ url_for('dashboard_nodes_fragment') }}">
+        {% set nodes = dashboard.nodes %}
+        {% include "_dashboard_nodes_status.html" %}
       </div>
-      <p class="muted">Remote API tokens control logs, Docker overview, Quick Shell exports and remote updates.</p>
     </article>
 
     <article class="panel dashboard-card">
@@ -128,45 +126,12 @@
         </div>
         <a class="ghost-button compact-button" href="{{ url_for('settings', tab='updates') }}">Open</a>
       </div>
-      <div class="dashboard-update-status">
-        <div>
-          <span>Release</span>
-          {% if dashboard.updates.release.error %}
-            <strong>Check failed</strong>
-            <small>{{ dashboard.updates.release.error }}</small>
-          {% elif dashboard.updates.release.update_available %}
-            <strong>{{ dashboard.updates.release.latest_version }} available</strong>
-            <small>Current version {{ dashboard.updates.release.current_version }}</small>
-          {% elif dashboard.updates.release.latest_version %}
-            <strong>Up to date</strong>
-            <small>Latest release {{ dashboard.updates.release.latest_version }}</small>
-          {% else %}
-            <strong>No release data</strong>
-            <small>No official release was found.</small>
-          {% endif %}
-        </div>
-        <div>
-          <span>Git</span>
-          {% if dashboard.updates.git.available %}
-            {% if dashboard.updates.git.commit_update_available %}
-              <strong>{{ dashboard.updates.git.behind }} new commit(s)</strong>
-              <small>{{ dashboard.updates.git.branch }} · {{ dashboard.updates.git.commit }} → {{ dashboard.updates.git.remote_commit }}</small>
-            {% else %}
-              <strong>{{ dashboard.updates.git.branch or 'Git checkout' }}</strong>
-              <small>{{ dashboard.updates.git.message }}</small>
-            {% endif %}
-          {% else %}
-            <strong>Not a git checkout</strong>
-            <small>{{ dashboard.updates.git.message }}</small>
-          {% endif %}
-        </div>
+      <div data-dashboard-fragment-url="{{ url_for('dashboard_updates_fragment') }}">
+        {% set release = dashboard.updates.release %}
+        {% set git = dashboard.updates.git %}
+        {% set restart_pending = dashboard.updates.restart_pending %}
+        {% include "_dashboard_update_status.html" %}
       </div>
-      {% if dashboard.updates.restart_pending %}
-        <div class="dashboard-ok warning">
-          <strong>Restart required</strong>
-          <span>The running Python process still uses old code.</span>
-        </div>
-      {% endif %}
     </article>
   </section>
 {% endblock %}

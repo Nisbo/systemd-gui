@@ -1,0 +1,26 @@
+<div class="dashboard-metrics">
+  <span><strong>{{ nodes.total }}</strong> saved</span>
+  <span><strong>{{ nodes.online }}</strong> online</span>
+  <span><strong>{{ nodes.offline }}</strong> offline</span>
+  <span>
+    <strong>
+      {% if nodes.discovery.checking %}...{% else %}{{ nodes.discovered_count }}{% endif %}
+    </strong>
+    discovered
+  </span>
+</div>
+{% if nodes.discovery.checking %}
+  <p class="muted">Checking LAN discovery for unsaved nodes...</p>
+{% elif nodes.discovered_unsaved %}
+  <div class="dashboard-list">
+    {% for node in nodes.discovered_unsaved[:5] %}
+      <a href="{{ url_for('nodes') }}" title="{{ node.url or node.host or '' }}">{{ node.name or node.host or 'Discovered node' }}</a>
+    {% endfor %}
+  </div>
+  {% if nodes.discovered_count > 5 %}
+    <p class="muted">{{ nodes.discovered_count - 5 }} more unsaved node{{ '' if nodes.discovered_count - 5 == 1 else 's' }} found.</p>
+  {% endif %}
+{% else %}
+  <p class="muted">No unsaved LAN nodes discovered.</p>
+{% endif %}
+<p class="muted">Remote API tokens control logs, Docker overview, Quick Shell exports and remote updates.</p>

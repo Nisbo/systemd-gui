@@ -52,6 +52,24 @@
       applyDockerDefaults(replacement);
     }
   };
+
+  document.querySelectorAll("[data-dashboard-fragment-url]").forEach((target) => {
+    const url = target.dataset.dashboardFragmentUrl;
+    if (!url) return;
+    fetch(url, { headers: { "X-Requested-With": "fetch" } })
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.text();
+      })
+      .then((html) => { target.innerHTML = html; })
+      .catch((error) => {
+        const message = document.createElement("p");
+        message.className = "muted";
+        message.textContent = `Dashboard check failed: ${String(error.message || error)}`;
+        target.replaceChildren(message);
+      });
+  });
+
   const loadRemoteDockerRows = (rootNode = document) => {
     rootNode.querySelectorAll("[data-remote-docker-node-url]").forEach((row) => {
       const url = row.dataset.remoteDockerNodeUrl;
