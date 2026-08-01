@@ -61,11 +61,10 @@
         <a class="ghost-button compact-button" href="{{ url_for('logs') }}">Open</a>
       </div>
       <div class="dashboard-metrics">
-        <span><strong>All</strong> journal</span>
-        <span><strong>Remote</strong> nodes</span>
-        <span><strong>Filters</strong> levels</span>
+        <span><strong>{{ 'Ready' if dashboard.logs.journal_ready else 'Missing' }}</strong> journalctl</span>
+        <span><strong>{{ dashboard.logs.remote_nodes }}</strong> remote node{{ '' if dashboard.logs.remote_nodes == 1 else 's' }}</span>
+        <span><strong>{{ dashboard.logs.scope }}</strong> view</span>
       </div>
-      <p class="muted">Use saved log filters, time ranges and node selection from the Logs page.</p>
     </article>
 
     <article class="panel dashboard-card">

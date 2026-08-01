@@ -2041,6 +2041,7 @@ def _dashboard_data(app: Flask) -> dict[str, object]:
     }
 
     nodes = _dashboard_nodes_data(app, include_discovery=False)
+    log_summary = _dashboard_log_summary(nodes["saved_nodes"])
 
     quick_shell_data = read_quick_shell(_quick_shell_path(app))
     quick_shell_counts = _quick_shell_counts(quick_shell_data)
@@ -2067,6 +2068,7 @@ def _dashboard_data(app: Flask) -> dict[str, object]:
             "counts": docker_counts,
         },
         "nodes": nodes,
+        "logs": log_summary,
         "quick_shell": {
             **quick_shell_counts,
             "helper_ready": helper_status.ready,
@@ -2148,6 +2150,15 @@ def _dashboard_action_items(
 def _dashboard_node_online(node: dict[str, object]) -> bool:
     status = node.get("online_status")
     return isinstance(status, dict) and status.get("state") == "online"
+
+
+def _dashboard_log_summary(saved_nodes: list[dict[str, object]]) -> dict[str, object]:
+    remote_log_nodes = sum(1 for node in saved_nodes if str(node.get("api_token") or "").strip())
+    return {
+        "journal_ready": journalctl_available(),
+        "remote_nodes": remote_log_nodes,
+        "scope": "All services",
+    }
 
 
 def _dashboard_nodes_data(app: Flask, include_discovery: bool = False) -> dict[str, object]:

@@ -21,6 +21,5 @@
     <p class="muted">{{ nodes.discovered_count - 5 }} more unsaved node{{ '' if nodes.discovered_count - 5 == 1 else 's' }} found.</p>
   {% endif %}
 {% else %}
-  <p class="muted">No unsaved LAN nodes discovered.</p>
+  <p class="dashboard-status-note success">No unsaved LAN nodes discovered.</p>
 {% endif %}
-<p class="muted">Remote API tokens control logs, Docker overview, Quick Shell exports and remote updates.</p>
