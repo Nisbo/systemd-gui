@@ -2026,7 +2026,7 @@ def _dashboard_data(app: Flask) -> dict[str, object]:
     nodes_data = read_nodes(_nodes_path(app))
     raw_nodes = [node for node in nodes_data.get("nodes") if isinstance(node, dict)] if isinstance(nodes_data.get("nodes"), list) else []
     saved_nodes = saved_nodes_with_status(raw_nodes, timeout=0.45)
-    online_nodes = sum(1 for node in saved_nodes if (node.get("online_status") or {}).get("ok"))
+    online_nodes = sum(1 for node in saved_nodes if _dashboard_node_online(node))
 
     quick_shell_data = read_quick_shell(_quick_shell_path(app))
     quick_shell_counts = _quick_shell_counts(quick_shell_data)
@@ -2097,12 +2097,16 @@ def _dashboard_action_items(
             "text": "Open Docker to inspect stopped containers.",
             "url": url_for("docker_index"),
         })
-    offline_nodes = [node for node in saved_nodes if not (node.get("online_status") or {}).get("ok")]
+    offline_nodes = [node for node in saved_nodes if not _dashboard_node_online(node)]
     if offline_nodes:
+        offline_names = [str(node.get("name") or "Remote node") for node in offline_nodes]
+        offline_text = ", ".join(offline_names[:3])
+        if len(offline_names) > 3:
+            offline_text = f"{offline_text}, and {len(offline_names) - 3} more"
         actions.append({
             "level": "warning",
             "title": f"{len(offline_nodes)} saved node{'s are' if len(offline_nodes) != 1 else ' is'} offline",
-            "text": ", ".join(str(node.get("name") or "Remote node") for node in offline_nodes[:3]),
+            "text": offline_text,
             "url": url_for("nodes"),
         })
     if release_status.update_available:
@@ -2127,6 +2131,11 @@ def _dashboard_action_items(
             "url": url_for("settings", tab="updates"),
         })
     return actions
+
+
+def _dashboard_node_online(node: dict[str, object]) -> bool:
+    status = node.get("online_status")
+    return isinstance(status, dict) and status.get("state") == "online"
 
 
 def _quick_shell_counts(data: dict[str, object]) -> dict[str, int]:
