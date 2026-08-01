@@ -60,10 +60,9 @@
         </div>
         <a class="ghost-button compact-button" href="{{ url_for('logs') }}">Open</a>
       </div>
-      <div class="dashboard-metrics">
-        <span><strong>{{ 'Ready' if dashboard.logs.journal_ready else 'Missing' }}</strong> journalctl</span>
-        <span><strong>{{ dashboard.logs.remote_nodes }}</strong> remote node{{ '' if dashboard.logs.remote_nodes == 1 else 's' }}</span>
-        <span><strong>{{ dashboard.logs.scope }}</strong> view</span>
+      <div data-dashboard-fragment-url="{{ url_for('dashboard_logs_fragment') }}">
+        {% set logs = dashboard.logs %}
+        {% include "_dashboard_logs_status.html" %}
       </div>
     </article>
 

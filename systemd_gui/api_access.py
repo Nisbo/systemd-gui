@@ -41,6 +41,15 @@ class RemoteLogsResult:
 
 
 @dataclass(frozen=True)
+class RemoteLogStatsResult:
+    ok: bool
+    message: str
+    node: dict[str, object]
+    stats: dict[str, object]
+    status: str = "unknown"
+
+
+@dataclass(frozen=True)
 class RemoteUpdateResult:
     ok: bool
     message: str
@@ -327,6 +336,51 @@ def fetch_remote_logs(
         {**node_info, **remote_node, "remote": True, "url": url},
         [entry for entry in entries if isinstance(entry, dict)],
         "ok",
+    )
+
+
+def fetch_remote_log_stats(node: dict[str, object], since: str = "24h", timeout: float = 5.0) -> RemoteLogStatsResult:
+    url = str(node.get("url") or "").strip()
+    token = str(node.get("api_token") or "").strip()
+    node_info = {
+        "id": str(node.get("node_id") or node.get("id") or ""),
+        "name": str(node.get("name") or "Remote node"),
+        "url": url,
+        "version": str(node.get("version") or ""),
+        "remote": True,
+    }
+    empty_stats = {"since": since, "critical": 0, "errors": 0, "warnings": 0}
+    if not url:
+        return RemoteLogStatsResult(False, "No GUI URL is configured for this node.", node_info, empty_stats, "missing")
+    if not token:
+        return RemoteLogStatsResult(False, "No Remote API token is saved for this node.", node_info, empty_stats, "missing")
+    try:
+        request = Request(
+            urljoin(f"{url.rstrip('/')}/", f"api/v1/dashboard/log-stats?{urlencode({'since': since})}"),
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        with urlopen(request, timeout=timeout) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        if exc.code == 404:
+            return RemoteLogStatsResult(False, "Remote node does not support dashboard log stats yet. Update that node first.", node_info, empty_stats, "unsupported")
+        if exc.code == 401:
+            return RemoteLogStatsResult(False, "Token was rejected by the remote node.", node_info, empty_stats, "denied")
+        if exc.code == 403:
+            return RemoteLogStatsResult(False, "Remote node denied this IP address or log access.", node_info, empty_stats, "denied")
+        return RemoteLogStatsResult(False, f"Remote node returned HTTP {exc.code}.", node_info, empty_stats, "error")
+    except (OSError, URLError, ValueError, json.JSONDecodeError) as exc:
+        return RemoteLogStatsResult(False, f"Remote log stats failed: {exc}", node_info, empty_stats, "error")
+    if not isinstance(payload, dict) or payload.get("app") != "systemd-gui":
+        return RemoteLogStatsResult(False, "Remote answer was not a Systemd Gui API response.", node_info, empty_stats, "error")
+    remote_node = payload.get("node") if isinstance(payload.get("node"), dict) else {}
+    stats = payload.get("logs") if isinstance(payload.get("logs"), dict) else {}
+    return RemoteLogStatsResult(
+        bool(payload.get("ok", True)),
+        str(payload.get("message") or "Remote log stats loaded."),
+        {**node_info, **remote_node, "remote": True, "url": url},
+        {**empty_stats, **stats},
+        "ok" if payload.get("ok", True) else "error",
     )
 
 

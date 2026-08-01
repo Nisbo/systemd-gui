@@ -95,6 +95,14 @@ class JournalResult:
     entries: list[dict[str, object]]
 
 
+@dataclass
+class JournalStatsResult:
+    ok: bool
+    output: str
+    returncode: int
+    counts: dict[str, int]
+
+
 def systemctl_available() -> bool:
     return bool(shutil.which("systemctl"))
 
@@ -163,6 +171,49 @@ def run_journalctl_entries(service: str = "", lines: int = 200, priority: str = 
     if result.stderr.strip():
         output = (output + "\n" + result.stderr.strip()).strip()
     return JournalResult(result.returncode == 0, output, result.returncode, entries)
+
+
+def run_journalctl_stats(since: str = "24 hours ago", until: str = "", service: str = "") -> JournalStatsResult:
+    journalctl = shutil.which("journalctl")
+    if not journalctl:
+        return JournalStatsResult(False, "journalctl is not available in this environment.", 127, {"critical": 0, "errors": 0, "warnings": 0})
+    command = [journalctl]
+    if service:
+        command.extend(["-u", service])
+    command.extend(["-p", "warning"])
+    if since:
+        command.extend(["--since", since])
+    if until:
+        command.extend(["--until", until])
+    command.extend(["--no-pager", "--output=json"])
+    try:
+        result = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return JournalStatsResult(False, str(exc), 1, {"critical": 0, "errors": 0, "warnings": 0})
+    counts = {"critical": 0, "errors": 0, "warnings": 0}
+    for raw_line in result.stdout.splitlines():
+        raw_line = raw_line.strip()
+        if not raw_line:
+            continue
+        try:
+            entry = json.loads(raw_line)
+        except json.JSONDecodeError:
+            continue
+        priority = str(entry.get("PRIORITY", ""))
+        if priority in {"0", "1", "2"}:
+            counts["critical"] += 1
+        elif priority == "3":
+            counts["errors"] += 1
+        elif priority == "4":
+            counts["warnings"] += 1
+    output = result.stderr.strip() or "Journal stats loaded."
+    return JournalStatsResult(result.returncode == 0, output, result.returncode, counts)
 
 
 def _format_journal_output(raw_output: str) -> str:

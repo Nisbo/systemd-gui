@@ -21,6 +21,7 @@ from .api_access import (
     client_ip_allowed,
     create_api_token,
     delete_token,
+    fetch_remote_log_stats,
     fetch_remote_logs,
     fetch_remote_docker_containers,
     fetch_remote_quick_shell_export,
@@ -99,6 +100,7 @@ from .systemd import (
     read_unit_backup,
     restore_unit_backup,
     run_journalctl_entries,
+    run_journalctl_stats,
     run_systemctl,
     service_info,
     systemctl_available,
@@ -153,6 +155,8 @@ LOG_TIME_OPTIONS = [
     ("since", "Since..."),
     ("between", "Between..."),
 ]
+DASHBOARD_LOG_SINCE_LABEL = "last 24h"
+DASHBOARD_LOG_SINCE_ARG = "24 hours ago"
 NO_AUTOSTART_STATES = {"static", "alias", "unknown", "generated", "transient"}
 BLOCKED_UNIT_FILE_STATES = {"bad", "masked"}
 
@@ -293,6 +297,35 @@ def create_app() -> Flask:
             "output": logs.output,
         })
 
+    @app.get("/api/v1/dashboard/log-stats")
+    def api_dashboard_log_stats():
+        access = _require_remote_api_access(app, "logs:read")
+        if access:
+            return access
+        since_value = request.args.get("since", "24h")
+        since_arg = _dashboard_log_since_arg(since_value)
+        stats = run_journalctl_stats(since_arg)
+        data = read_nodes(_nodes_path(app))
+        settings = data.get("settings") or {}
+        node = {
+            "id": settings.get("node_id", ""),
+            "name": settings.get("node_name", APP_NAME),
+            "version": APP_VERSION,
+            "remote": False,
+        }
+        return jsonify({
+            "app": "systemd-gui",
+            "node": node,
+            "ok": stats.ok,
+            "message": stats.output,
+            "logs": {
+                "since": DASHBOARD_LOG_SINCE_LABEL,
+                "critical": int(stats.counts.get("critical", 0)),
+                "errors": int(stats.counts.get("errors", 0)),
+                "warnings": int(stats.counts.get("warnings", 0)),
+            },
+        })
+
     @app.get("/api/v1/docker/containers")
     def api_docker_containers():
         access = _require_remote_api_access(app, "docker:read")
@@ -393,6 +426,11 @@ def create_app() -> Flask:
     def dashboard_nodes_fragment():
         nodes = _dashboard_nodes_data(app, include_discovery=True)
         return render_template("_dashboard_nodes_status.html", nodes=nodes)
+
+    @app.get("/dashboard/logs-fragment")
+    def dashboard_logs_fragment():
+        logs = _dashboard_log_stats_data(app)
+        return render_template("_dashboard_logs_status.html", logs=logs)
 
     @app.get("/services")
     def services():
@@ -2041,7 +2079,7 @@ def _dashboard_data(app: Flask) -> dict[str, object]:
     }
 
     nodes = _dashboard_nodes_data(app, include_discovery=False)
-    log_summary = _dashboard_log_summary(nodes["saved_nodes"])
+    log_summary = _dashboard_log_summary(nodes["saved_nodes"], checking=True)
 
     quick_shell_data = read_quick_shell(_quick_shell_path(app))
     quick_shell_counts = _quick_shell_counts(quick_shell_data)
@@ -2152,12 +2190,86 @@ def _dashboard_node_online(node: dict[str, object]) -> bool:
     return isinstance(status, dict) and status.get("state") == "online"
 
 
-def _dashboard_log_summary(saved_nodes: list[dict[str, object]]) -> dict[str, object]:
+def _dashboard_log_summary(saved_nodes: list[dict[str, object]], checking: bool = False) -> dict[str, object]:
     remote_log_nodes = sum(1 for node in saved_nodes if str(node.get("api_token") or "").strip())
     return {
-        "journal_ready": journalctl_available(),
+        "checking": checking,
         "remote_nodes": remote_log_nodes,
-        "scope": "All services",
+        "monitored_nodes": 1 + remote_log_nodes,
+        "since": DASHBOARD_LOG_SINCE_LABEL,
+        "critical": 0,
+        "errors": 0,
+        "warnings": 0,
+        "failed_nodes": [],
+        "unsupported_nodes": [],
+    }
+
+
+def _dashboard_log_since_arg(value: str | None = None) -> str:
+    value = str(value or "").strip().lower()
+    if value in {"24h", "1d", "last-day", "last_24h"}:
+        return DASHBOARD_LOG_SINCE_ARG
+    return DASHBOARD_LOG_SINCE_ARG
+
+
+def _dashboard_log_stats_data(app: Flask) -> dict[str, object]:
+    data = read_nodes(_nodes_path(app))
+    raw_nodes = data.get("nodes") if isinstance(data.get("nodes"), list) else []
+    remote_nodes = [node for node in raw_nodes if isinstance(node, dict) and str(node.get("api_token") or "").strip()]
+    local = _local_dashboard_log_stats(app)
+    remote_results = []
+    if remote_nodes:
+        with ThreadPoolExecutor(max_workers=min(6, len(remote_nodes))) as executor:
+            remote_results = list(executor.map(lambda node: fetch_remote_log_stats(node, "24h"), remote_nodes))
+
+    totals = {
+        "checking": False,
+        "remote_nodes": len(remote_nodes),
+        "monitored_nodes": 1 + len(remote_nodes),
+        "since": DASHBOARD_LOG_SINCE_LABEL,
+        "critical": int(local.get("critical", 0)),
+        "errors": int(local.get("errors", 0)),
+        "warnings": int(local.get("warnings", 0)),
+        "failed_nodes": [],
+        "unsupported_nodes": [],
+        "node_summaries": [local],
+    }
+    for result in remote_results:
+        node_name = str(result.node.get("name") or "Remote node")
+        node_summary = {
+            "name": node_name,
+            "ok": result.ok,
+            "status": result.status,
+            "message": result.message,
+            "critical": int(result.stats.get("critical", 0) or 0),
+            "errors": int(result.stats.get("errors", 0) or 0),
+            "warnings": int(result.stats.get("warnings", 0) or 0),
+        }
+        totals["node_summaries"].append(node_summary)
+        if result.ok:
+            totals["critical"] += node_summary["critical"]
+            totals["errors"] += node_summary["errors"]
+            totals["warnings"] += node_summary["warnings"]
+        elif result.status == "unsupported":
+            totals["unsupported_nodes"].append(node_name)
+        else:
+            totals["failed_nodes"].append(node_name)
+    return totals
+
+
+def _local_dashboard_log_stats(app: Flask) -> dict[str, object]:
+    data = read_nodes(_nodes_path(app))
+    settings = data.get("settings") or {}
+    node_name = str(settings.get("node_name") or APP_NAME)
+    stats = run_journalctl_stats(DASHBOARD_LOG_SINCE_ARG)
+    return {
+        "name": node_name,
+        "ok": stats.ok,
+        "status": "ok" if stats.ok else "error",
+        "message": stats.output,
+        "critical": int(stats.counts.get("critical", 0) or 0),
+        "errors": int(stats.counts.get("errors", 0) or 0),
+        "warnings": int(stats.counts.get("warnings", 0) or 0),
     }
 
 

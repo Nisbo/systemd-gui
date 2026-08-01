@@ -1,0 +1,33 @@
+<div class="dashboard-metrics">
+  <span>
+    <strong>
+      {% if logs.checking %}...{% else %}{{ logs.monitored_nodes }}{% endif %}
+    </strong>
+    monitored node{{ '' if logs.monitored_nodes == 1 else 's' }}
+  </span>
+  <span><strong>{{ logs.errors }}</strong> errors {{ logs.since }}</span>
+  <span><strong>{{ logs.warnings }}</strong> warnings {{ logs.since }}</span>
+  <span><strong>{{ logs.critical }}</strong> critical {{ logs.since }}</span>
+</div>
+{% if logs.checking %}
+  <p class="muted">Checking journal warnings and errors across available nodes...</p>
+{% else %}
+  {% set problem_nodes = logs.failed_nodes + logs.unsupported_nodes %}
+  {% if problem_nodes %}
+    <div class="dashboard-list">
+      {% for node in problem_nodes[:5] %}
+        <a href="{{ url_for('nodes') }}">{{ node }}</a>
+      {% endfor %}
+    </div>
+    {% if logs.failed_nodes %}
+      <p class="muted">{{ logs.failed_nodes|length }} node{{ '' if logs.failed_nodes|length == 1 else 's' }} could not be checked.</p>
+    {% endif %}
+    {% if logs.unsupported_nodes %}
+      <p class="muted">{{ logs.unsupported_nodes|length }} node{{ '' if logs.unsupported_nodes|length == 1 else 's' }} need{{ 's' if logs.unsupported_nodes|length == 1 else '' }} this update for dashboard log stats.</p>
+    {% endif %}
+  {% elif logs.errors or logs.warnings or logs.critical %}
+    <p class="dashboard-status-note warning">Journal warnings or errors found in the last 24 hours.</p>
+  {% else %}
+    <p class="tag">No journal warnings or errors in the last 24 hours.</p>
+  {% endif %}
+{% endif %}

@@ -395,6 +395,7 @@ th.actions-heading { text-align:right; }
 .dashboard-list a { border-radius:999px; background:color-mix(in srgb, var(--danger) 9%, transparent); color:var(--danger); font-weight:900; padding:5px 9px; text-decoration:none; }
 .dashboard-status-note { border:1px solid var(--line); border-radius:8px; color:var(--muted); font-weight:850; margin:0; padding:10px 12px; }
 .dashboard-status-note.success { background:color-mix(in srgb, var(--accent) 7%, transparent); color:var(--accent); }
+.dashboard-status-note.warning { background:color-mix(in srgb, var(--amber) 10%, transparent); border-color:color-mix(in srgb, var(--amber) 60%, var(--line)); color:var(--amber); }
 .dashboard-update-status { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
 .dashboard-update-status > div { display:grid; gap:4px; border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
 .dashboard-update-status span { color:var(--muted); font-size:.78rem; font-weight:900; text-transform:uppercase; }
