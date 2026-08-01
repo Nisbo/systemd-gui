@@ -95,18 +95,20 @@
             <a class="ghost-button nav-button {% if docker_active %}active{% endif %}" href="{{ url_for('docker_index') }}" {% if docker_active %}aria-current="page"{% endif %}>{{ icon("docker") }}<span>Docker</span></a>
             <a class="ghost-button nav-button {% if quick_shell_active %}active{% endif %}" href="{{ url_for('quick_shell') }}" {% if quick_shell_active %}aria-current="page"{% endif %}>{{ icon("shell") }}<span>Quick Shell</span></a>
             <a class="ghost-button nav-button {% if nodes_active %}active{% endif %}" href="{{ url_for('nodes') }}" {% if nodes_active %}aria-current="page"{% endif %}>{{ icon("nodes") }}<span>Nodes</span></a>
-            <button class="ghost-button icon-button theme-toggle" type="button" data-theme-toggle title="Switch to dark theme" aria-label="Switch to dark theme">
-              <span data-theme-icon="dark">{{ icon("moon") }}</span>
-              <span data-theme-icon="light" hidden>{{ icon("sun") }}</span>
-            </button>
-            <a class="ghost-button icon-button nav-button {% if settings_active %}active{% endif %}" href="{{ url_for('settings') }}" title="Settings" aria-label="Settings" {% if settings_active %}aria-current="page"{% endif %}>{{ icon("settings") }}</a>
           </nav>
-          {% if session.get("logged_in") %}
-            <form class="session-action" method="post" action="{{ url_for('logout') }}">
+          <div class="secondary-actions" aria-label="Session and display actions">
+            {% if session.get("logged_in") %}
+            <form class="session-action" method="post" action="{{ url_for('logout') }}" data-confirm="Logout from Systemd Gui?">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
               <button class="ghost-button compact-nav-button" type="submit" title="Logout">{{ icon("logout") }}<span>Logout</span></button>
             </form>
-          {% endif %}
+            {% endif %}
+            <button class="ghost-button icon-button theme-toggle compact-nav-button" type="button" data-theme-toggle title="Switch to dark theme" aria-label="Switch to dark theme">
+              <span data-theme-icon="dark">{{ icon("moon") }}</span>
+              <span data-theme-icon="light" hidden>{{ icon("sun") }}</span>
+            </button>
+            <a class="ghost-button icon-button compact-nav-button {% if settings_active %}active{% endif %}" href="{{ url_for('settings') }}" title="Settings" aria-label="Settings" {% if settings_active %}aria-current="page"{% endif %}>{{ icon("settings") }}</a>
+          </div>
         </div>
       </header>
 

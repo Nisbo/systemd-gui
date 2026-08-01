@@ -44,6 +44,7 @@ h1,h2,h3,p { margin:0; } h1 { font-size:clamp(2rem, 5vw, 3.6rem); line-height:1;
 .top-actions,.panel-head,.form-actions,.action-bar,.search-row,.table-actions,.name-cell,.panel-actions,.inline-form,.value-with-action,.heading-with-action { display:flex; align-items:center; gap:10px; }
 .top-actions { display:grid; justify-items:end; gap:8px; }
 .top-nav { display:flex; align-items:center; justify-content:flex-end; gap:10px; flex-wrap:wrap; }
+.secondary-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
 .session-action { display:flex; justify-content:flex-end; }
 .panel-head { justify-content:space-between; margin-bottom:18px; }
 .panel p,.metric span { color:var(--muted); }
@@ -100,6 +101,10 @@ th.actions-heading { text-align:right; }
 .name-cell,.panel-actions,.inline-form,.value-with-action { flex-wrap:wrap; }
 .table-actions { flex-wrap:nowrap; justify-content:flex-end; min-width:170px; }
 .icon-button { width:40px; padding:0; font-size:1.18rem; line-height:1; transition:background-color .65s ease, border-color .65s ease, color .65s ease; }
+.secondary-actions .icon-button { width:34px; min-width:34px; min-height:32px; padding:0; }
+.secondary-actions .compact-nav-button { min-height:32px; }
+.secondary-actions .compact-nav-button.active { background:var(--accent); border-color:var(--accent); color:#fff; box-shadow:none; }
+:root[data-theme="dark"] .secondary-actions .compact-nav-button.active { color:#101815; }
 .heading-with-action .icon-button { width:34px; min-height:34px; font-size:1rem; }
 .small-icon-button { width:30px; min-height:30px; font-size:.95rem; flex:0 0 30px; }
 .icon-button.copied { background:rgba(23,107,91,.24); border-color:var(--accent); color:var(--accent-strong); transition-duration:.08s; }
