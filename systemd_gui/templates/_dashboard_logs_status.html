@@ -10,7 +10,7 @@
   <span><strong>{{ logs.critical }}</strong> critical {{ logs.since }}</span>
 </div>
 {% if logs.checking %}
-  <p class="muted">Checking journal warnings and errors across available nodes...</p>
+  <span class="tag neutral dashboard-status-tag">Checking journal warnings and errors across available nodes...</span>
 {% else %}
   {% set problem_nodes = logs.failed_nodes + logs.unsupported_nodes %}
   {% if problem_nodes %}
@@ -26,8 +26,8 @@
       <p class="muted">{{ logs.unsupported_nodes|length }} node{{ '' if logs.unsupported_nodes|length == 1 else 's' }} need{{ 's' if logs.unsupported_nodes|length == 1 else '' }} this update for dashboard log stats.</p>
     {% endif %}
   {% elif logs.errors or logs.warnings or logs.critical %}
-    <p class="dashboard-status-note warning">Journal warnings or errors found in the last 24 hours.</p>
+    <span class="tag warning dashboard-status-tag">Journal warnings or errors found in the last 24 hours.</span>
   {% else %}
-    <p class="tag">No journal warnings or errors in the last 24 hours.</p>
+    <span class="tag dashboard-status-tag">No journal warnings or errors in the last 24 hours.</span>
   {% endif %}
 {% endif %}

@@ -21,5 +21,5 @@
     <p class="muted">{{ nodes.discovered_count - 5 }} more unsaved node{{ '' if nodes.discovered_count - 5 == 1 else 's' }} found.</p>
   {% endif %}
 {% else %}
-  <span class="tag">No unsaved LAN nodes discovered.</span>
+  <span class="tag dashboard-status-tag">No unsaved LAN nodes discovered.</span>
 {% endif %}

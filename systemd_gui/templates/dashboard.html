@@ -18,11 +18,6 @@
           </a>
         {% endfor %}
       </div>
-    {% else %}
-      <div class="dashboard-ok">
-        <strong>No immediate action</strong>
-        <span>Services, nodes, Docker and update checks do not report urgent issues.</span>
-      </div>
     {% endif %}
   </section>
 
@@ -60,7 +55,7 @@
         </div>
         <a class="ghost-button compact-button" href="{{ url_for('logs') }}">Open</a>
       </div>
-      <div data-dashboard-fragment-url="{{ url_for('dashboard_logs_fragment') }}">
+      <div class="dashboard-fragment" data-dashboard-fragment-url="{{ url_for('dashboard_logs_fragment') }}">
         {% set logs = dashboard.logs %}
         {% include "_dashboard_logs_status.html" %}
       </div>
@@ -92,7 +87,7 @@
         </div>
         <a class="ghost-button compact-button" href="{{ url_for('nodes') }}">Open</a>
       </div>
-      <div data-dashboard-fragment-url="{{ url_for('dashboard_nodes_fragment') }}">
+      <div class="dashboard-fragment" data-dashboard-fragment-url="{{ url_for('dashboard_nodes_fragment') }}">
         {% set nodes = dashboard.nodes %}
         {% include "_dashboard_nodes_status.html" %}
       </div>
