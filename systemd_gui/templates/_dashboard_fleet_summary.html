@@ -225,10 +225,16 @@
                   <span class="tag neutral">{{ node_summary.status }}</span>
                 {% elif node_summary.updates.commit_update_available %}
                   <span class="tag neutral">{{ node_summary.updates.behind }} commit{{ '' if node_summary.updates.behind == 1 else 's' }} behind</span>
+                {% elif node_summary.updates.dirty %}
+                  <span class="tag warning">local changes</span>
+                {% elif node_summary.updates.ahead %}
+                  <span class="tag neutral">{{ node_summary.updates.ahead }} commit{{ '' if node_summary.updates.ahead == 1 else 's' }} ahead</span>
                 {% elif node_summary.updates.git_available %}
-                  <span class="tag success">clean</span>
+                  <span class="tag success">up to date</span>
+                {% elif 'not a git checkout' in (node_summary.updates.git_message or '') %}
+                  <span class="tag neutral">no git checkout</span>
                 {% else %}
-                  <span class="tag neutral">not available</span>
+                  <span class="tag neutral">git unavailable</span>
                 {% endif %}
               </td>
               <td>

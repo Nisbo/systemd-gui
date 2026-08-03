@@ -2143,10 +2143,13 @@ def _local_dashboard_summary(app: Flask) -> dict[str, object]:
             "version": APP_VERSION,
             "branch": str(git_state.get("branch") or ""),
             "commit": str(git_state.get("commit") or ""),
-            "git_available": bool(git_state.get("git_available")),
+            "git_available": bool(git_state.get("available")),
             "commit_update_available": bool(git_state.get("commit_update_available")),
             "behind": int(git_state.get("behind") or 0),
+            "ahead": int(git_state.get("ahead") or 0),
+            "dirty": bool(git_state.get("dirty")),
             "remote_ref": str(git_state.get("remote_ref") or ""),
+            "git_message": str(git_state.get("message") or ""),
             "restart_pending": bool(session.get("app_update_pending_restart", False)),
         },
     }
@@ -2293,7 +2296,7 @@ def _empty_quick_shell_summary(message: str) -> dict[str, object]:
 
 
 def _empty_update_summary(version: str = "") -> dict[str, object]:
-    return {"version": version, "branch": "", "commit": "", "git_available": False, "commit_update_available": False, "behind": 0, "remote_ref": "", "restart_pending": False}
+    return {"version": version, "branch": "", "commit": "", "git_available": False, "commit_update_available": False, "behind": 0, "ahead": 0, "dirty": False, "remote_ref": "", "git_message": "", "restart_pending": False}
 
 
 def _dashboard_data(app: Flask) -> dict[str, object]:
