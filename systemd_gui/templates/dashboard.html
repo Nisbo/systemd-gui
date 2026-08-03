@@ -4,127 +4,14 @@
     <div class="panel-head">
       <div>
         <h2>Dashboard</h2>
-        <p>Quick status for this Systemd Gui node.</p>
+        <p>Quick status across this Systemd Gui node and saved nodes.</p>
       </div>
       <a class="tag neutral dashboard-version-link" href="{{ url_for('settings', tab='updates') }}">Version {{ app_version }}</a>
     </div>
 
-    {% if dashboard.actions %}
-      <div class="dashboard-actions">
-        {% for item in dashboard.actions %}
-          <a class="dashboard-action {{ item.level }}" href="{{ item.url }}">
-            <strong>{{ item.title }}</strong>
-            <span>{{ item.text }}</span>
-          </a>
-        {% endfor %}
-      </div>
-    {% endif %}
-  </section>
-
-  <section class="dashboard-grid" aria-label="Dashboard overview">
-    <article class="panel dashboard-card">
-      <div class="dashboard-card-head">
-        <div>
-          <h2>Services</h2>
-          <p>{{ dashboard.services.total }} units loaded from systemctl.</p>
-        </div>
-        <a class="ghost-button compact-button" href="{{ url_for('services') }}">Open</a>
-      </div>
-      <div class="dashboard-metrics">
-        <span><strong>{{ dashboard.services.active_count }}</strong> active</span>
-        <span><strong>{{ dashboard.services.failed_count }}</strong> failed</span>
-        <span><strong>{{ dashboard.services.overrides }}</strong> overrides</span>
-        <span><strong>{{ dashboard.services.protected_count }}</strong> protected</span>
-      </div>
-      {% if dashboard.services.failed %}
-        <div class="dashboard-list">
-          {% for service in dashboard.services.failed %}
-            <a href="{{ url_for('service_detail', name=service.name) }}">{{ service.name }}</a>
-          {% endfor %}
-        </div>
-      {% else %}
-        <p class="muted">No failed service units detected.</p>
-      {% endif %}
-    </article>
-
-    <article class="panel dashboard-card">
-      <div class="dashboard-card-head">
-        <div>
-          <h2>Logs</h2>
-          <p>Open journal logs across this node and connected nodes.</p>
-        </div>
-        <a class="ghost-button compact-button" href="{{ url_for('logs') }}">Open</a>
-      </div>
-      <div class="dashboard-fragment" data-dashboard-fragment-url="{{ url_for('dashboard_logs_fragment') }}">
-        {% set logs = dashboard.logs %}
-        {% include "_dashboard_logs_status.html" %}
-      </div>
-    </article>
-
-    <article class="panel dashboard-card">
-      <div class="dashboard-card-head">
-        <div>
-          <h2>Docker</h2>
-          <p>{{ dashboard.docker.status.message }}</p>
-        </div>
-        <a class="ghost-button compact-button" href="{{ url_for('docker_index') }}">Open</a>
-      </div>
-      <div class="dashboard-metrics">
-        <span><strong>{{ dashboard.docker.counts.total }}</strong> containers</span>
-        <span><strong>{{ dashboard.docker.counts.running }}</strong> running</span>
-        <span><strong>{{ dashboard.docker.counts.exited }}</strong> exited</span>
-      </div>
-      <span class="tag {% if dashboard.docker.status.running %}{% elif dashboard.docker.status.available %}neutral{% else %}danger{% endif %}">
-        {% if dashboard.docker.status.running %}Docker reachable{% elif dashboard.docker.status.available %}Daemon unavailable{% else %}Docker missing{% endif %}
-      </span>
-    </article>
-
-    <article class="panel dashboard-card">
-      <div class="dashboard-card-head">
-        <div>
-          <h2>Nodes</h2>
-          <p>Saved Systemd Gui nodes and current reachability.</p>
-        </div>
-        <a class="ghost-button compact-button" href="{{ url_for('nodes') }}">Open</a>
-      </div>
-      <div class="dashboard-fragment" data-dashboard-fragment-url="{{ url_for('dashboard_nodes_fragment') }}">
-        {% set nodes = dashboard.nodes %}
-        {% include "_dashboard_nodes_status.html" %}
-      </div>
-    </article>
-
-    <article class="panel dashboard-card">
-      <div class="dashboard-card-head">
-        <div>
-          <h2>Quick Shell</h2>
-          <p>{{ dashboard.quick_shell.helper_message }}</p>
-        </div>
-        <a class="ghost-button compact-button" href="{{ url_for('quick_shell') }}">Open</a>
-      </div>
-      <div class="dashboard-metrics">
-        <span><strong>{{ dashboard.quick_shell.commands }}</strong> commands</span>
-        <span><strong>{{ dashboard.quick_shell.sequences }}</strong> sequences</span>
-        <span><strong>{{ dashboard.quick_shell.categories }}</strong> categories</span>
-      </div>
-      <span class="tag {% if dashboard.quick_shell.helper_ready %}{% else %}neutral{% endif %}">
-        {{ 'Helper ready' if dashboard.quick_shell.helper_ready else 'Helper needs setup' }}
-      </span>
-    </article>
-
-    <article class="panel dashboard-card">
-      <div class="dashboard-card-head">
-        <div>
-          <h2>Updates</h2>
-          <p>Release and Git checkout status.</p>
-        </div>
-        <a class="ghost-button compact-button" href="{{ url_for('settings', tab='updates') }}">Open</a>
-      </div>
-      <div data-dashboard-fragment-url="{{ url_for('dashboard_updates_fragment') }}">
-        {% set release = dashboard.updates.release %}
-        {% set git = dashboard.updates.git %}
-        {% set restart_pending = dashboard.updates.restart_pending %}
-        {% include "_dashboard_update_status.html" %}
-      </div>
-    </article>
+    <div class="dashboard-fragment" data-dashboard-fragment-url="{{ url_for('dashboard_summary_fragment') }}">
+      {% set summary = dashboard.fleet %}
+      {% include "_dashboard_fleet_summary.html" %}
+    </div>
   </section>
 {% endblock %}

@@ -402,6 +402,22 @@ th.actions-heading { text-align:right; }
 .dashboard-update-status > div { display:grid; gap:4px; border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
 .dashboard-update-status span { color:var(--muted); font-size:.78rem; font-weight:900; text-transform:uppercase; }
 .dashboard-update-status small { color:var(--muted); font-size:.86rem; overflow-wrap:anywhere; }
+.dashboard-status-note { display:grid; gap:4px; }
+.dashboard-fleet-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:16px; }
+.dashboard-fleet-section { display:grid; gap:10px; min-width:0; }
+.dashboard-fleet-wide { grid-column:1 / -1; }
+.dashboard-section-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.dashboard-section-head p { margin-top:3px; }
+.dashboard-table-wrap { border:1px solid var(--line); border-radius:8px; overflow:auto; }
+.dashboard-table { border-collapse:collapse; width:100%; }
+.dashboard-table th,.dashboard-table td { border-bottom:1px solid var(--line); padding:10px 12px; text-align:left; vertical-align:middle; white-space:nowrap; }
+.dashboard-table th { color:var(--muted); font-size:.78rem; font-weight:900; text-transform:uppercase; }
+.dashboard-table tbody tr:nth-child(even) { background:color-mix(in srgb, var(--muted) 3%, transparent); }
+.dashboard-table tbody tr:last-child td { border-bottom:0; }
+.dashboard-node-name { font-weight:900; }
+.dashboard-node-name span { color:var(--muted); font-weight:700; }
+.dashboard-danger-cell { color:var(--danger); font-weight:900; }
+.dashboard-warning-cell { color:var(--amber); font-weight:900; }
 .update-actions { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:14px; margin-top:14px; }
 .update-actions.compact-actions { grid-template-columns:1fr; }
 .update-version-bar { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)) auto; gap:12px; align-items:end; border:1px solid var(--line); border-radius:8px; padding:14px; }
@@ -538,4 +554,4 @@ button[aria-busy="true"] { opacity:.72; }
 .info-links { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
 .app-footer { display:flex; justify-content:center; gap:10px; color:var(--muted); font-size:.88rem; margin-top:28px; }
 @media (max-width: 980px) { .quick-shell-helper,.quick-shell-history-card,.local-node-layout,.node-status-grid { grid-template-columns:1fr; } }
-@media (max-width: 760px) { .topbar,.panel-head,.search-row,.restart-banner,.restart-card,.backup-action-row,.api-token-regenerate-form,.dashboard-card-head { align-items:stretch; flex-direction:column; } .operations-grid,.detail-grid,.detail-grid.two,.detail-grid.three,.form-grid,.node-form-section,.backup-create,.update-version-bar,.update-actions,.log-controls,.info-layout,.info-meta-grid,.quick-shell-settings-form,.quick-shell-history-controls,.local-node-settings-card,.node-feature-grid,.docker-detail-grid,.api-token-edit-grid,.quick-shell-import-form .import-source-control,.dashboard-grid,.dashboard-actions,.dashboard-metrics,.dashboard-update-status { grid-template-columns:1fr; } .quick-shell-import-form .import-source-control .import-explain { grid-column:1; grid-row:auto; } .api-token-enabled-card { justify-self:start; } .top-actions { justify-items:start; } .top-nav,.action-bar,.backup-danger-group { justify-content:flex-start; } .session-action { justify-content:flex-start; } .quick-shell-tree-item { margin-left:0; } .discovery-repair-card { grid-template-columns:1fr; } .discovery-repair-card button { width:100%; } }
+@media (max-width: 760px) { .topbar,.panel-head,.search-row,.restart-banner,.restart-card,.backup-action-row,.api-token-regenerate-form,.dashboard-card-head,.dashboard-section-head { align-items:stretch; flex-direction:column; } .operations-grid,.detail-grid,.detail-grid.two,.detail-grid.three,.form-grid,.node-form-section,.backup-create,.update-version-bar,.update-actions,.log-controls,.info-layout,.info-meta-grid,.quick-shell-settings-form,.quick-shell-history-controls,.local-node-settings-card,.node-feature-grid,.docker-detail-grid,.api-token-edit-grid,.quick-shell-import-form .import-source-control,.dashboard-grid,.dashboard-actions,.dashboard-metrics,.dashboard-update-status,.dashboard-fleet-grid { grid-template-columns:1fr; } .quick-shell-import-form .import-source-control .import-explain { grid-column:1; grid-row:auto; } .api-token-enabled-card { justify-self:start; } .top-actions { justify-items:start; } .top-nav,.action-bar,.backup-danger-group { justify-content:flex-start; } .session-action { justify-content:flex-start; } .quick-shell-tree-item { margin-left:0; } .discovery-repair-card { grid-template-columns:1fr; } .discovery-repair-card button { width:100%; } }

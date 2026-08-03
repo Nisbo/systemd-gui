@@ -1,0 +1,247 @@
+{% if summary.checking %}
+  <div class="dashboard-status-note">
+    <strong>Checking remote nodes...</strong>
+    <span>Local values are shown now; saved nodes load in the background.</span>
+  </div>
+{% endif %}
+
+{% if summary.actions %}
+  <div class="dashboard-actions">
+    {% for item in summary.actions %}
+      <a class="dashboard-action {{ item.level }}" href="{{ item.url }}">
+        <strong>{{ item.title }}</strong>
+        <span>{{ item.text }}</span>
+      </a>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<div class="dashboard-fleet-grid">
+  <section class="dashboard-fleet-section">
+    <div class="dashboard-section-head">
+      <div>
+        <h2>Services</h2>
+        <p>systemctl service state on each node.</p>
+      </div>
+      <a class="ghost-button compact-button" href="{{ url_for('services') }}">Open</a>
+    </div>
+    <div class="dashboard-table-wrap">
+      <table class="dashboard-table">
+        <thead>
+          <tr>
+            <th>Node</th>
+            <th>Status</th>
+            <th>Services</th>
+            <th>Active</th>
+            <th>Failed</th>
+            <th>Overrides</th>
+            <th>Protected</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for node_summary in summary.nodes %}
+            <tr>
+              <td class="dashboard-node-name">{{ node_summary.node.name }}{% if node_summary.node.version %} <span>({{ node_summary.node.version }})</span>{% endif %}</td>
+              <td>
+                {% if node_summary.status == 'ok' %}
+                  <span class="tag success">connected</span>
+                {% elif node_summary.status in ['missing', 'unsupported'] %}
+                  <span class="tag neutral">{{ node_summary.status }}</span>
+                {% elif node_summary.status == 'denied' %}
+                  <span class="tag danger">denied</span>
+                {% else %}
+                  <span class="tag danger">error</span>
+                {% endif %}
+              </td>
+              <td>{{ node_summary.services.total }}</td>
+              <td>{{ node_summary.services.active_count }}</td>
+              <td class="{% if node_summary.services.failed_count %}dashboard-danger-cell{% endif %}">{{ node_summary.services.failed_count }}</td>
+              <td>{{ node_summary.services.overrides }}</td>
+              <td>{{ node_summary.services.protected_count }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="dashboard-fleet-section">
+    <div class="dashboard-section-head">
+      <div>
+        <h2>Logs</h2>
+        <p>Warnings and errors counted from journalctl in the last 24 hours.</p>
+      </div>
+      <a class="ghost-button compact-button" href="{{ url_for('logs') }}">Open</a>
+    </div>
+    <div class="dashboard-table-wrap">
+      <table class="dashboard-table">
+        <thead>
+          <tr>
+            <th>Node</th>
+            <th>Status</th>
+            <th>Critical</th>
+            <th>Errors</th>
+            <th>Warnings</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for node_summary in summary.nodes %}
+            <tr>
+              <td class="dashboard-node-name">{{ node_summary.node.name }}</td>
+              <td>
+                {% if node_summary.status == 'ok' and node_summary.logs.ok %}
+                  <span class="tag success">ready</span>
+                {% elif node_summary.status == 'ok' %}
+                  <span class="tag danger">error</span>
+                {% else %}
+                  <span class="tag neutral">{{ node_summary.status }}</span>
+                {% endif %}
+              </td>
+              <td class="{% if node_summary.logs.critical %}dashboard-danger-cell{% endif %}">{{ node_summary.logs.critical }}</td>
+              <td class="{% if node_summary.logs.errors %}dashboard-danger-cell{% endif %}">{{ node_summary.logs.errors }}</td>
+              <td class="{% if node_summary.logs.warnings %}dashboard-warning-cell{% endif %}">{{ node_summary.logs.warnings }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="dashboard-fleet-section">
+    <div class="dashboard-section-head">
+      <div>
+        <h2>Docker</h2>
+        <p>Container counts from Docker where available.</p>
+      </div>
+      <a class="ghost-button compact-button" href="{{ url_for('docker_index') }}">Open</a>
+    </div>
+    <div class="dashboard-table-wrap">
+      <table class="dashboard-table">
+        <thead>
+          <tr>
+            <th>Node</th>
+            <th>Status</th>
+            <th>Containers</th>
+            <th>Running</th>
+            <th>Exited</th>
+            <th>Compose</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for node_summary in summary.nodes %}
+            <tr>
+              <td class="dashboard-node-name">{{ node_summary.node.name }}</td>
+              <td>
+                {% if node_summary.status == 'ok' and node_summary.docker.daemon_running %}
+                  <span class="tag success">reachable</span>
+                {% elif node_summary.status == 'ok' and node_summary.docker.available %}
+                  <span class="tag neutral">daemon unavailable</span>
+                {% elif node_summary.status == 'ok' %}
+                  <span class="tag neutral">missing</span>
+                {% else %}
+                  <span class="tag neutral">{{ node_summary.status }}</span>
+                {% endif %}
+              </td>
+              <td>{{ node_summary.docker.total }}</td>
+              <td>{{ node_summary.docker.running }}</td>
+              <td class="{% if node_summary.docker.exited %}dashboard-warning-cell{% endif %}">{{ node_summary.docker.exited }}</td>
+              <td>{{ node_summary.docker.compose_projects }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="dashboard-fleet-section">
+    <div class="dashboard-section-head">
+      <div>
+        <h2>Quick Shell</h2>
+        <p>Shortcut menu size and helper state.</p>
+      </div>
+      <a class="ghost-button compact-button" href="{{ url_for('quick_shell') }}">Open</a>
+    </div>
+    <div class="dashboard-table-wrap">
+      <table class="dashboard-table">
+        <thead>
+          <tr>
+            <th>Node</th>
+            <th>Helper</th>
+            <th>Categories</th>
+            <th>Commands</th>
+            <th>Sequences</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for node_summary in summary.nodes %}
+            <tr>
+              <td class="dashboard-node-name">{{ node_summary.node.name }}</td>
+              <td>
+                {% if node_summary.status == 'ok' and node_summary.quick_shell.helper_ready %}
+                  <span class="tag success">ready</span>
+                {% elif node_summary.status == 'ok' %}
+                  <span class="tag neutral">setup needed</span>
+                {% else %}
+                  <span class="tag neutral">{{ node_summary.status }}</span>
+                {% endif %}
+              </td>
+              <td>{{ node_summary.quick_shell.categories }}</td>
+              <td>{{ node_summary.quick_shell.commands }}</td>
+              <td>{{ node_summary.quick_shell.sequences }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="dashboard-fleet-section dashboard-fleet-wide">
+    <div class="dashboard-section-head">
+      <div>
+        <h2>Updates</h2>
+        <p>Current app version, Git branch and restart state.</p>
+      </div>
+      <a class="ghost-button compact-button" href="{{ url_for('settings', tab='updates') }}">Open</a>
+    </div>
+    <div class="dashboard-table-wrap">
+      <table class="dashboard-table">
+        <thead>
+          <tr>
+            <th>Node</th>
+            <th>Version</th>
+            <th>Branch</th>
+            <th>Git</th>
+            <th>Restart</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for node_summary in summary.nodes %}
+            <tr>
+              <td class="dashboard-node-name">{{ node_summary.node.name }}</td>
+              <td>{{ node_summary.updates.version or node_summary.node.version or '-' }}</td>
+              <td>{{ node_summary.updates.branch or '-' }}</td>
+              <td>
+                {% if node_summary.status != 'ok' %}
+                  <span class="tag neutral">{{ node_summary.status }}</span>
+                {% elif node_summary.updates.commit_update_available %}
+                  <span class="tag neutral">{{ node_summary.updates.behind }} commit{{ '' if node_summary.updates.behind == 1 else 's' }} behind</span>
+                {% elif node_summary.updates.git_available %}
+                  <span class="tag success">clean</span>
+                {% else %}
+                  <span class="tag neutral">not available</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if node_summary.updates.restart_pending %}
+                  <span class="tag warning">required</span>
+                {% else %}
+                  <span class="tag success">not needed</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>

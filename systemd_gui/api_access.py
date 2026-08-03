@@ -15,6 +15,7 @@ from urllib.request import Request, urlopen
 
 API_SCOPES = {
     "node:read": "Node info",
+    "dashboard:read": "Dashboard summary",
     "services:read": "Service list and details",
     "logs:read": "Journal logs",
     "docker:read": "Docker overview",
@@ -46,6 +47,15 @@ class RemoteLogStatsResult:
     message: str
     node: dict[str, object]
     stats: dict[str, object]
+    status: str = "unknown"
+
+
+@dataclass(frozen=True)
+class RemoteDashboardSummaryResult:
+    ok: bool
+    message: str
+    node: dict[str, object]
+    summary: dict[str, object]
     status: str = "unknown"
 
 
@@ -381,6 +391,52 @@ def fetch_remote_log_stats(node: dict[str, object], since: str = "24h", timeout:
         {**node_info, **remote_node, "remote": True, "url": url},
         {**empty_stats, **stats},
         "ok" if payload.get("ok", True) else "error",
+    )
+
+
+def fetch_remote_dashboard_summary(node: dict[str, object], timeout: float = 8.0) -> RemoteDashboardSummaryResult:
+    url = str(node.get("url") or "").strip()
+    token = str(node.get("api_token") or "").strip()
+    node_info = {
+        "id": str(node.get("node_id") or node.get("id") or ""),
+        "name": str(node.get("name") or "Remote node"),
+        "url": url,
+        "version": str(node.get("version") or ""),
+        "remote": True,
+    }
+    empty_summary: dict[str, object] = {}
+    if not url:
+        return RemoteDashboardSummaryResult(False, "No GUI URL is configured for this node.", node_info, empty_summary, "missing")
+    if not token:
+        return RemoteDashboardSummaryResult(False, "No Remote API token is saved for this node.", node_info, empty_summary, "missing")
+    try:
+        request = Request(
+            urljoin(f"{url.rstrip('/')}/", "api/v1/dashboard/summary"),
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        with urlopen(request, timeout=timeout) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        if exc.code == 404:
+            return RemoteDashboardSummaryResult(False, "Remote node does not support dashboard summaries yet. Update that node first.", node_info, empty_summary, "unsupported")
+        if exc.code == 401:
+            return RemoteDashboardSummaryResult(False, "Token was rejected by the remote node.", node_info, empty_summary, "denied")
+        if exc.code == 403:
+            return RemoteDashboardSummaryResult(False, "Remote node denied this IP address or dashboard access.", node_info, empty_summary, "denied")
+        return RemoteDashboardSummaryResult(False, f"Remote node returned HTTP {exc.code}.", node_info, empty_summary, "error")
+    except (OSError, URLError, ValueError, json.JSONDecodeError) as exc:
+        return RemoteDashboardSummaryResult(False, f"Remote dashboard summary failed: {exc}", node_info, empty_summary, "error")
+    if not isinstance(payload, dict) or payload.get("app") != "systemd-gui":
+        return RemoteDashboardSummaryResult(False, "Remote answer was not a Systemd Gui API response.", node_info, empty_summary, "error")
+    remote_node = payload.get("node") if isinstance(payload.get("node"), dict) else {}
+    summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
+    ok = bool(payload.get("ok", True))
+    return RemoteDashboardSummaryResult(
+        ok,
+        str(payload.get("message") or ("Remote dashboard summary loaded." if ok else "Remote dashboard summary failed.")),
+        {**node_info, **remote_node, "remote": True, "url": url},
+        summary,
+        "ok" if ok else "error",
     )
 
 

@@ -21,6 +21,7 @@ from .api_access import (
     client_ip_allowed,
     create_api_token,
     delete_token,
+    fetch_remote_dashboard_summary,
     fetch_remote_log_stats,
     fetch_remote_logs,
     fetch_remote_docker_containers,
@@ -326,6 +327,20 @@ def create_app() -> Flask:
             },
         })
 
+    @app.get("/api/v1/dashboard/summary")
+    def api_dashboard_summary():
+        access = _require_remote_api_access(app, "dashboard:read")
+        if access:
+            return access
+        summary = _local_dashboard_summary(app)
+        return jsonify({
+            "app": "systemd-gui",
+            "node": summary["node"],
+            "ok": True,
+            "message": "Dashboard summary loaded.",
+            "summary": summary,
+        })
+
     @app.get("/api/v1/docker/containers")
     def api_docker_containers():
         access = _require_remote_api_access(app, "docker:read")
@@ -431,6 +446,11 @@ def create_app() -> Flask:
     def dashboard_logs_fragment():
         logs = _dashboard_log_stats_data(app)
         return render_template("_dashboard_logs_status.html", logs=logs)
+
+    @app.get("/dashboard/summary-fragment")
+    def dashboard_summary_fragment():
+        summary = _dashboard_fleet_summary(app)
+        return render_template("_dashboard_fleet_summary.html", summary=summary)
 
     @app.get("/services")
     def services():
@@ -2064,61 +2084,220 @@ def _service_stats(services: list[dict[str, str | bool]]) -> dict[str, int]:
     }
 
 
-def _dashboard_data(app: Flask) -> dict[str, object]:
+def _node_identity(app: Flask) -> dict[str, object]:
+    data = read_nodes(_nodes_path(app))
+    settings = data.get("settings") if isinstance(data.get("settings"), dict) else {}
+    return {
+        "id": str(settings.get("node_id") or ""),
+        "name": str(settings.get("node_name") or APP_NAME),
+        "version": APP_VERSION,
+        "remote": False,
+    }
+
+
+def _local_dashboard_summary(app: Flask) -> dict[str, object]:
+    node = _node_identity(app)
     favorites = read_favorites(_favorites_path(app))
     services = list_services("", favorites)
     service_stats = _service_stats(services)
-    failed_services = [service for service in services if service.get("active") == "failed"][:6]
+    failed_services = [str(service.get("name") or "") for service in services if service.get("active") == "failed"]
     override_count = sum(1 for service in services if service.get("override"))
 
+    log_stats = run_journalctl_stats(DASHBOARD_LOG_SINCE_ARG)
     docker_status, containers = list_containers()
-    docker_counts = {
-        "total": len(containers),
-        "running": sum(1 for item in containers if item.get("state") == "running"),
-        "exited": sum(1 for item in containers if item.get("state") == "exited"),
-    }
-
-    nodes = _dashboard_nodes_data(app, include_discovery=False)
-    log_summary = _dashboard_log_summary(nodes["saved_nodes"], checking=True)
-
     quick_shell_data = read_quick_shell(_quick_shell_path(app))
     quick_shell_counts = _quick_shell_counts(quick_shell_data)
     helper_status = quick_shell_helper_status(_quick_shell_bin(app), _app_root(app), _data_dir(app))
-
     git_state = git_update_state(_app_root(app))
-    action_items = _dashboard_action_items(
-        service_stats,
-        failed_services,
-        docker_status,
-        docker_counts,
-        nodes["saved_nodes"],
-        {"checking": True, "update_available": False},
-        git_state,
-    )
+
     return {
+        "node": node,
+        "status": "ok",
+        "message": "This node is available.",
         "services": {
             **service_stats,
-            "failed": failed_services,
             "overrides": override_count,
+            "failed_names": failed_services[:8],
+        },
+        "logs": {
+            "since": DASHBOARD_LOG_SINCE_LABEL,
+            "ok": log_stats.ok,
+            "status": "ok" if log_stats.ok else "error",
+            "message": log_stats.output,
+            "critical": int(log_stats.counts.get("critical", 0) or 0),
+            "errors": int(log_stats.counts.get("errors", 0) or 0),
+            "warnings": int(log_stats.counts.get("warnings", 0) or 0),
         },
         "docker": {
-            "status": docker_status,
-            "counts": docker_counts,
+            "available": bool(docker_status.get("available")),
+            "daemon_running": bool(docker_status.get("running")),
+            "message": str(docker_status.get("message") or ""),
+            **_docker_counts(containers),
         },
-        "nodes": nodes,
-        "logs": log_summary,
         "quick_shell": {
             **quick_shell_counts,
             "helper_ready": helper_status.ready,
             "helper_message": helper_status.message,
         },
         "updates": {
-            "release": {"checking": True},
-            "git": git_state,
-            "restart_pending": session.get("app_update_pending_restart", False),
+            "version": APP_VERSION,
+            "branch": str(git_state.get("branch") or ""),
+            "commit": str(git_state.get("commit") or ""),
+            "git_available": bool(git_state.get("git_available")),
+            "commit_update_available": bool(git_state.get("commit_update_available")),
+            "behind": int(git_state.get("behind") or 0),
+            "remote_ref": str(git_state.get("remote_ref") or ""),
+            "restart_pending": bool(session.get("app_update_pending_restart", False)),
         },
-        "actions": action_items,
     }
+
+
+def _dashboard_fleet_summary_initial(app: Flask) -> dict[str, object]:
+    nodes = read_nodes(_nodes_path(app))
+    saved_nodes = [node for node in nodes.get("nodes") if isinstance(node, dict)] if isinstance(nodes.get("nodes"), list) else []
+    return {
+        "checking": True,
+        "nodes": [_local_dashboard_summary(app)],
+        "remote_count": len(saved_nodes),
+        "actions": [],
+    }
+
+
+def _dashboard_fleet_summary(app: Flask) -> dict[str, object]:
+    local = _local_dashboard_summary(app)
+    nodes_data = read_nodes(_nodes_path(app))
+    raw_nodes = nodes_data.get("nodes") if isinstance(nodes_data.get("nodes"), list) else []
+    saved_nodes = [node for node in raw_nodes if isinstance(node, dict)]
+    saved_nodes.sort(key=lambda item: str(item.get("name") or "Remote node").lower())
+    remote_summaries = []
+    if saved_nodes:
+        with ThreadPoolExecutor(max_workers=min(6, len(saved_nodes))) as executor:
+            results = list(executor.map(fetch_remote_dashboard_summary, saved_nodes))
+        remote_summaries = [_remote_dashboard_summary_payload(node, result) for node, result in zip(saved_nodes, results)]
+    summaries = [local, *remote_summaries]
+    return {
+        "checking": False,
+        "nodes": summaries,
+        "remote_count": len(saved_nodes),
+        "actions": _dashboard_fleet_actions(summaries),
+    }
+
+
+def _remote_dashboard_summary_payload(node: dict[str, object], result) -> dict[str, object]:
+    configured_name = str(node.get("name") or "").strip()
+    node_info = {
+        **result.node,
+        "id": str(node.get("id") or result.node.get("id") or ""),
+        "name": configured_name or str(result.node.get("name") or "Remote node"),
+        "remote": True,
+    }
+    if result.ok and result.summary:
+        summary = dict(result.summary)
+        summary["node"] = {**(summary.get("node") if isinstance(summary.get("node"), dict) else {}), **node_info}
+        summary["status"] = "ok"
+        summary["message"] = result.message
+        return summary
+    return {
+        "node": node_info,
+        "status": result.status,
+        "message": result.message,
+        "services": _empty_service_summary(),
+        "logs": _empty_log_summary(result.message, result.status),
+        "docker": _empty_docker_summary(result.message),
+        "quick_shell": _empty_quick_shell_summary(result.message),
+        "updates": _empty_update_summary(str(node_info.get("version") or "")),
+    }
+
+
+def _dashboard_fleet_actions(summaries: list[dict[str, object]]) -> list[dict[str, str]]:
+    actions: list[dict[str, str]] = []
+    unavailable = [summary for summary in summaries if str(summary.get("status") or "ok") != "ok"]
+    if unavailable:
+        names = ", ".join(str(item.get("node", {}).get("name") if isinstance(item.get("node"), dict) else "Remote node") for item in unavailable[:3])
+        if len(unavailable) > 3:
+            names = f"{names}, and {len(unavailable) - 3} more"
+        actions.append({"level": "warning", "title": f"{len(unavailable)} node{'s' if len(unavailable) != 1 else ''} need attention", "text": names, "url": url_for("nodes")})
+
+    failed_services = sum(_summary_int(summary, "services", "failed_count") for summary in summaries if str(summary.get("status") or "ok") == "ok")
+    if failed_services:
+        actions.append({"level": "danger", "title": f"{failed_services} failed service{'s' if failed_services != 1 else ''}", "text": "Open Services or switch to the affected node.", "url": url_for("services", state="failed")})
+
+    critical = sum(_summary_int(summary, "logs", "critical") for summary in summaries if str(summary.get("status") or "ok") == "ok")
+    errors = sum(_summary_int(summary, "logs", "errors") for summary in summaries if str(summary.get("status") or "ok") == "ok")
+    warnings = sum(_summary_int(summary, "logs", "warnings") for summary in summaries if str(summary.get("status") or "ok") == "ok")
+    if critical:
+        actions.append({"level": "danger", "title": f"{critical} critical journal event{'s' if critical != 1 else ''} in the last 24h", "text": "Open Logs to inspect the affected nodes.", "url": url_for("logs", priority="warning")})
+    elif errors:
+        actions.append({"level": "danger", "title": f"{errors} journal error{'s' if errors != 1 else ''} in the last 24h", "text": "Open Logs to inspect the affected nodes.", "url": url_for("logs", priority="err")})
+    elif warnings:
+        actions.append({"level": "warning", "title": f"{warnings} journal warning{'s' if warnings != 1 else ''} in the last 24h", "text": "Open Logs to inspect the affected nodes.", "url": url_for("logs", priority="warning")})
+
+    exited = sum(_summary_int(summary, "docker", "exited") for summary in summaries if str(summary.get("status") or "ok") == "ok")
+    if exited:
+        actions.append({"level": "warning", "title": f"{exited} exited Docker container{'s' if exited != 1 else ''}", "text": "Open Docker to inspect stopped containers.", "url": url_for("docker_index")})
+
+    update_nodes = [
+        summary for summary in summaries
+        if str(summary.get("status") or "ok") == "ok"
+        and (_summary_bool(summary, "updates", "commit_update_available") or _summary_bool(summary, "updates", "restart_pending"))
+    ]
+    if update_nodes:
+        actions.append({"level": "info", "title": f"{len(update_nodes)} node{'s' if len(update_nodes) != 1 else ''} with update status", "text": "A Git update or app restart is pending.", "url": url_for("settings", tab="updates")})
+    return actions
+
+
+def _docker_counts(containers: list[dict[str, object]]) -> dict[str, int]:
+    compose_projects = {
+        str(container.get("compose", {}).get("group_key") or container.get("compose", {}).get("project") or "")
+        for container in containers
+        if isinstance(container.get("compose"), dict) and (container.get("compose", {}).get("group_key") or container.get("compose", {}).get("project"))
+    }
+    return {
+        "total": len(containers),
+        "running": sum(1 for item in containers if item.get("state") == "running" or item.get("running")),
+        "exited": sum(1 for item in containers if item.get("state") == "exited"),
+        "compose_projects": len(compose_projects),
+    }
+
+
+def _summary_section(summary: dict[str, object], section: str) -> dict[str, object]:
+    value = summary.get(section)
+    return value if isinstance(value, dict) else {}
+
+
+def _summary_int(summary: dict[str, object], section: str, key: str) -> int:
+    try:
+        return int(_summary_section(summary, section).get(key) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _summary_bool(summary: dict[str, object], section: str, key: str) -> bool:
+    return bool(_summary_section(summary, section).get(key))
+
+
+def _empty_service_summary() -> dict[str, object]:
+    return {"total": 0, "active_count": 0, "failed_count": 0, "protected_count": 0, "overrides": 0, "failed_names": []}
+
+
+def _empty_log_summary(message: str, status: str) -> dict[str, object]:
+    return {"since": DASHBOARD_LOG_SINCE_LABEL, "ok": False, "status": status, "message": message, "critical": 0, "errors": 0, "warnings": 0}
+
+
+def _empty_docker_summary(message: str) -> dict[str, object]:
+    return {"available": False, "daemon_running": False, "message": message, "total": 0, "running": 0, "exited": 0, "compose_projects": 0}
+
+
+def _empty_quick_shell_summary(message: str) -> dict[str, object]:
+    return {"categories": 0, "commands": 0, "sequences": 0, "total": 0, "helper_ready": False, "helper_message": message}
+
+
+def _empty_update_summary(version: str = "") -> dict[str, object]:
+    return {"version": version, "branch": "", "commit": "", "git_available": False, "commit_update_available": False, "behind": 0, "remote_ref": "", "restart_pending": False}
+
+
+def _dashboard_data(app: Flask) -> dict[str, object]:
+    return {"fleet": _dashboard_fleet_summary_initial(app)}
 
 
 def _dashboard_action_items(
