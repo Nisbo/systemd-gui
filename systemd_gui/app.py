@@ -333,7 +333,7 @@ def create_app() -> Flask:
         access = _require_remote_api_access(app, "dashboard:read")
         if access:
             return access
-        summary = _local_dashboard_summary(app)
+        summary = _local_dashboard_summary(app, refresh_git=True)
         return jsonify({
             "app": "systemd-gui",
             "node": summary["node"],
@@ -2096,7 +2096,7 @@ def _node_identity(app: Flask) -> dict[str, object]:
     }
 
 
-def _local_dashboard_summary(app: Flask) -> dict[str, object]:
+def _local_dashboard_summary(app: Flask, refresh_git: bool = False) -> dict[str, object]:
     node = _node_identity(app)
     favorites = read_favorites(_favorites_path(app))
     services = list_services("", favorites)
@@ -2109,7 +2109,7 @@ def _local_dashboard_summary(app: Flask) -> dict[str, object]:
     quick_shell_data = read_quick_shell(_quick_shell_path(app))
     quick_shell_counts = _quick_shell_counts(quick_shell_data)
     helper_status = quick_shell_helper_status(_quick_shell_bin(app), _app_root(app), _data_dir(app))
-    git_state = git_update_state(_app_root(app))
+    git_state = refresh_git_update_state(_app_root(app)) if refresh_git else git_update_state(_app_root(app))
 
     return {
         "node": node,
@@ -2170,7 +2170,7 @@ def _dashboard_fleet_summary_initial(app: Flask) -> dict[str, object]:
 
 
 def _dashboard_fleet_summary(app: Flask) -> dict[str, object]:
-    local = _local_dashboard_summary(app)
+    local = _local_dashboard_summary(app, refresh_git=True)
     nodes_data = read_nodes(_nodes_path(app))
     raw_nodes = nodes_data.get("nodes") if isinstance(nodes_data.get("nodes"), list) else []
     saved_nodes = [node for node in raw_nodes if isinstance(node, dict)]
