@@ -815,16 +815,18 @@ def create_app() -> Flask:
     @app.get("/docker")
     def docker_index():
         status, containers = list_containers()
+        docker_state = _docker_state_filter(request.args.get("state"))
+        visible_containers = _filter_docker_containers(containers, docker_state)
         counts = {
             "total": len(containers),
             "running": sum(1 for item in containers if item.get("state") == "running"),
             "exited": sum(1 for item in containers if item.get("state") == "exited"),
         }
-        return render_template("docker.html", status=status, containers=containers, counts=counts)
+        return render_template("docker.html", status=status, containers=visible_containers, counts=counts, docker_state=docker_state)
 
     @app.get("/docker/remote-fragment")
     def docker_remote_fragment():
-        return render_template("_docker_remote.html", remote_nodes=_remote_docker_nodes(app))
+        return render_template("_docker_remote.html", remote_nodes=_remote_docker_nodes(app), docker_state=_docker_state_filter(request.args.get("state")))
 
     @app.get("/docker/remote-fragment/<node_id>")
     def docker_remote_node_fragment(node_id: str):
@@ -840,6 +842,7 @@ def create_app() -> Flask:
             }
         else:
             remote = _remote_docker_result(node)
+        remote = _filter_remote_docker_result(remote, _docker_state_filter(request.args.get("state")))
         return render_template("_docker_remote_row.html", remote=remote)
 
     @app.get("/docker/<container_id>")
@@ -2242,8 +2245,7 @@ def _dashboard_fleet_actions(summaries: list[dict[str, object]]) -> list[dict[st
 
     exited = sum(_summary_int(summary, "docker", "exited") for summary in summaries if str(summary.get("status") or "ok") == "ok")
     if exited:
-        remote_exited = sum(_summary_int(summary, "docker", "exited") for summary in summaries if str(summary.get("status") or "ok") == "ok" and bool((summary.get("node") if isinstance(summary.get("node"), dict) else {}).get("remote")))
-        docker_url = f"{url_for('docker_index')}#remote-containers" if remote_exited else url_for("docker_index")
+        docker_url = url_for("docker_index", state="exited")
         actions.append({"level": "warning", "title": f"{exited} exited Docker container{'s' if exited != 1 else ''}", "text": "Open Docker to inspect stopped containers across nodes.", "url": docker_url})
 
     update_nodes = [
@@ -2257,16 +2259,25 @@ def _dashboard_fleet_actions(summaries: list[dict[str, object]]) -> list[dict[st
 
 
 def _dashboard_logs_url(summaries: list[dict[str, object]], priority: str) -> str:
-    node_ids = ["local"]
+    all_node_ids: list[str] = []
+    affected_node_ids: list[str] = []
     for summary in summaries:
         if str(summary.get("status") or "ok") != "ok":
             continue
         node = summary.get("node") if isinstance(summary.get("node"), dict) else {}
-        if not bool(node.get("remote")):
+        node_id = str(node.get("id") or "").strip() if bool(node.get("remote")) else "local"
+        if not node_id:
             continue
-        node_id = str(node.get("id") or "").strip()
-        if node_id:
-            node_ids.append(node_id)
+        all_node_ids.append(node_id)
+        logs = _summary_section(summary, "logs")
+        has_matching_logs = (
+            int(logs.get("warnings") or 0) > 0
+            if priority == "warning"
+            else int(logs.get("critical") or 0) > 0 or int(logs.get("errors") or 0) > 0
+        )
+        if has_matching_logs:
+            affected_node_ids.append(node_id)
+    node_ids: str | list[str] = "all" if affected_node_ids and set(affected_node_ids) == set(all_node_ids) else (affected_node_ids or ["local"])
     return f"{url_for('logs')}?{urlencode({'priority': priority, 'time': '1d', 'node': node_ids}, doseq=True)}"
 
 
@@ -2858,6 +2869,7 @@ def _selected_log_nodes() -> list[str]:
 
 
 def _log_node_options(app: Flask, selected: list[str]) -> list[dict[str, object]]:
+    all_selected = "all" in selected
     data = read_nodes(_nodes_path(app))
     settings = data.get("settings") or {}
     local_log_label = str(settings.get("node_name") or APP_NAME)
@@ -2866,7 +2878,7 @@ def _log_node_options(app: Flask, selected: list[str]) -> list[dict[str, object]
         "name": "Local",
         "label": "This node",
         "log_label": local_log_label,
-        "selected": "local" in selected,
+        "selected": all_selected or "local" in selected,
         "api_ok": True,
         "local": True,
         "log_color_class": "log-node-local",
@@ -2885,7 +2897,7 @@ def _log_node_options(app: Flask, selected: list[str]) -> list[dict[str, object]
             "log_label": str(node.get("name") or "Remote node"),
             "url": str(node.get("url") or ""),
             "version": str(node.get("version") or ""),
-            "selected": str(node.get("id") or "") in selected,
+            "selected": (all_selected and token_saved) or str(node.get("id") or "") in selected,
             "api_ok": token_saved,
             "disabled": not token_saved,
             "local": False,
@@ -2909,7 +2921,7 @@ def _combined_journal_logs(
     loaded_by_id = {str(option.get("id") or ""): 0 for option in options}
     status_by_id = {str(option.get("id") or ""): "ok" for option in options}
     message_by_id = {str(option.get("id") or ""): "" for option in options}
-    selected_set = set(selected_nodes)
+    selected_set = {str(option.get("id") or "") for option in options if option.get("selected") and not option.get("disabled")}
     entries: list[dict[str, object]] = []
     ok = True
 
@@ -2982,6 +2994,29 @@ def _remote_docker_overview(app: Flask) -> list[dict[str, object]]:
         results = list(executor.map(load, nodes))
 
     return [_remote_docker_payload(node, result) for node, result in zip(nodes, results)]
+
+
+def _docker_state_filter(value: object) -> str:
+    state = str(value or "").strip().lower()
+    return state if state in {"exited"} else ""
+
+
+def _filter_docker_containers(containers: list[dict[str, object]], state: str) -> list[dict[str, object]]:
+    if not state:
+        return containers
+    return [container for container in containers if str(container.get("state") or "").lower() == state]
+
+
+def _filter_remote_docker_result(remote: dict[str, object], state: str) -> dict[str, object]:
+    if not state:
+        return remote
+    containers = remote.get("containers") if isinstance(remote.get("containers"), list) else []
+    return {
+        **remote,
+        "filter_state": state,
+        "filtered_total": len(containers),
+        "containers": _filter_docker_containers(containers, state),
+    }
 
 
 def _remote_docker_nodes(app: Flask) -> list[dict[str, object]]:

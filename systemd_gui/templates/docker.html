@@ -53,11 +53,18 @@
             <button class="ghost-button compact-button" type="button" data-docker-compose-action="expand-all" data-docker-compose-scope="local">Expand</button>
             <button class="ghost-button compact-button" type="button" data-docker-compose-action="collapse-all" data-docker-compose-scope="local">Collapse</button>
             <span class="docker-action-separator" aria-hidden="true">|</span>
-            <a class="ghost-button compact-button" href="{{ url_for('docker_index') }}">Refresh</a>
+            <a class="ghost-button compact-button" href="{{ url_for('docker_index', state=docker_state or None) }}">Refresh</a>
           </span>
         </span>
       </div>
     </div>
+
+    {% if docker_state %}
+      <div class="dashboard-status-note">
+        <strong>Showing {{ docker_state }} containers</strong>
+        <span>Local and remote Docker lists are filtered to containers with this state.</span>
+      </div>
+    {% endif %}
 
     {% if containers %}
       <div class="table-wrap compact-table docker-table">
@@ -151,7 +158,7 @@
         </table>
       </div>
     {% elif status.running %}
-      <p class="empty-note">No Docker containers were found on this server.</p>
+      <p class="empty-note">{% if docker_state %}No local {{ docker_state }} Docker containers were found on this server.{% else %}No Docker containers were found on this server.{% endif %}</p>
     {% endif %}
   </section>
 
@@ -183,7 +190,7 @@
       </div>
     </div>
 
-    <div data-remote-docker-url="{{ url_for('docker_remote_fragment') }}">
+    <div data-remote-docker-url="{{ url_for('docker_remote_fragment', state=docker_state or None) }}">
       <p class="empty-note remote-docker-loading">Loading remote nodes...</p>
     </div>
   </section>

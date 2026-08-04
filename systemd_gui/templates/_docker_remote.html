@@ -3,7 +3,7 @@
     <table>
       <tbody>
         {% for node in remote_nodes %}
-          <tr class="remote-docker-row" id="remote-docker-{{ node.id }}" data-remote-docker-node-url="{{ url_for('docker_remote_node_fragment', node_id=node.id) }}">
+          <tr class="remote-docker-row" id="remote-docker-{{ node.id }}" data-remote-docker-node-url="{{ url_for('docker_remote_node_fragment', node_id=node.id, state=docker_state or None) }}">
             <td>
               <div class="remote-docker-summary">
                 <span class="remote-docker-title">

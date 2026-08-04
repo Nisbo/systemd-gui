@@ -9,6 +9,7 @@
             <span class="muted">
               {{ remote.counts.total }} container{% if remote.counts.total != 1 %}s{% endif %},
               {{ remote.counts.running }} running
+              {% if remote.filter_state %}, showing {{ remote.containers|length }} {{ remote.filter_state }}{% endif %}
             </span>
           </span>
           <span class="remote-docker-summary-actions">
@@ -118,7 +119,7 @@
             </table>
           </div>
         {% else %}
-          <p class="empty-note remote-docker-message">No containers reported by this node.</p>
+          <p class="empty-note remote-docker-message">{% if remote.filter_state %}No {{ remote.filter_state }} containers reported by this node.{% else %}No containers reported by this node.{% endif %}</p>
         {% endif %}
       </details>
     {% else %}
