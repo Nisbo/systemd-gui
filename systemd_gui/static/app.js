@@ -50,6 +50,7 @@
       row.replaceWith(replacement);
       initDockerView(replacement);
       applyDockerDefaults(replacement);
+      updateDockerStateSummary();
     }
   };
 
@@ -118,6 +119,19 @@
 
   const dockerSettingsKey = "systemd-gui-docker-view";
   const dockerDefaults = { collapseRemoteNodes: false, collapseLocalCompose: false, collapseRemoteCompose: false };
+  const updateDockerStateSummary = () => {
+    const panel = document.querySelector("[data-docker-state-summary]");
+    if (!panel) return;
+    const remoteBody = panel.querySelector("[data-docker-state-summary-remote]");
+    const empty = panel.querySelector("[data-docker-state-summary-empty]");
+    if (!remoteBody) return;
+    remoteBody.replaceChildren();
+    document.querySelectorAll("template[data-docker-state-summary-source]").forEach((source) => {
+      remoteBody.append(source.content.cloneNode(true));
+    });
+    const rows = panel.querySelectorAll("[data-docker-state-summary-row]");
+    if (empty) empty.hidden = rows.length > 0;
+  };
   const readDockerSettings = () => {
     try {
       const stored = JSON.parse(window.localStorage.getItem(dockerSettingsKey) || "{}");
@@ -221,6 +235,7 @@
   };
   initDockerView(document);
   applyDockerDefaults(document);
+  updateDockerStateSummary();
 
   const modal = document.querySelector("[data-confirm-modal]");
   const message = document.querySelector("[data-confirm-message]");

@@ -816,13 +816,19 @@ def create_app() -> Flask:
     def docker_index():
         status, containers = list_containers()
         docker_state = _docker_state_filter(request.args.get("state"))
-        visible_containers = _filter_docker_containers(containers, docker_state)
         counts = {
             "total": len(containers),
             "running": sum(1 for item in containers if item.get("state") == "running"),
             "exited": sum(1 for item in containers if item.get("state") == "exited"),
         }
-        return render_template("docker.html", status=status, containers=visible_containers, counts=counts, docker_state=docker_state)
+        return render_template(
+            "docker.html",
+            status=status,
+            containers=containers,
+            counts=counts,
+            docker_state=docker_state,
+            docker_state_containers=_filter_docker_containers(containers, docker_state),
+        )
 
     @app.get("/docker/remote-fragment")
     def docker_remote_fragment():
@@ -842,7 +848,7 @@ def create_app() -> Flask:
             }
         else:
             remote = _remote_docker_result(node)
-        remote = _filter_remote_docker_result(remote, _docker_state_filter(request.args.get("state")))
+        remote = _add_remote_docker_summary(remote, _docker_state_filter(request.args.get("state")))
         return render_template("_docker_remote_row.html", remote=remote)
 
     @app.get("/docker/<container_id>")
@@ -3007,15 +3013,14 @@ def _filter_docker_containers(containers: list[dict[str, object]], state: str) -
     return [container for container in containers if str(container.get("state") or "").lower() == state]
 
 
-def _filter_remote_docker_result(remote: dict[str, object], state: str) -> dict[str, object]:
+def _add_remote_docker_summary(remote: dict[str, object], state: str) -> dict[str, object]:
     if not state:
         return remote
     containers = remote.get("containers") if isinstance(remote.get("containers"), list) else []
     return {
         **remote,
-        "filter_state": state,
-        "filtered_total": len(containers),
-        "containers": _filter_docker_containers(containers, state),
+        "summary_state": state,
+        "summary_containers": _filter_docker_containers(containers, state),
     }
 
 

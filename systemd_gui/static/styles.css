@@ -198,6 +198,11 @@ th.actions-heading { text-align:right; }
 .docker-table table,.docker-remote-inner table { border-collapse:separate; border-spacing:0; --compose-line:color-mix(in srgb, #2563eb 42%, var(--line)); --compose-bg:color-mix(in srgb, #2563eb 5%, var(--panel)); --compose-head:color-mix(in srgb, #2563eb 8%, var(--panel)); }
 .docker-table,.remote-docker-table { border-left:0; border-right:0; }
 .docker-table table { min-width:940px; }
+.docker-state-summary { border-color:color-mix(in srgb, var(--amber) 55%, var(--line)); }
+.docker-state-summary-note { margin-bottom:12px; }
+.docker-state-summary-table table { min-width:1120px; }
+.docker-state-summary-table tbody tr:nth-child(even) { background:color-mix(in srgb, var(--amber) 5%, transparent); }
+.docker-state-summary-table td { vertical-align:top; }
 .docker-panel-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
 .docker-view-actions { max-width:780px; }
 .docker-view-actions .toggle-label { min-height:34px; }

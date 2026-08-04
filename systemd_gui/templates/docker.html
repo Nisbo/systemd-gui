@@ -36,6 +36,91 @@
     {% endif %}
   </section>
 
+  {% if docker_state %}
+    <section class="panel docker-state-summary" data-docker-state-summary="{{ docker_state }}">
+      <div class="panel-head">
+        <div>
+          <h2>{{ docker_state|capitalize }} containers</h2>
+          <p>Containers with state <code>{{ docker_state }}</code> across this node and saved remote nodes.</p>
+        </div>
+        <span class="tag warning">Action view</span>
+      </div>
+
+      <div class="dashboard-status-note warning docker-state-summary-note">
+        <strong>Showing {{ docker_state }} containers first</strong>
+        <span>The full local and remote Docker overview stays below, unchanged. Remote results appear here as nodes finish loading.</span>
+      </div>
+
+      <div class="table-wrap compact-table docker-state-summary-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Node</th>
+              <th>Container</th>
+              <th>Status</th>
+              <th>Image</th>
+              <th>Service</th>
+              <th>Compose</th>
+              <th>Stopped</th>
+            </tr>
+          </thead>
+          <tbody data-docker-state-summary-local>
+            {% for container in docker_state_containers %}
+              <tr data-docker-state-summary-row>
+                <td><strong>This node</strong></td>
+                <td>
+                  <a class="table-link" href="{{ url_for('docker_detail', container_id=container.id) }}">{{ container.name or container.short_id }}</a>
+                  <div class="muted"><code>{{ container.short_id }}</code></div>
+                </td>
+                <td>
+                  <span class="tag docker-state {{ container.state }}">{{ container.state or 'unknown' }}</span>
+                  <div class="muted">{{ container.status or '-' }}</div>
+                </td>
+                <td>
+                  {% if container.image_source %}
+                    <a class="table-link" href="{{ container.image_source }}" target="_blank" rel="noopener" title="Open image repository"><code>{{ container.image or '-' }}</code></a>
+                  {% else %}
+                    <code>{{ container.image or '-' }}</code>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if container.compose %}
+                    <span>{{ container.compose.service or container.compose.project or '-' }}</span>
+                    {% if container.compose.project %}<div class="muted">{{ container.compose.project }}</div>{% endif %}
+                  {% else %}
+                    <span class="muted">-</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if container.compose %}
+                    <span class="tag override">Compose</span>
+                    <strong>{{ container.compose.project or 'Compose project' }}</strong>
+                    {% if container.compose.primary_config_file %}
+                      <div class="muted"><code>{{ container.compose.primary_config_file }}</code></div>
+                    {% elif container.compose.config_files %}
+                      <div class="muted"><code>{{ container.compose.config_files }}</code></div>
+                    {% endif %}
+                  {% else %}
+                    <span class="muted">-</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if container.finished_at %}
+                    {{ container.finished_at_display or container.finished_at }}
+                  {% else %}
+                    <span class="muted">-</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+          <tbody data-docker-state-summary-remote></tbody>
+        </table>
+      </div>
+      <p class="empty-note" data-docker-state-summary-empty {% if docker_state_containers %}hidden{% endif %}>No local {{ docker_state }} containers found yet. Remote nodes are still loading or have no matching containers.</p>
+    </section>
+  {% endif %}
+
   <section class="panel">
     <div class="panel-head">
       <div>
@@ -58,13 +143,6 @@
         </span>
       </div>
     </div>
-
-    {% if docker_state %}
-      <div class="dashboard-status-note">
-        <strong>Showing {{ docker_state }} containers</strong>
-        <span>Local and remote Docker lists are filtered to containers with this state.</span>
-      </div>
-    {% endif %}
 
     {% if containers %}
       <div class="table-wrap compact-table docker-table">

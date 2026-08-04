@@ -9,7 +9,6 @@
             <span class="muted">
               {{ remote.counts.total }} container{% if remote.counts.total != 1 %}s{% endif %},
               {{ remote.counts.running }} running
-              {% if remote.filter_state %}, showing {{ remote.containers|length }} {{ remote.filter_state }}{% endif %}
             </span>
           </span>
           <span class="remote-docker-summary-actions">
@@ -23,6 +22,63 @@
         </summary>
 
         {% if remote.containers %}
+          {% if remote.summary_state and remote.summary_containers %}
+            <template data-docker-state-summary-source>
+              {% for container in remote.summary_containers %}
+                {% set remote_container_url = remote.node.url.rstrip('/') ~ '/docker/' ~ container.id if remote.node.url and container.id else '' %}
+                <tr data-docker-state-summary-row>
+                  <td><strong>{{ remote.node.name }}</strong>{% if remote.node.version %}<div class="muted">{{ remote.node.version }}</div>{% endif %}</td>
+                  <td>
+                    {% if remote_container_url %}
+                      <a class="table-link" href="{{ remote_container_url }}" target="_blank" rel="noopener">{{ container.name or container.short_id }}</a>
+                    {% else %}
+                      <strong>{{ container.name or container.short_id }}</strong>
+                    {% endif %}
+                    <div class="muted"><code>{{ container.short_id }}</code></div>
+                  </td>
+                  <td>
+                    <span class="tag docker-state {{ container.state }}">{{ container.state or 'unknown' }}</span>
+                    <div class="muted">{{ container.status or '-' }}</div>
+                  </td>
+                  <td>
+                    {% if container.image_source %}
+                      <a class="table-link" href="{{ container.image_source }}" target="_blank" rel="noopener" title="Open image repository"><code>{{ container.image or '-' }}</code></a>
+                    {% else %}
+                      <code>{{ container.image or '-' }}</code>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if container.compose %}
+                      <span>{{ container.compose.service or container.compose.project or '-' }}</span>
+                      {% if container.compose.project %}<div class="muted">{{ container.compose.project }}</div>{% endif %}
+                    {% else %}
+                      <span class="muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if container.compose %}
+                      <span class="tag override">Compose</span>
+                      <strong>{{ container.compose.project or 'Compose project' }}</strong>
+                      {% if container.compose.primary_config_file %}
+                        <div class="muted"><code>{{ container.compose.primary_config_file }}</code></div>
+                      {% elif container.compose.config_files %}
+                        <div class="muted"><code>{{ container.compose.config_files }}</code></div>
+                      {% endif %}
+                    {% else %}
+                      <span class="muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if container.finished_at %}
+                      {{ container.finished_at_display or container.finished_at }}
+                    {% else %}
+                      <span class="muted">-</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </template>
+          {% endif %}
           <div class="docker-remote-inner">
             <table>
               <thead>
@@ -119,7 +175,7 @@
             </table>
           </div>
         {% else %}
-          <p class="empty-note remote-docker-message">{% if remote.filter_state %}No {{ remote.filter_state }} containers reported by this node.{% else %}No containers reported by this node.{% endif %}</p>
+          <p class="empty-note remote-docker-message">No containers reported by this node.</p>
         {% endif %}
       </details>
     {% else %}
