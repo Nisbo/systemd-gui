@@ -2234,15 +2234,17 @@ def _dashboard_fleet_actions(summaries: list[dict[str, object]]) -> list[dict[st
     errors = sum(_summary_int(summary, "logs", "errors") for summary in summaries if str(summary.get("status") or "ok") == "ok")
     warnings = sum(_summary_int(summary, "logs", "warnings") for summary in summaries if str(summary.get("status") or "ok") == "ok")
     if critical:
-        actions.append({"level": "danger", "title": f"{critical} critical journal event{'s' if critical != 1 else ''} in the last 24h", "text": "Open Logs to inspect the affected nodes.", "url": url_for("logs", priority="err", time="1d")})
+        actions.append({"level": "danger", "title": f"{critical} critical journal event{'s' if critical != 1 else ''} in the last 24h", "text": "Open Logs to inspect the affected nodes.", "url": _dashboard_logs_url(summaries, "err")})
     elif errors:
-        actions.append({"level": "danger", "title": f"{errors} journal error{'s' if errors != 1 else ''} in the last 24h", "text": "Open Logs to inspect the affected nodes.", "url": url_for("logs", priority="err", time="1d")})
+        actions.append({"level": "danger", "title": f"{errors} journal error{'s' if errors != 1 else ''} in the last 24h", "text": "Open Logs to inspect the affected nodes.", "url": _dashboard_logs_url(summaries, "err")})
     elif warnings:
-        actions.append({"level": "warning", "title": f"{warnings} journal warning{'s' if warnings != 1 else ''} in the last 24h", "text": "Open Logs to inspect the affected nodes.", "url": url_for("logs", priority="warning", time="1d")})
+        actions.append({"level": "warning", "title": f"{warnings} journal warning{'s' if warnings != 1 else ''} in the last 24h", "text": "Open Logs to inspect the affected nodes.", "url": _dashboard_logs_url(summaries, "warning")})
 
     exited = sum(_summary_int(summary, "docker", "exited") for summary in summaries if str(summary.get("status") or "ok") == "ok")
     if exited:
-        actions.append({"level": "warning", "title": f"{exited} exited Docker container{'s' if exited != 1 else ''}", "text": "Open Docker to inspect stopped containers.", "url": url_for("docker_index")})
+        remote_exited = sum(_summary_int(summary, "docker", "exited") for summary in summaries if str(summary.get("status") or "ok") == "ok" and bool((summary.get("node") if isinstance(summary.get("node"), dict) else {}).get("remote")))
+        docker_url = f"{url_for('docker_index')}#remote-containers" if remote_exited else url_for("docker_index")
+        actions.append({"level": "warning", "title": f"{exited} exited Docker container{'s' if exited != 1 else ''}", "text": "Open Docker to inspect stopped containers across nodes.", "url": docker_url})
 
     update_nodes = [
         summary for summary in summaries
@@ -2252,6 +2254,20 @@ def _dashboard_fleet_actions(summaries: list[dict[str, object]]) -> list[dict[st
     if update_nodes:
         actions.append({"level": "info", "title": f"{len(update_nodes)} node{'s' if len(update_nodes) != 1 else ''} with update status", "text": "A Git update or app restart is pending.", "url": url_for("settings", tab="updates")})
     return actions
+
+
+def _dashboard_logs_url(summaries: list[dict[str, object]], priority: str) -> str:
+    node_ids = ["local"]
+    for summary in summaries:
+        if str(summary.get("status") or "ok") != "ok":
+            continue
+        node = summary.get("node") if isinstance(summary.get("node"), dict) else {}
+        if not bool(node.get("remote")):
+            continue
+        node_id = str(node.get("id") or "").strip()
+        if node_id:
+            node_ids.append(node_id)
+    return f"{url_for('logs')}?{urlencode({'priority': priority, 'time': '1d', 'node': node_ids}, doseq=True)}"
 
 
 def _docker_counts(containers: list[dict[str, object]]) -> dict[str, int]:

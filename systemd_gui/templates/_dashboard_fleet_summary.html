@@ -41,7 +41,7 @@
         <tbody>
           {% for node_summary in summary.nodes %}
             <tr>
-              <td class="dashboard-node-name"><a class="table-link" href="{{ node_summary.links.services }}">{{ node_summary.node.name }}{% if node_summary.node.version %} <span>({{ node_summary.node.version }})</span>{% endif %}</a></td>
+              <td class="dashboard-node-name"><a class="table-link" href="{{ node_summary.links.services }}">{{ node_summary.node.name }}</a>{% if node_summary.node.version %} <span>({{ node_summary.node.version }})</span>{% endif %}</td>
               <td>
                 {% if node_summary.status == 'ok' %}
                   <span class="tag success">connected</span>
