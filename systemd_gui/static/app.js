@@ -106,6 +106,7 @@
       })
       .then((html) => {
         target.innerHTML = html;
+        target.dataset.remoteDockerListLoading = "false";
         initDockerView(target);
         applyDockerDefaults(target);
         updateDockerStateSummary();
@@ -117,6 +118,7 @@
         message.className = "empty-note remote-docker-loading";
         message.textContent = `Remote Docker overview could not be loaded: ${String(error.message || error)}`;
         target.append(message);
+        target.dataset.remoteDockerListLoading = "false";
         updateDockerStateSummary();
       });
   });
@@ -124,6 +126,10 @@
   const dockerSettingsKey = "systemd-gui-docker-view";
   const dockerDefaults = { collapseRemoteNodes: false, collapseLocalCompose: false, collapseRemoteCompose: false };
   const updateDockerStateSummary = () => {
+    const remoteLoading = document.querySelector("[data-remote-docker-loading-status]");
+    const loadingRemoteLists = document.querySelectorAll('[data-remote-docker-list-loading="true"]').length;
+    const pendingRemoteRows = loadingRemoteLists + document.querySelectorAll("[data-remote-docker-node-url]").length;
+    if (remoteLoading) remoteLoading.hidden = pendingRemoteRows === 0;
     const panel = document.querySelector("[data-docker-state-summary]");
     if (!panel) return;
     const remoteBody = panel.querySelector("[data-docker-state-summary-remote]");
@@ -136,7 +142,7 @@
     });
     const rows = panel.querySelectorAll("[data-docker-state-summary-row]");
     if (empty) empty.hidden = rows.length > 0;
-    if (loading) loading.hidden = document.querySelectorAll("[data-remote-docker-node-url]").length === 0;
+    if (loading) loading.hidden = pendingRemoteRows === 0;
   };
   const readDockerSettings = () => {
     try {

@@ -270,8 +270,9 @@
       </div>
     </div>
 
-    <div data-remote-docker-url="{{ url_for('docker_remote_fragment', state=docker_state or None) }}">
-      <p class="empty-note remote-docker-loading">Loading remote nodes...</p>
+    <p class="docker-state-summary-loading" data-remote-docker-loading-status>Checking remote Docker nodes...</p>
+
+    <div data-remote-docker-url="{{ url_for('docker_remote_fragment', state=docker_state or None) }}" data-remote-docker-list-loading="true">
     </div>
   </section>
 {% endblock %}
