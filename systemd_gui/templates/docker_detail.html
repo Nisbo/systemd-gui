@@ -110,7 +110,21 @@
         <div><dt>Compose project</dt><dd>{{ container.compose.project if container.compose else '-' }}</dd></div>
         <div><dt>Compose service</dt><dd>{{ container.compose.service if container.compose else '-' }}</dd></div>
         <div><dt>Compose working dir</dt><dd><code>{{ container.compose.working_dir if container.compose else '-' }}</code></dd></div>
-        <div><dt>Compose file</dt><dd><code>{{ container.compose.config_files if container.compose else '-' }}</code></dd></div>
+        <div>
+          <dt>Compose file</dt>
+          <dd>
+            {% if container.compose and container.compose.primary_config_file %}
+              <code>{{ container.compose.primary_config_file }}</code>
+              {% if container.compose.config_files_inferred %}<span class="tag neutral">detected</span>{% endif %}
+            {% elif container.compose and container.compose.config_files %}
+              <code>{{ container.compose.config_files }}</code>
+            {% elif container.compose and container.compose.working_dir %}
+              <span class="muted">No compose file path reported by Docker.</span>
+            {% else %}
+              -
+            {% endif %}
+          </dd>
+        </div>
         <div><dt>CPU</dt><dd>{{ container.stats.cpu if container.stats else '-' }}</dd></div>
         <div><dt>Memory</dt><dd>{{ container.stats.memory if container.stats else '-' }}{% if container.stats and container.stats.memory_percent %} <span class="muted">({{ container.stats.memory_percent }})</span>{% endif %}</dd></div>
       </dl>
@@ -173,7 +187,10 @@
             </div>
           {% endfor %}
         {% else %}
-          <p class="empty-note">No Compose file path was reported by Docker.</p>
+          <p class="empty-note">
+            No Compose file path was reported by Docker.
+            {% if container.compose.working_dir %}Systemd Gui checked <code>{{ container.compose.working_dir }}</code> for common Compose file names but did not find one.{% endif %}
+          </p>
         {% endif %}
       </section>
     {% endif %}

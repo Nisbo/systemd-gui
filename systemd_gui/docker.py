@@ -11,6 +11,12 @@ from pathlib import Path
 
 VALID_CONTAINER_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 DOCKER_ACTIONS = {"start", "stop", "restart"}
+COMPOSE_FILE_NAMES = (
+    "compose.yaml",
+    "compose.yml",
+    "docker-compose.yaml",
+    "docker-compose.yml",
+)
 
 
 @dataclass
@@ -290,6 +296,10 @@ def _compose_info(labels: dict[str, str]) -> dict[str, object]:
     if not any([project, service, working_dir, config_files]):
         return {}
     config_file_list = _compose_config_file_paths(working_dir, config_files)
+    config_files_inferred = False
+    if not config_file_list and working_dir:
+        config_file_list = _infer_compose_config_file_paths(working_dir)
+        config_files_inferred = bool(config_file_list)
     primary_config_file = config_file_list[0] if config_file_list else ""
     return {
         "project": project,
@@ -298,6 +308,7 @@ def _compose_info(labels: dict[str, str]) -> dict[str, object]:
         "config_files": config_files,
         "config_file_list": config_file_list,
         "primary_config_file": primary_config_file,
+        "config_files_inferred": config_files_inferred,
         "group_key": f"{project}|{primary_config_file or config_files}",
         "group_label": f"{project} · {primary_config_file or config_files}" if project else primary_config_file or config_files,
     }
@@ -349,6 +360,13 @@ def _compose_config_file_paths(working_dir: str, config_files: str) -> list[str]
             path = base / path
         paths.append(str(path))
     return paths
+
+
+def _infer_compose_config_file_paths(working_dir: str) -> list[str]:
+    base = Path(working_dir)
+    if not base.is_dir():
+        return []
+    return [str(path) for name in COMPOSE_FILE_NAMES if (path := base / name).is_file()]
 
 
 def _enrich_compose_file_contents(container: dict[str, object]) -> None:

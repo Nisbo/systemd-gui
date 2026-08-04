@@ -178,9 +178,12 @@
                     {% if container.compose.primary_config_file %}
                       <span class="muted">·</span>
                       <code>{{ container.compose.primary_config_file }}</code>
+                      {% if container.compose.config_files_inferred %}<span class="tag neutral">detected</span>{% endif %}
                     {% elif container.compose.config_files %}
                       <span class="muted">·</span>
                       <code>{{ container.compose.config_files }}</code>
+                    {% elif container.compose.working_dir %}
+                      <span class="muted">· no compose file path reported</span>
                     {% endif %}
                     <button class="ghost-button small-icon-button compose-toggle-button" type="button" data-docker-compose-toggle title="Collapse compose group" aria-label="Collapse compose group">-</button>
                   </td>
