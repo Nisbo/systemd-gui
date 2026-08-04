@@ -109,7 +109,7 @@ def container_detail(container_id: str) -> dict[str, object]:
     if not payload:
         raise DockerError(f"Docker container {container_id} was not found.")
     raw = payload[0]
-    container = _container_from_inspect(raw)
+    container = _container_from_inspect(raw, _docker_mount_path_mappings(docker))
     _enrich_compose_file_contents(container)
     stats = _container_stats([str(container.get("id") or container_id)])
     for stats_id, stat in stats.items():
@@ -152,6 +152,7 @@ def _enrich_containers(containers: list[dict[str, object]]) -> None:
             payload = json.loads(inspect_result.output)
         except json.JSONDecodeError:
             payload = []
+        mount_path_mappings = _mount_path_mappings(payload if isinstance(payload, list) else [])
         for raw in payload if isinstance(payload, list) else []:
             if not isinstance(raw, dict):
                 continue
@@ -168,7 +169,7 @@ def _enrich_containers(containers: list[dict[str, object]]) -> None:
                 "finished_at": finished_at,
                 "finished_at_display": _format_docker_time(finished_at),
                 "running_for": _running_for(started_at) if state.get("Running") else "",
-                "compose": _compose_info(labels),
+                "compose": _compose_info(labels, mount_path_mappings),
                 "image_source": _image_repository_url(str(container.get("image") or ""), labels),
             })
 
@@ -230,7 +231,7 @@ def _container_from_ps(item: dict[str, object]) -> dict[str, object]:
     }
 
 
-def _container_from_inspect(raw: dict[str, object]) -> dict[str, object]:
+def _container_from_inspect(raw: dict[str, object], path_mappings: list[tuple[str, str]] | None = None) -> dict[str, object]:
     config = raw.get("Config") if isinstance(raw.get("Config"), dict) else {}
     state = raw.get("State") if isinstance(raw.get("State"), dict) else {}
     host_config = raw.get("HostConfig") if isinstance(raw.get("HostConfig"), dict) else {}
@@ -260,7 +261,7 @@ def _container_from_inspect(raw: dict[str, object]) -> dict[str, object]:
         "command": _shell_join(config.get("Cmd")),
         "env": list(config.get("Env") or []),
         "labels": labels,
-        "compose": _compose_info(labels),
+        "compose": _compose_info(labels, path_mappings or []),
         "image_source": _image_repository_url(str(config.get("Image") or raw.get("Image") or ""), labels),
         "stats": {},
         "mounts": list(raw.get("Mounts") or []),
@@ -288,17 +289,18 @@ def _container_labels(raw: dict[str, object]) -> dict[str, str]:
     return {str(key): str(value) for key, value in labels.items()}
 
 
-def _compose_info(labels: dict[str, str]) -> dict[str, object]:
+def _compose_info(labels: dict[str, str], path_mappings: list[tuple[str, str]] | None = None) -> dict[str, object]:
     project = labels.get("com.docker.compose.project", "")
     service = labels.get("com.docker.compose.service", "")
     working_dir = labels.get("com.docker.compose.project.working_dir", "")
     config_files = labels.get("com.docker.compose.project.config_files", "")
     if not any([project, service, working_dir, config_files]):
         return {}
-    config_file_list = _compose_config_file_paths(working_dir, config_files)
+    path_mappings = path_mappings or []
+    config_file_list = _compose_config_file_paths(working_dir, config_files, path_mappings)
     config_files_inferred = False
     if not config_file_list and working_dir:
-        config_file_list = _infer_compose_config_file_paths(working_dir)
+        config_file_list = _infer_compose_config_file_paths(working_dir, path_mappings)
         config_files_inferred = bool(config_file_list)
     primary_config_file = config_file_list[0] if config_file_list else ""
     return {
@@ -348,7 +350,7 @@ def _image_repository_url(image: str, labels: dict[str, str]) -> str:
     return ""
 
 
-def _compose_config_file_paths(working_dir: str, config_files: str) -> list[str]:
+def _compose_config_file_paths(working_dir: str, config_files: str, path_mappings: list[tuple[str, str]] | None = None) -> list[str]:
     paths = []
     base = Path(working_dir) if working_dir else None
     for raw_path in re.split(r"[,;]", config_files or ""):
@@ -358,15 +360,76 @@ def _compose_config_file_paths(working_dir: str, config_files: str) -> list[str]
         path = Path(raw_path)
         if not path.is_absolute() and base:
             path = base / path
-        paths.append(str(path))
+        paths.append(_host_path_for(str(path), path_mappings or []))
     return paths
 
 
-def _infer_compose_config_file_paths(working_dir: str) -> list[str]:
-    base = Path(working_dir)
-    if not base.is_dir():
+def _infer_compose_config_file_paths(working_dir: str, path_mappings: list[tuple[str, str]] | None = None) -> list[str]:
+    for base in _candidate_working_dirs(working_dir, path_mappings or []):
+        standard_paths = [base / name for name in COMPOSE_FILE_NAMES]
+        existing_standard = [str(path) for path in standard_paths if path.is_file()]
+        if existing_standard:
+            return existing_standard
+        discovered = sorted(path for pattern in ("*.yml", "*.yaml") for path in base.glob(pattern) if path.is_file())
+        if discovered:
+            return [str(path) for path in discovered]
+    return []
+
+
+def _candidate_working_dirs(working_dir: str, path_mappings: list[tuple[str, str]]) -> list[Path]:
+    candidates = []
+    for value in (working_dir, _host_path_for(working_dir, path_mappings)):
+        if not value:
+            continue
+        path = Path(value)
+        if path not in candidates and path.is_dir():
+            candidates.append(path)
+    return candidates
+
+
+def _host_path_for(path_value: str, path_mappings: list[tuple[str, str]]) -> str:
+    path_value = str(path_value or "")
+    if not path_value.startswith("/"):
+        return path_value
+    normalized = path_value.rstrip("/") or "/"
+    if Path(normalized).exists():
+        return normalized
+    for container_path, host_path in path_mappings:
+        if normalized == container_path or normalized.startswith(f"{container_path}/"):
+            suffix = normalized[len(container_path):].lstrip("/")
+            return str(Path(host_path) / suffix) if suffix else host_path
+    return path_value
+
+
+def _docker_mount_path_mappings(docker: str) -> list[tuple[str, str]]:
+    ids_result = _run([docker, "ps", "-aq", "--no-trunc"], timeout=8)
+    ids = [line.strip() for line in ids_result.output.splitlines() if line.strip()] if ids_result.ok else []
+    if not ids:
         return []
-    return [str(path) for name in COMPOSE_FILE_NAMES if (path := base / name).is_file()]
+    inspect_result = _run([docker, "inspect", *ids], timeout=15)
+    if not inspect_result.ok:
+        return []
+    try:
+        payload = json.loads(inspect_result.output)
+    except json.JSONDecodeError:
+        return []
+    return _mount_path_mappings(payload if isinstance(payload, list) else [])
+
+
+def _mount_path_mappings(raw_containers: list[object]) -> list[tuple[str, str]]:
+    mappings = []
+    for raw in raw_containers:
+        if not isinstance(raw, dict):
+            continue
+        mounts = raw.get("Mounts") if isinstance(raw.get("Mounts"), list) else []
+        for mount in mounts:
+            if not isinstance(mount, dict):
+                continue
+            source = str(mount.get("Source") or "").rstrip("/")
+            destination = str(mount.get("Destination") or "").rstrip("/")
+            if source.startswith("/") and destination.startswith("/") and destination != "/":
+                mappings.append((destination or "/", source or "/"))
+    return sorted(set(mappings), key=lambda item: len(item[0]), reverse=True)
 
 
 def _enrich_compose_file_contents(container: dict[str, object]) -> None:
