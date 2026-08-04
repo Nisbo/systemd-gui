@@ -9,6 +9,7 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from pathlib import Path
+from urllib.parse import urlencode
 
 from flask import Flask, Response, flash, jsonify, redirect, render_template, request, session, url_for
 
@@ -2112,6 +2113,7 @@ def _local_dashboard_summary(app: Flask) -> dict[str, object]:
 
     return {
         "node": node,
+        "links": _dashboard_links(),
         "status": "ok",
         "message": "This node is available.",
         "services": {
@@ -2132,6 +2134,7 @@ def _local_dashboard_summary(app: Flask) -> dict[str, object]:
             "available": bool(docker_status.get("available")),
             "daemon_running": bool(docker_status.get("running")),
             "message": str(docker_status.get("message") or ""),
+            "server_version": str(docker_status.get("server_version") or ""),
             **_docker_counts(containers),
         },
         "quick_shell": {
@@ -2197,11 +2200,13 @@ def _remote_dashboard_summary_payload(node: dict[str, object], result) -> dict[s
     if result.ok and result.summary:
         summary = dict(result.summary)
         summary["node"] = {**(summary.get("node") if isinstance(summary.get("node"), dict) else {}), **node_info}
+        summary["links"] = _dashboard_links(str(node_info.get("url") or ""))
         summary["status"] = "ok"
         summary["message"] = result.message
         return summary
     return {
         "node": node_info,
+        "links": _dashboard_links(str(node_info.get("url") or "")),
         "status": result.status,
         "message": result.message,
         "services": _empty_service_summary(),
@@ -2229,11 +2234,11 @@ def _dashboard_fleet_actions(summaries: list[dict[str, object]]) -> list[dict[st
     errors = sum(_summary_int(summary, "logs", "errors") for summary in summaries if str(summary.get("status") or "ok") == "ok")
     warnings = sum(_summary_int(summary, "logs", "warnings") for summary in summaries if str(summary.get("status") or "ok") == "ok")
     if critical:
-        actions.append({"level": "danger", "title": f"{critical} critical journal event{'s' if critical != 1 else ''} in the last 24h", "text": "Open Logs to inspect the affected nodes.", "url": url_for("logs", priority="warning")})
+        actions.append({"level": "danger", "title": f"{critical} critical journal event{'s' if critical != 1 else ''} in the last 24h", "text": "Open Logs to inspect the affected nodes.", "url": url_for("logs", priority="err", time="1d")})
     elif errors:
-        actions.append({"level": "danger", "title": f"{errors} journal error{'s' if errors != 1 else ''} in the last 24h", "text": "Open Logs to inspect the affected nodes.", "url": url_for("logs", priority="err")})
+        actions.append({"level": "danger", "title": f"{errors} journal error{'s' if errors != 1 else ''} in the last 24h", "text": "Open Logs to inspect the affected nodes.", "url": url_for("logs", priority="err", time="1d")})
     elif warnings:
-        actions.append({"level": "warning", "title": f"{warnings} journal warning{'s' if warnings != 1 else ''} in the last 24h", "text": "Open Logs to inspect the affected nodes.", "url": url_for("logs", priority="warning")})
+        actions.append({"level": "warning", "title": f"{warnings} journal warning{'s' if warnings != 1 else ''} in the last 24h", "text": "Open Logs to inspect the affected nodes.", "url": url_for("logs", priority="warning", time="1d")})
 
     exited = sum(_summary_int(summary, "docker", "exited") for summary in summaries if str(summary.get("status") or "ok") == "ok")
     if exited:
@@ -2263,6 +2268,35 @@ def _docker_counts(containers: list[dict[str, object]]) -> dict[str, int]:
     }
 
 
+def _dashboard_links(base_url: str = "") -> dict[str, str]:
+    if base_url:
+        root = base_url.rstrip("/")
+
+        def remote(path: str, **query: object) -> str:
+            clean_query = {key: value for key, value in query.items() if value not in ("", None)}
+            suffix = f"?{urlencode(clean_query)}" if clean_query else ""
+            return f"{root}{path}{suffix}"
+
+        return {
+            "services": remote("/services"),
+            "logs": remote("/logs"),
+            "logs_error_24h": remote("/logs", priority="err", time="1d"),
+            "logs_warning_24h": remote("/logs", priority="warning", time="1d"),
+            "docker": remote("/docker"),
+            "quick_shell": remote("/quick-shell"),
+            "updates": remote("/settings", tab="updates"),
+        }
+    return {
+        "services": url_for("services"),
+        "logs": url_for("logs"),
+        "logs_error_24h": url_for("logs", priority="err", time="1d"),
+        "logs_warning_24h": url_for("logs", priority="warning", time="1d"),
+        "docker": url_for("docker_index"),
+        "quick_shell": url_for("quick_shell"),
+        "updates": url_for("settings", tab="updates"),
+    }
+
+
 def _summary_section(summary: dict[str, object], section: str) -> dict[str, object]:
     value = summary.get(section)
     return value if isinstance(value, dict) else {}
@@ -2288,7 +2322,7 @@ def _empty_log_summary(message: str, status: str) -> dict[str, object]:
 
 
 def _empty_docker_summary(message: str) -> dict[str, object]:
-    return {"available": False, "daemon_running": False, "message": message, "total": 0, "running": 0, "exited": 0, "compose_projects": 0}
+    return {"available": False, "daemon_running": False, "message": message, "server_version": "", "total": 0, "running": 0, "exited": 0, "compose_projects": 0}
 
 
 def _empty_quick_shell_summary(message: str) -> dict[str, object]:

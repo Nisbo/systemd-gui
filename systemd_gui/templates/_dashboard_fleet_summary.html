@@ -41,7 +41,7 @@
         <tbody>
           {% for node_summary in summary.nodes %}
             <tr>
-              <td class="dashboard-node-name">{{ node_summary.node.name }}{% if node_summary.node.version %} <span>({{ node_summary.node.version }})</span>{% endif %}</td>
+              <td class="dashboard-node-name"><a class="table-link" href="{{ node_summary.links.services }}">{{ node_summary.node.name }}{% if node_summary.node.version %} <span>({{ node_summary.node.version }})</span>{% endif %}</a></td>
               <td>
                 {% if node_summary.status == 'ok' %}
                   <span class="tag success">connected</span>
@@ -87,7 +87,7 @@
         <tbody>
           {% for node_summary in summary.nodes %}
             <tr>
-              <td class="dashboard-node-name">{{ node_summary.node.name }}</td>
+              <td class="dashboard-node-name"><a class="table-link" href="{{ node_summary.links.logs }}">{{ node_summary.node.name }}</a></td>
               <td>
                 {% if node_summary.status == 'ok' and node_summary.logs.ok %}
                   <span class="tag success">ready</span>
@@ -97,9 +97,15 @@
                   <span class="tag neutral">{{ node_summary.status }}</span>
                 {% endif %}
               </td>
-              <td class="{% if node_summary.logs.critical %}dashboard-danger-cell{% endif %}">{{ node_summary.logs.critical }}</td>
-              <td class="{% if node_summary.logs.errors %}dashboard-danger-cell{% endif %}">{{ node_summary.logs.errors }}</td>
-              <td class="{% if node_summary.logs.warnings %}dashboard-warning-cell{% endif %}">{{ node_summary.logs.warnings }}</td>
+              <td class="{% if node_summary.logs.critical %}dashboard-danger-cell{% endif %}">
+                {% if node_summary.logs.critical %}<a class="table-link" href="{{ node_summary.links.logs_error_24h }}">{{ node_summary.logs.critical }}</a>{% else %}{{ node_summary.logs.critical }}{% endif %}
+              </td>
+              <td class="{% if node_summary.logs.errors %}dashboard-danger-cell{% endif %}">
+                {% if node_summary.logs.errors %}<a class="table-link" href="{{ node_summary.links.logs_error_24h }}">{{ node_summary.logs.errors }}</a>{% else %}{{ node_summary.logs.errors }}{% endif %}
+              </td>
+              <td class="{% if node_summary.logs.warnings %}dashboard-warning-cell{% endif %}">
+                {% if node_summary.logs.warnings %}<a class="table-link" href="{{ node_summary.links.logs_warning_24h }}">{{ node_summary.logs.warnings }}</a>{% else %}{{ node_summary.logs.warnings }}{% endif %}
+              </td>
             </tr>
           {% endfor %}
         </tbody>
@@ -125,12 +131,13 @@
             <th>Running</th>
             <th>Exited</th>
             <th>Compose</th>
+            <th>Docker</th>
           </tr>
         </thead>
         <tbody>
           {% for node_summary in summary.nodes %}
             <tr>
-              <td class="dashboard-node-name">{{ node_summary.node.name }}</td>
+              <td class="dashboard-node-name"><a class="table-link" href="{{ node_summary.links.docker }}">{{ node_summary.node.name }}</a></td>
               <td>
                 {% if node_summary.status == 'ok' and node_summary.docker.daemon_running %}
                   <span class="tag success">reachable</span>
@@ -146,6 +153,7 @@
               <td>{{ node_summary.docker.running }}</td>
               <td class="{% if node_summary.docker.exited %}dashboard-warning-cell{% endif %}">{{ node_summary.docker.exited }}</td>
               <td>{{ node_summary.docker.compose_projects }}</td>
+              <td>{{ node_summary.docker.server_version or '-' }}</td>
             </tr>
           {% endfor %}
         </tbody>
@@ -175,7 +183,7 @@
         <tbody>
           {% for node_summary in summary.nodes %}
             <tr>
-              <td class="dashboard-node-name">{{ node_summary.node.name }}</td>
+              <td class="dashboard-node-name"><a class="table-link" href="{{ node_summary.links.quick_shell }}">{{ node_summary.node.name }}</a></td>
               <td>
                 {% if node_summary.status == 'ok' and node_summary.quick_shell.helper_ready %}
                   <span class="tag success">ready</span>
@@ -217,7 +225,7 @@
         <tbody>
           {% for node_summary in summary.nodes %}
             <tr>
-              <td class="dashboard-node-name">{{ node_summary.node.name }}</td>
+              <td class="dashboard-node-name"><a class="table-link" href="{{ node_summary.links.updates }}">{{ node_summary.node.name }}</a></td>
               <td>{{ node_summary.updates.version or node_summary.node.version or '-' }}</td>
               <td>{{ node_summary.updates.branch or '-' }}</td>
               <td>
