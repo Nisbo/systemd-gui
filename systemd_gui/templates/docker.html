@@ -36,12 +36,11 @@
     {% endif %}
   </section>
 
-  {% if docker_state %}
-    <section class="panel docker-state-summary" data-docker-state-summary="{{ docker_state }}">
+  <section class="panel docker-state-summary" data-docker-state-summary="{{ docker_summary_state }}">
       <div class="panel-head">
         <div>
-          <h2>{{ docker_state|capitalize }} containers</h2>
-          <p>Containers with state <code>{{ docker_state }}</code> across this node and saved remote nodes.</p>
+          <h2>{{ docker_summary_state|capitalize }} containers</h2>
+          <p>Containers with state <code>{{ docker_summary_state }}</code> across this node and saved remote nodes.</p>
         </div>
         <span class="tag warning">Action view</span>
       </div>
@@ -51,7 +50,7 @@
         <span>This section collects matching containers from this node and remote nodes. The full Docker overview remains below.</span>
       </div>
 
-      <p class="docker-state-summary-loading" data-docker-state-summary-loading>Checking remote nodes for {{ docker_state }} containers...</p>
+      <p class="docker-state-summary-loading" data-docker-state-summary-loading>Checking remote nodes for {{ docker_summary_state }} containers...</p>
 
       <div class="table-wrap compact-table docker-state-summary-table">
         <table>
@@ -119,9 +118,8 @@
           <tbody data-docker-state-summary-remote></tbody>
         </table>
       </div>
-      <p class="empty-note" data-docker-state-summary-empty {% if docker_state_containers %}hidden{% endif %}>No local {{ docker_state }} containers found yet. Remote nodes are still loading or have no matching containers.</p>
+      <p class="empty-note" data-docker-state-summary-empty {% if docker_state_containers %}hidden{% endif %}>No local {{ docker_summary_state }} containers found yet. Remote nodes are still loading or have no matching containers.</p>
     </section>
-  {% endif %}
 
   <section class="panel">
     <div class="panel-head">
@@ -272,7 +270,7 @@
 
     <p class="docker-state-summary-loading" data-remote-docker-loading-status>Checking remote Docker nodes...</p>
 
-    <div data-remote-docker-url="{{ url_for('docker_remote_fragment', state=docker_state or None) }}" data-remote-docker-list-loading="true">
+    <div data-remote-docker-url="{{ url_for('docker_remote_fragment', state=docker_summary_state) }}" data-remote-docker-list-loading="true">
     </div>
   </section>
 {% endblock %}

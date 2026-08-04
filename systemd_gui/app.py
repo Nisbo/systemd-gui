@@ -816,6 +816,7 @@ def create_app() -> Flask:
     def docker_index():
         status, containers = list_containers()
         docker_state = _docker_state_filter(request.args.get("state"))
+        docker_summary_state = docker_state or "exited"
         counts = {
             "total": len(containers),
             "running": sum(1 for item in containers if item.get("state") == "running"),
@@ -827,12 +828,13 @@ def create_app() -> Flask:
             containers=containers,
             counts=counts,
             docker_state=docker_state,
-            docker_state_containers=_filter_docker_containers(containers, docker_state),
+            docker_summary_state=docker_summary_state,
+            docker_state_containers=_filter_docker_containers(containers, docker_summary_state),
         )
 
     @app.get("/docker/remote-fragment")
     def docker_remote_fragment():
-        return render_template("_docker_remote.html", remote_nodes=_remote_docker_nodes(app), docker_state=_docker_state_filter(request.args.get("state")))
+        return render_template("_docker_remote.html", remote_nodes=_remote_docker_nodes(app), docker_state=_docker_state_filter(request.args.get("state")) or "exited")
 
     @app.get("/docker/remote-fragment/<node_id>")
     def docker_remote_node_fragment(node_id: str):
@@ -848,7 +850,7 @@ def create_app() -> Flask:
             }
         else:
             remote = _remote_docker_result(node)
-        remote = _add_remote_docker_summary(remote, _docker_state_filter(request.args.get("state")))
+        remote = _add_remote_docker_summary(remote, _docker_state_filter(request.args.get("state")) or "exited")
         return render_template("_docker_remote_row.html", remote=remote)
 
     @app.get("/docker/<container_id>")
