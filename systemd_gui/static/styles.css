@@ -408,6 +408,7 @@ th.actions-heading { text-align:right; }
 .dashboard-update-status span { color:var(--muted); font-size:.78rem; font-weight:900; text-transform:uppercase; }
 .dashboard-update-status small { color:var(--muted); font-size:.86rem; overflow-wrap:anywhere; }
 .dashboard-status-note { display:grid; gap:4px; }
+.dashboard-status-note.docker-state-summary-note { margin-bottom:18px; }
 .dashboard-fleet-grid { display:grid; grid-template-columns:1fr; gap:16px; }
 .dashboard-fleet-section { display:grid; gap:10px; min-width:0; }
 .dashboard-fleet-wide { grid-column:1 / -1; }
