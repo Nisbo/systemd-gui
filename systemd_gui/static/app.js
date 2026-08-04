@@ -90,6 +90,8 @@
             tag.classList.add("danger");
             tag.textContent = "error";
           }
+          row.removeAttribute("data-remote-docker-node-url");
+          updateDockerStateSummary();
         });
     });
   };
@@ -106,6 +108,7 @@
         target.innerHTML = html;
         initDockerView(target);
         applyDockerDefaults(target);
+        updateDockerStateSummary();
         loadRemoteDockerRows(target);
       })
       .catch((error) => {
@@ -114,6 +117,7 @@
         message.className = "empty-note remote-docker-loading";
         message.textContent = `Remote Docker overview could not be loaded: ${String(error.message || error)}`;
         target.append(message);
+        updateDockerStateSummary();
       });
   });
 
@@ -124,6 +128,7 @@
     if (!panel) return;
     const remoteBody = panel.querySelector("[data-docker-state-summary-remote]");
     const empty = panel.querySelector("[data-docker-state-summary-empty]");
+    const loading = panel.querySelector("[data-docker-state-summary-loading]");
     if (!remoteBody) return;
     remoteBody.replaceChildren();
     document.querySelectorAll("template[data-docker-state-summary-source]").forEach((source) => {
@@ -131,6 +136,7 @@
     });
     const rows = panel.querySelectorAll("[data-docker-state-summary-row]");
     if (empty) empty.hidden = rows.length > 0;
+    if (loading) loading.hidden = document.querySelectorAll("[data-remote-docker-node-url]").length === 0;
   };
   const readDockerSettings = () => {
     try {

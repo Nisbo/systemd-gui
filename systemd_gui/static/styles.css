@@ -200,6 +200,7 @@ th.actions-heading { text-align:right; }
 .docker-table table { min-width:940px; }
 .docker-state-summary { border-color:color-mix(in srgb, var(--amber) 55%, var(--line)); }
 .docker-state-summary-note { margin-bottom:18px; }
+.docker-state-summary-loading { display:inline-flex; align-items:center; width:max-content; max-width:100%; margin:0 0 10px; border-radius:999px; background:color-mix(in srgb, var(--amber) 12%, transparent); color:#8a5a00; font-weight:850; padding:6px 10px; }
 .docker-state-summary-table table { min-width:1120px; }
 .docker-state-summary-table tbody tr:nth-child(even) { background:color-mix(in srgb, var(--amber) 5%, transparent); }
 .docker-state-summary-table td { vertical-align:top; }
