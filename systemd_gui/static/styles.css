@@ -308,6 +308,7 @@ th.actions-heading { text-align:right; }
 .quick-shell-helper > div:first-child { align-self:center; }
 .quick-shell-helper p { margin-top:5px; }
 .quick-shell-helper-grid { margin:0; grid-template-columns:repeat(2, minmax(0, 1fr)); }
+.quick-shell-helper:not(.primary-setup-card) .quick-shell-helper-grid { grid-template-columns:1fr; align-content:start; }
 .quick-shell-helper-grid > div { min-height:80px; align-content:center; }
 .quick-shell-helper form,.quick-shell-helper .quick-shell-actions { align-self:center; justify-self:stretch; }
 .quick-shell-helper .primary-button,.quick-shell-helper .danger-button,.quick-shell-settings-form .primary-button { min-height:44px; width:100%; min-width:170px; justify-content:center; }
