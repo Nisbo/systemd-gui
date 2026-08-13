@@ -224,7 +224,7 @@
                 <td>
                   {% if container.stats %}
                     <strong>{{ container.stats.cpu or '-' }}</strong>
-                    <div class="muted">{{ container.stats.memory or '-' }}</div>
+                    <div class="muted">{{ container.stats.memory_display or container.stats.memory or '-' }}</div>
                   {% else %}
                     <span class="muted">-</span>
                   {% endif %}

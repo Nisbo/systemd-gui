@@ -513,7 +513,7 @@ def _finalize_resource_summary(summary: dict[str, object]) -> None:
     summary["cpu"] = _format_cpu_percent(float(summary.get("cpu_value") or 0.0))
     memory_usage = int(summary.get("memory_usage_bytes") or 0)
     memory_limit = int(summary.get("memory_limit_bytes") or 0)
-    summary["memory"] = f"{_format_bytes(memory_usage)} / {_format_bytes(memory_limit)}" if memory_limit else _format_bytes(memory_usage)
+    summary["memory"] = _format_memory_usage(memory_usage, memory_limit)
 
 
 def _stats_cpu_value(stats: dict[str, object]) -> float | None:
@@ -561,6 +561,7 @@ def _container_stats(container_ids: list[str]) -> dict[str, dict[str, object]]:
         stats[container_id] = {
             "cpu": cpu,
             "memory": memory,
+            "memory_display": _format_memory_usage(memory_usage, memory_limit),
             "memory_percent": str(item.get("MemPerc") or ""),
             "network": str(item.get("NetIO") or ""),
             "block": str(item.get("BlockIO") or ""),
@@ -613,8 +614,16 @@ def _parse_docker_size(value: str) -> int | None:
 
 def _format_cpu_percent(value: float) -> str:
     if value >= 10:
-        return f"{value:.1f}%"
-    return f"{value:.2f}%"
+        return f"{_format_decimal(value, 1)}%"
+    return f"{_format_decimal(value, 2)}%"
+
+
+def _format_memory_usage(usage: int | None, limit: int | None) -> str:
+    if usage is None and limit is None:
+        return ""
+    if limit:
+        return f"{_format_bytes(int(usage or 0))} / {_format_bytes(int(limit))}"
+    return _format_bytes(int(usage or 0))
 
 
 def _format_bytes(value: int) -> str:
@@ -623,11 +632,15 @@ def _format_bytes(value: int) -> str:
     for unit in units:
         if size < 1024 or unit == units[-1]:
             if unit == "B":
-                return f"{int(size)}B"
+                return f"{int(size)} B"
             if size >= 10:
-                return f"{size:.1f}{unit}"
-            return f"{size:.2f}{unit}"
+                return f"{_format_decimal(size, 1)} {unit}"
+            return f"{_format_decimal(size, 2)} {unit}"
         size /= 1024
+
+
+def _format_decimal(value: float, places: int) -> str:
+    return f"{value:.{places}f}".replace(".", ",")
 
 
 def _running_for(started_at: str) -> str:
