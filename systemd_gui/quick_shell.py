@@ -334,6 +334,17 @@ def install_sshpass_package() -> None:
         raise OSError(f"apt-get install sshpass failed with exit code {result.returncode}{detail}")
 
 
+def remove_sshpass_package() -> None:
+    apt_get = shutil.which("apt-get")
+    if not apt_get:
+        raise OSError("Automatic sshpass removal is only available on Debian-style systems with apt-get.")
+    result = subprocess.run([apt_get, "remove", "-y", "sshpass"], check=False, capture_output=True, text=True, timeout=180)
+    if result.returncode != 0:
+        output = (result.stderr or result.stdout or "").strip()
+        detail = f": {output[-500:]}" if output else ""
+        raise OSError(f"apt-get remove sshpass failed with exit code {result.returncode}{detail}")
+
+
 def install_quick_shell_helper(path: Path, app_root: Path, data_dir: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(_quick_shell_helper_content(app_root, data_dir), encoding="utf-8")

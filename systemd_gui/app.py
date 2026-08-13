@@ -77,6 +77,7 @@ from .quick_shell import (
     read_quick_shell,
     remote_ssh_support_status,
     remove_bash_history_timestamps,
+    remove_sshpass_package,
     remove_shell_integration,
     restore_quick_shell_backup,
     shell_integration_statuses,
@@ -955,6 +956,16 @@ def create_app() -> Flask:
             flash(f"sshpass could not be installed: {exc}", "error")
             return redirect(url_for("quick_shell", tab="setup"))
         flash("sshpass installed. Saved Remote Quick Shell passwords can now be used automatically.", "success")
+        return redirect(url_for("quick_shell", tab="setup"))
+
+    @app.post("/quick-shell/remove-sshpass")
+    def remove_quick_shell_sshpass():
+        try:
+            remove_sshpass_package()
+        except OSError as exc:
+            flash(f"sshpass could not be removed: {exc}", "error")
+            return redirect(url_for("quick_shell", tab="setup"))
+        flash("sshpass removed. Saved Remote Quick Shell passwords will need interactive password entry unless SSH keys are used.", "success")
         return redirect(url_for("quick_shell", tab="setup"))
 
     @app.post("/quick-shell/integration/<shell_id>/install")

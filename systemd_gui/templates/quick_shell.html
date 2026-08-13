@@ -624,7 +624,7 @@
           </dl>
           <form method="post" action="{{ url_for('install_quick_shell') }}" data-confirm="Install or update the qs helper at {{ helper_status.path }}?">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button class="primary-button compact-button" type="submit">Install/update helper</button>
+            <button class="primary-button compact-button" type="submit">Install / Update</button>
           </form>
         </div>
 
@@ -655,7 +655,7 @@
               </label>
             </div>
             <div class="form-actions">
-              <button class="primary-button compact-button" type="submit">Save history settings</button>
+              <button class="primary-button compact-button" type="submit">Save</button>
             </div>
           </form>
         </div>
@@ -672,7 +672,7 @@
           <div class="table-actions quick-shell-actions">
             <form method="post" action="{{ url_for('install_quick_shell_bash_history_timestamps') }}" data-confirm="Enable Bash history timestamps for future bash sessions?">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-              <button class="primary-button compact-button" type="submit">Enable/update</button>
+              <button class="primary-button compact-button" type="submit">Enable / Update</button>
             </form>
             <form method="post" action="{{ url_for('remove_quick_shell_bash_history_timestamps') }}" data-confirm="Remove the Systemd Gui Bash history timestamp file? Existing shell sessions keep their current settings until reopened.">
               <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -690,10 +690,16 @@
             <div><dt>ssh</dt><dd>{{ "Installed" if remote_ssh_status.ssh_installed else "Missing" }}</dd></div>
             <div><dt>sshpass</dt><dd>{{ remote_ssh_status.sshpass_path or "Missing" }}</dd></div>
           </dl>
-          <form method="post" action="{{ url_for('install_quick_shell_sshpass') }}" data-confirm="Install sshpass now? This allows saved Remote Quick Shell passwords to be used automatically. SSH keys do not need sshpass.">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button class="primary-button compact-button" type="submit" {% if remote_ssh_status.sshpass_installed %}disabled{% endif %}>Install sshpass</button>
-          </form>
+          <div class="table-actions quick-shell-actions">
+            <form method="post" action="{{ url_for('install_quick_shell_sshpass') }}" data-confirm="Install sshpass now? This allows saved Remote Quick Shell passwords to be used automatically. SSH keys do not need sshpass.">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button class="primary-button compact-button" type="submit" {% if remote_ssh_status.sshpass_installed %}disabled{% endif %}>Install sshpass</button>
+            </form>
+            <form method="post" action="{{ url_for('remove_quick_shell_sshpass') }}" data-confirm="Remove sshpass from this server? Other tools or scripts may also use sshpass for password-based SSH automation. SSH keys and interactive password prompts will still work.">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button class="danger-button compact-button" type="submit" {% if not remote_ssh_status.sshpass_installed %}disabled{% endif %}>Remove</button>
+            </form>
+          </div>
         </div>
 
         <div class="update-section-title">
