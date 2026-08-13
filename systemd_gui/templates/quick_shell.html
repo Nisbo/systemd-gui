@@ -646,13 +646,13 @@
                   <option value="quick-shell" {% if quick_shell_settings.history_source == "quick-shell" %}selected{% endif %}>Quick Shell only</option>
                 </select>
               </label>
-              <div class="form-actions quick-shell-history-save">
-                <button class="primary-button compact-button" type="submit">Save</button>
-              </div>
               <label class="toggle-label">
                 <input type="checkbox" name="history_show_timestamps" value="1" {% if quick_shell_settings.history_show_timestamps is not defined or quick_shell_settings.history_show_timestamps %}checked{% endif %}>
                 <span>Show timestamps</span>
               </label>
+            </div>
+            <div class="form-actions quick-shell-history-save">
+              <button class="primary-button compact-button" type="submit">Save</button>
             </div>
           </form>
         </div>
