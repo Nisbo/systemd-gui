@@ -607,11 +607,6 @@
         </div>
       </div>
 
-      <dl class="detail-grid two">
-        <div><dt>Shell command</dt><dd><code>qs</code></dd></div>
-        <div><dt>Storage</dt><dd><code>{{ quick_shell_path }}</code></dd></div>
-      </dl>
-
       <div class="inline-section quick-shell-setup">
         <div class="quick-shell-helper primary-setup-card">
           <div>
@@ -619,6 +614,8 @@
             <p>{{ helper_status.message }} This installs the global <code>qs</code> command for normal shortcuts like status checks, restarts and log commands.</p>
           </div>
           <dl class="detail-grid two quick-shell-helper-grid">
+            <div><dt>Shell command</dt><dd><code>qs</code></dd></div>
+            <div><dt>Storage</dt><dd><code>{{ quick_shell_path }}</code></dd></div>
             <div><dt>Path</dt><dd><code>{{ helper_status.path }}</code></dd></div>
             <div><dt>Status</dt><dd>{{ "Ready" if helper_status.ready else "Needs update" }}</dd></div>
           </dl>
@@ -649,13 +646,13 @@
                   <option value="quick-shell" {% if quick_shell_settings.history_source == "quick-shell" %}selected{% endif %}>Quick Shell only</option>
                 </select>
               </label>
+              <div class="form-actions quick-shell-history-save">
+                <button class="primary-button compact-button" type="submit">Save</button>
+              </div>
               <label class="toggle-label">
                 <input type="checkbox" name="history_show_timestamps" value="1" {% if quick_shell_settings.history_show_timestamps is not defined or quick_shell_settings.history_show_timestamps %}checked{% endif %}>
                 <span>Show timestamps</span>
               </label>
-            </div>
-            <div class="form-actions">
-              <button class="primary-button compact-button" type="submit">Save</button>
             </div>
           </form>
         </div>
@@ -740,7 +737,7 @@
                     <div class="table-actions quick-shell-actions">
                       <form method="post" action="{{ url_for('install_quick_shell_integration', shell_id=integration.shell_id) }}" data-confirm="Install or update Quick Shell integration for {{ integration.label }}? Existing systemd-gui blocks will be replaced.">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                        <button class="primary-button compact-button" type="submit" {% if not integration.detected and not integration.installed %}disabled title="{{ integration.label }} was not detected on this system."{% endif %}>Install/update</button>
+                        <button class="primary-button compact-button" type="submit" {% if not integration.detected and not integration.installed %}disabled title="{{ integration.label }} was not detected on this system."{% endif %}>Install / Update</button>
                       </form>
                       <form method="post" action="{{ url_for('remove_quick_shell_integration', shell_id=integration.shell_id) }}" data-confirm="Remove Quick Shell integration for {{ integration.label }}? The normal qs helper will remain installed.">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
