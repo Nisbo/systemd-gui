@@ -144,6 +144,13 @@
         </form>
       </div>
 
+      {% if git_state and git_state.branch == "dev" %}
+        <div class="update-card update-branch-warning">
+          <strong>Development branch active</strong>
+          <span>This installation is currently following <code>dev</code>. Installing an official release will switch this checkout back to <code>main</code> at the release tag. Dev-only changes that are not part of the release can disappear from the running app.</span>
+        </div>
+      {% endif %}
+
       {% if update_status and update_status.error %}
         <div class="update-card">
           <strong>Update check error</strong>

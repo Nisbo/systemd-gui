@@ -144,6 +144,8 @@ th.actions-heading { text-align:right; }
 .log-preview { font-size:.9rem; }
 .empty-note { color:var(--muted); font-weight:750; }
 .update-card,.update-result { display:grid; gap:9px; align-content:start; border:1px solid var(--line); border-radius:8px; padding:14px; margin-top:14px; }
+.update-branch-warning { border-color:color-mix(in srgb, var(--amber) 55%, var(--line)); border-left:6px solid var(--amber); background:color-mix(in srgb, var(--amber) 10%, transparent); }
+.update-branch-warning strong { color:#8a5a00; }
 .update-card button,.update-card .primary-button,.update-card .ghost-button { justify-self:start; align-self:end; }
 .update-card span,.update-result span { color:var(--muted); }
 .update-result.ok { border-color:color-mix(in srgb, var(--accent) 42%, var(--line)); }

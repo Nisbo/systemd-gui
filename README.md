@@ -25,6 +25,13 @@ Gunicorn.
 
 ## Features
 
+### Dashboard
+
+- Show a start dashboard with quick status for the local node and saved remote nodes.
+- Summarize services, logs, Docker, Quick Shell, nodes and update state in one place.
+- Load remote dashboard data in the background so slow nodes do not block the page.
+- Open matching feature pages on remote nodes directly from dashboard tables.
+
 ### Systemd Services
 
 - List `.service` units with status, detailed state and autostart state.
@@ -63,6 +70,9 @@ Gunicorn.
 - Show Docker Compose project, service, working directory and config file when
   Compose labels are available.
 - Show lightweight CPU and memory values from `docker stats --no-stream`.
+- Show total Docker CPU and RAM usage per node.
+- Show CPU and RAM totals for Docker Compose groups.
+- Show a combined exited-container overview across local and remote nodes.
 - Show a simple read-only Docker overview from saved remote nodes when their
   API token allows Docker overview.
 - Open a container detail page with start, stop and restart actions.
@@ -204,6 +214,7 @@ Remote API tokens can be limited by access category:
 - Journal logs
 - Docker overview
 - Quick Shell exports
+- Remote updates
 
 You can also restrict which client IPs may use a valid token. Exact IP addresses
 and CIDR ranges are supported, for example:
@@ -312,6 +323,11 @@ used.
 ## Updates And Backups
 
 The Settings page includes update actions and app update backups.
+
+Official release updates are recommended for live systems. Git-based update
+channels are available for testing: `main` follows stable releases more closely,
+while `dev` can contain unreleased work. Installing an official release from a
+Git checkout moves the installation back to `main` at the selected release tag.
 
 Before replacing app files, Systemd Gui creates an app backup under:
 
