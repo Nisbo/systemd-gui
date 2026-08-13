@@ -302,20 +302,26 @@ th.actions-heading { text-align:right; }
 .app-backup-table { margin-top:0; }
 .inline-actions { margin-top:0; }
 .quick-shell-table table { min-width:1080px; }
-.quick-shell-setup { gap:16px; }
+.quick-shell-setup { gap:18px; }
 .quick-shell-setup table { min-width:1120px; }
-.quick-shell-helper { display:grid; grid-template-columns:minmax(0, 1fr) minmax(260px, .8fr) auto; gap:14px; align-items:end; }
+.quick-shell-helper { display:grid; grid-template-columns:minmax(0, .95fr) minmax(430px, 1fr) minmax(180px, auto); gap:16px; align-items:stretch; }
+.quick-shell-helper > div:first-child { align-self:center; }
 .quick-shell-helper p { margin-top:5px; }
-.quick-shell-helper-grid { margin:0; }
-.quick-shell-history-card { display:grid; grid-template-columns:minmax(0, .95fr) minmax(360px, 1.05fr); gap:18px; align-items:start; }
+.quick-shell-helper-grid { margin:0; grid-template-columns:repeat(2, minmax(0, 1fr)); }
+.quick-shell-helper-grid > div { min-height:80px; align-content:center; }
+.quick-shell-helper form,.quick-shell-helper .quick-shell-actions { align-self:center; justify-self:end; }
+.quick-shell-helper .primary-button,.quick-shell-helper .danger-button,.quick-shell-settings-form .primary-button { min-height:44px; min-width:170px; justify-content:center; }
+.quick-shell-helper.primary-setup-card { border:1px solid color-mix(in srgb, var(--accent) 22%, var(--line)); border-left:6px solid var(--accent); border-radius:8px; background:color-mix(in srgb, var(--accent) 5%, transparent); padding:14px; }
+.quick-shell-history-card { display:grid; grid-template-columns:minmax(0, .95fr) minmax(520px, 1.05fr); gap:18px; align-items:start; }
 .quick-shell-history-card p { margin-top:5px; }
-.quick-shell-settings-form { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:10px 14px; align-items:end; }
+.quick-shell-settings-form { display:grid; grid-template-columns:minmax(0, 1fr) minmax(180px, auto); gap:10px 16px; align-items:end; }
 .quick-shell-history-controls { display:grid; grid-template-columns:minmax(130px, 180px) minmax(180px, 1fr); gap:14px; align-items:end; }
+.quick-shell-history-controls .toggle-label { grid-column:1 / -1; min-height:44px; align-items:center; }
 .quick-shell-settings-form .field-help { grid-column:1 / -1; }
 .quick-shell-settings-form .form-actions { align-self:end; justify-content:flex-end; padding-bottom:0; }
-.quick-shell-settings-form .primary-button { min-height:44px; white-space:nowrap; }
+.quick-shell-settings-form .primary-button { white-space:nowrap; }
 .quick-shell-actions { min-width:260px; }
-.quick-shell-setup .quick-shell-actions { min-width:230px; }
+.quick-shell-setup .quick-shell-actions { min-width:230px; display:flex; justify-content:flex-end; align-items:center; }
 .quick-shell-add-form { align-items:end; margin-top:14px; }
 .quick-shell-import-form .import-control { display:grid; gap:8px; align-content:start; }
 .quick-shell-import-form .field-label { color:var(--muted); font-size:.83rem; font-weight:800; text-transform:uppercase; }

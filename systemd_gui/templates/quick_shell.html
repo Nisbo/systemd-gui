@@ -613,6 +613,21 @@
       </dl>
 
       <div class="inline-section quick-shell-setup">
+        <div class="quick-shell-helper primary-setup-card">
+          <div>
+            <h3>Shell helper</h3>
+            <p>{{ helper_status.message }} This installs the global <code>qs</code> command for normal shortcuts like status checks, restarts and log commands.</p>
+          </div>
+          <dl class="detail-grid two quick-shell-helper-grid">
+            <div><dt>Path</dt><dd><code>{{ helper_status.path }}</code></dd></div>
+            <div><dt>Status</dt><dd>{{ "Ready" if helper_status.ready else "Needs update" }}</dd></div>
+          </dl>
+          <form method="post" action="{{ url_for('install_quick_shell') }}" data-confirm="Install or update the qs helper at {{ helper_status.path }}?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="primary-button compact-button" type="submit">Install/update helper</button>
+          </form>
+        </div>
+
         <div class="quick-shell-history-card">
           <div>
             <h3>History menu</h3>
@@ -640,7 +655,7 @@
               </label>
             </div>
             <div class="form-actions">
-              <button class="primary-button" type="submit">Save history settings</button>
+              <button class="primary-button compact-button" type="submit">Save history settings</button>
             </div>
           </form>
         </div>
@@ -668,21 +683,6 @@
 
         <div class="quick-shell-helper">
           <div>
-            <h3>Shell helper</h3>
-            <p>{{ helper_status.message }} This installs the global <code>qs</code> command for normal shortcuts like status checks, restarts and log commands.</p>
-          </div>
-          <dl class="detail-grid two quick-shell-helper-grid">
-            <div><dt>Path</dt><dd><code>{{ helper_status.path }}</code></dd></div>
-            <div><dt>Status</dt><dd>{{ "Ready" if helper_status.ready else "Needs update" }}</dd></div>
-          </dl>
-          <form method="post" action="{{ url_for('install_quick_shell') }}" data-confirm="Install or update the qs helper at {{ helper_status.path }}?">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button class="primary-button" type="submit">Install/update helper</button>
-          </form>
-        </div>
-
-        <div class="quick-shell-helper">
-          <div>
             <h3>Remote SSH</h3>
             <p>{{ remote_ssh_status.message }} Remote nodes are opened from <code>qs</code> with the saved SSH host, user, port and key or password.</p>
           </div>
@@ -692,7 +692,7 @@
           </dl>
           <form method="post" action="{{ url_for('install_quick_shell_sshpass') }}" data-confirm="Install sshpass now? This allows saved Remote Quick Shell passwords to be used automatically. SSH keys do not need sshpass.">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button class="primary-button" type="submit" {% if remote_ssh_status.sshpass_installed %}disabled{% endif %}>Install sshpass</button>
+            <button class="primary-button compact-button" type="submit" {% if remote_ssh_status.sshpass_installed %}disabled{% endif %}>Install sshpass</button>
           </form>
         </div>
 
