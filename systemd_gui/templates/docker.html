@@ -125,7 +125,12 @@
     <div class="panel-head">
       <div>
         <h2>Containers</h2>
-        <p>{{ counts.total }} container{{ '' if counts.total == 1 else 's' }} found. {{ counts.running }} running, {{ counts.exited }} exited.</p>
+        <p>
+          {{ counts.total }} container{{ '' if counts.total == 1 else 's' }} found. {{ counts.running }} running, {{ counts.exited }} exited.
+        </p>
+        {% if resource_summary.total.stats_count %}
+          <p class="docker-resource-total">Docker total: <strong>{{ resource_summary.total.cpu }}</strong> CPU · <strong>{{ resource_summary.total.memory }}</strong> RAM</p>
+        {% endif %}
       </div>
       <div class="docker-panel-actions">
         <span class="docker-action-stack">
@@ -190,7 +195,9 @@
                 </tr>
               {% endif %}
               {% set same_next_group = container.compose and loop.nextitem is defined and loop.nextitem.compose and loop.nextitem.compose.group_key == container.compose.group_key %}
-              <tr class="{% if container.compose %}compose-container-row{% if not same_next_group %} compose-group-last{% endif %}{% else %}standalone-container-row{% if loop.first %} first-docker-item{% endif %}{% endif %}" {% if container.compose %}data-compose-child="{{ compose_group.id }}" title="Compose file: {{ container.compose.primary_config_file or container.compose.config_files or '-' }}"{% endif %}>
+              {% set group_summary = resource_summary.compose.get(container.compose.group_key) if container.compose else none %}
+              {% set group_has_stats = group_summary and group_summary.stats_count %}
+              <tr class="{% if container.compose %}compose-container-row{% if not same_next_group and not group_has_stats %} compose-group-last{% endif %}{% else %}standalone-container-row{% if loop.first %} first-docker-item{% endif %}{% endif %}" {% if container.compose %}data-compose-child="{{ compose_group.id }}" title="Compose file: {{ container.compose.primary_config_file or container.compose.config_files or '-' }}"{% endif %}>
                 <td>
                   <a class="table-link" href="{{ url_for('docker_detail', container_id=container.id) }}">{{ container.name or container.short_id }}</a>
                   <div class="muted"><code>{{ container.short_id }}</code></div>
@@ -234,6 +241,19 @@
                   {% endif %}
                 </td>
               </tr>
+              {% if container.compose and not same_next_group and group_has_stats %}
+                <tr class="compose-summary-row compose-group-last" data-compose-child="{{ compose_group.id }}">
+                  <td colspan="4">
+                    <strong>Compose total</strong>
+                    <span class="muted">· {{ group_summary.containers }} container{{ '' if group_summary.containers == 1 else 's' }}</span>
+                  </td>
+                  <td>
+                    <strong>{{ group_summary.cpu }}</strong>
+                    <div class="muted">{{ group_summary.memory }}</div>
+                  </td>
+                  <td><span class="muted">{{ group_summary.stats_count }} with stats</span></td>
+                </tr>
+              {% endif %}
             {% endfor %}
           </tbody>
         </table>

@@ -9,6 +9,9 @@
             <span class="muted">
               {{ remote.counts.total }} container{% if remote.counts.total != 1 %}s{% endif %},
               {{ remote.counts.running }} running
+              {% if remote.resource_summary.total.stats_count %}
+                · Docker total: <strong>{{ remote.resource_summary.total.cpu }}</strong> CPU · <strong>{{ remote.resource_summary.total.memory }}</strong> RAM
+              {% endif %}
             </span>
           </span>
           <span class="remote-docker-summary-actions">
@@ -124,8 +127,10 @@
                     </tr>
                   {% endif %}
                   {% set same_next_group = container.compose and loop.nextitem is defined and loop.nextitem.compose and loop.nextitem.compose.group_key == container.compose.group_key %}
+                  {% set group_summary = remote.resource_summary.compose.get(container.compose.group_key) if container.compose else none %}
+                  {% set group_has_stats = group_summary and group_summary.stats_count %}
                   {% set remote_container_url = remote.node.url.rstrip('/') ~ '/docker/' ~ container.id if remote.node.url and container.id else '' %}
-                  <tr class="{% if container.compose %}compose-container-row{% if not same_next_group %} compose-group-last{% endif %}{% else %}standalone-container-row{% if loop.first %} first-docker-item{% endif %}{% endif %}" {% if container.compose %}data-compose-child="{{ compose_group.id }}" title="Compose file: {{ container.compose.primary_config_file or container.compose.config_files or '-' }}"{% endif %}>
+                  <tr class="{% if container.compose %}compose-container-row{% if not same_next_group and not group_has_stats %} compose-group-last{% endif %}{% else %}standalone-container-row{% if loop.first %} first-docker-item{% endif %}{% endif %}" {% if container.compose %}data-compose-child="{{ compose_group.id }}" title="Compose file: {{ container.compose.primary_config_file or container.compose.config_files or '-' }}"{% endif %}>
                     <td>
                       {% if remote_container_url %}
                         <a class="table-link" href="{{ remote_container_url }}" target="_blank" rel="noopener"><strong>{{ container.name or container.short_id }}</strong></a>
@@ -173,6 +178,19 @@
                       {% endif %}
                     </td>
                   </tr>
+                  {% if container.compose and not same_next_group and group_has_stats %}
+                    <tr class="compose-summary-row compose-group-last" data-compose-child="{{ compose_group.id }}">
+                      <td colspan="4">
+                        <strong>Compose total</strong>
+                        <span class="muted">· {{ group_summary.containers }} container{{ '' if group_summary.containers == 1 else 's' }}</span>
+                      </td>
+                      <td>
+                        <strong>{{ group_summary.cpu }}</strong>
+                        <div class="muted">{{ group_summary.memory }}</div>
+                      </td>
+                      <td><span class="muted">{{ group_summary.stats_count }} with stats</span></td>
+                    </tr>
+                  {% endif %}
                 {% endfor %}
               </tbody>
             </table>

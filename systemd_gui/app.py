@@ -35,7 +35,7 @@ from .api_access import (
     verify_bearer_token,
     write_api_access,
 )
-from .docker import DockerError, container_detail, container_logs, list_containers, run_docker_action
+from .docker import DockerError, container_detail, container_logs, docker_resource_summary, list_containers, run_docker_action
 from .nodes import (
     announcement_status,
     discover_nodes,
@@ -363,6 +363,7 @@ def create_app() -> Flask:
             "ok": bool(status.get("running")),
             "status": status,
             "containers": containers,
+            "resource_summary": docker_resource_summary(containers),
         })
 
     @app.get("/api/v1/quick-shell/export")
@@ -828,6 +829,7 @@ def create_app() -> Flask:
             status=status,
             containers=containers,
             counts=counts,
+            resource_summary=docker_resource_summary(containers),
             docker_state=docker_state,
             docker_summary_state=docker_summary_state,
             docker_state_containers=_filter_docker_containers(containers, docker_summary_state),
@@ -3080,6 +3082,7 @@ def _remote_docker_payload(node: dict[str, object], result) -> dict[str, object]
             "running": sum(1 for item in containers if item.get("state") == "running"),
             "exited": sum(1 for item in containers if item.get("state") == "exited"),
         },
+        "resource_summary": docker_resource_summary(containers),
     }
 
 

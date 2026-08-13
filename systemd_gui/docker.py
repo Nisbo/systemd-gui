@@ -462,14 +462,88 @@ def _container_sort_key(container: dict[str, object]) -> tuple[str, str, str, st
     return (group.lower() if group else "~", service.lower(), name, str(container.get("id") or ""))
 
 
-def _container_stats(container_ids: list[str]) -> dict[str, dict[str, str]]:
+def docker_resource_summary(containers: list[dict[str, object]]) -> dict[str, object]:
+    compose: dict[str, dict[str, object]] = {}
+    total = _empty_resource_summary()
+    for container in containers:
+        stats = container.get("stats") if isinstance(container.get("stats"), dict) else {}
+        _add_stats_to_summary(total, stats)
+        compose_info = container.get("compose") if isinstance(container.get("compose"), dict) else {}
+        group_key = str(compose_info.get("group_key") or "")
+        if group_key:
+            group = compose.setdefault(group_key, _empty_resource_summary())
+            _add_stats_to_summary(group, stats)
+    _finalize_resource_summary(total)
+    for summary in compose.values():
+        _finalize_resource_summary(summary)
+    return {"total": total, "compose": compose}
+
+
+def _empty_resource_summary() -> dict[str, object]:
+    return {
+        "containers": 0,
+        "stats_count": 0,
+        "cpu_value": 0.0,
+        "memory_usage_bytes": 0,
+        "memory_limit_bytes": 0,
+        "cpu": "-",
+        "memory": "-",
+    }
+
+
+def _add_stats_to_summary(summary: dict[str, object], stats: dict[str, object]) -> None:
+    summary["containers"] = int(summary.get("containers") or 0) + 1
+    cpu_value = _stats_cpu_value(stats)
+    memory_usage = _stats_memory_usage_bytes(stats)
+    memory_limit = _stats_memory_limit_bytes(stats)
+    if cpu_value is None and memory_usage is None and memory_limit is None:
+        return
+    summary["stats_count"] = int(summary.get("stats_count") or 0) + 1
+    if cpu_value is not None:
+        summary["cpu_value"] = float(summary.get("cpu_value") or 0.0) + cpu_value
+    if memory_usage is not None:
+        summary["memory_usage_bytes"] = int(summary.get("memory_usage_bytes") or 0) + memory_usage
+    if memory_limit is not None:
+        summary["memory_limit_bytes"] = max(int(summary.get("memory_limit_bytes") or 0), memory_limit)
+
+
+def _finalize_resource_summary(summary: dict[str, object]) -> None:
+    if not int(summary.get("stats_count") or 0):
+        return
+    summary["cpu"] = _format_cpu_percent(float(summary.get("cpu_value") or 0.0))
+    memory_usage = int(summary.get("memory_usage_bytes") or 0)
+    memory_limit = int(summary.get("memory_limit_bytes") or 0)
+    summary["memory"] = f"{_format_bytes(memory_usage)} / {_format_bytes(memory_limit)}" if memory_limit else _format_bytes(memory_usage)
+
+
+def _stats_cpu_value(stats: dict[str, object]) -> float | None:
+    if isinstance(stats.get("cpu_percent_value"), (int, float)):
+        return float(stats["cpu_percent_value"])
+    return _parse_percent(str(stats.get("cpu") or ""))
+
+
+def _stats_memory_usage_bytes(stats: dict[str, object]) -> int | None:
+    if isinstance(stats.get("memory_usage_bytes"), (int, float)):
+        return int(stats["memory_usage_bytes"])
+    usage, _limit = _parse_memory_usage(str(stats.get("memory") or ""))
+    return usage
+
+
+def _stats_memory_limit_bytes(stats: dict[str, object]) -> int | None:
+    if isinstance(stats.get("memory_limit_bytes"), (int, float)):
+        return int(stats["memory_limit_bytes"])
+    _usage, limit = _parse_memory_usage(str(stats.get("memory") or ""))
+    return limit
+
+
+def _container_stats(container_ids: list[str]) -> dict[str, dict[str, object]]:
     docker = shutil.which("docker")
     if not docker or not container_ids:
         return {}
     result = _run([docker, "stats", "--no-stream", "--format", "{{json .}}", *container_ids], timeout=12)
     if not result.ok:
         return {}
-    stats: dict[str, dict[str, str]] = {}
+    stats: dict[str, dict[str, object]] = {}
     for line in result.output.splitlines():
         line = line.strip()
         if not line:
@@ -481,14 +555,79 @@ def _container_stats(container_ids: list[str]) -> dict[str, dict[str, str]]:
         container_id = str(item.get("ID") or "")
         if not container_id:
             continue
+        cpu = str(item.get("CPUPerc") or "")
+        memory = str(item.get("MemUsage") or "")
+        memory_usage, memory_limit = _parse_memory_usage(memory)
         stats[container_id] = {
-            "cpu": str(item.get("CPUPerc") or ""),
-            "memory": str(item.get("MemUsage") or ""),
+            "cpu": cpu,
+            "memory": memory,
             "memory_percent": str(item.get("MemPerc") or ""),
             "network": str(item.get("NetIO") or ""),
             "block": str(item.get("BlockIO") or ""),
+            "cpu_percent_value": _parse_percent(cpu),
+            "memory_usage_bytes": memory_usage,
+            "memory_limit_bytes": memory_limit,
         }
     return stats
+
+
+def _parse_percent(value: str) -> float | None:
+    value = str(value or "").strip().rstrip("%")
+    if not value:
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
+def _parse_memory_usage(value: str) -> tuple[int | None, int | None]:
+    if not value:
+        return None, None
+    parts = [part.strip() for part in value.split("/", 1)]
+    usage = _parse_docker_size(parts[0]) if parts else None
+    limit = _parse_docker_size(parts[1]) if len(parts) > 1 else None
+    return usage, limit
+
+
+def _parse_docker_size(value: str) -> int | None:
+    match = re.match(r"^\s*([0-9]+(?:\.[0-9]+)?)\s*([A-Za-z]+)?\s*$", str(value or ""))
+    if not match:
+        return None
+    number = float(match.group(1))
+    unit = (match.group(2) or "B").lower()
+    multipliers = {
+        "b": 1,
+        "kb": 1000,
+        "mb": 1000**2,
+        "gb": 1000**3,
+        "tb": 1000**4,
+        "kib": 1024,
+        "mib": 1024**2,
+        "gib": 1024**3,
+        "tib": 1024**4,
+    }
+    multiplier = multipliers.get(unit)
+    return int(number * multiplier) if multiplier else None
+
+
+def _format_cpu_percent(value: float) -> str:
+    if value >= 10:
+        return f"{value:.1f}%"
+    return f"{value:.2f}%"
+
+
+def _format_bytes(value: int) -> str:
+    units = ("B", "KiB", "MiB", "GiB", "TiB")
+    size = float(max(0, value))
+    for unit in units:
+        if size < 1024 or unit == units[-1]:
+            if unit == "B":
+                return f"{int(size)}B"
+            if size >= 10:
+                return f"{size:.1f}{unit}"
+            return f"{size:.2f}{unit}"
+        size /= 1024
 
 
 def _running_for(started_at: str) -> str:
