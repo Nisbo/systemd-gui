@@ -544,27 +544,53 @@ def _sequence_lines(item) -> list[str]:
     return [step["command"] for step in _sequence_steps(item)]
 
 
+def _shell_line_continues(line: str) -> bool:
+    stripped = line.rstrip()
+    if not stripped.endswith("\\"):
+        return False
+    backslashes = 0
+    for char in reversed(stripped):
+        if char != "\\":
+            break
+        backslashes += 1
+    return backslashes % 2 == 1
+
+
 def _sequence_steps(item) -> list[dict[str, object]]:
     steps: list[dict[str, object]] = []
     pending_comments: list[str] = []
     pending_label = ""
+    pending_command_lines: list[str] = []
+
+    def append_step() -> None:
+        nonlocal pending_comments, pending_label, pending_command_lines
+        command = "\n".join(pending_command_lines).strip()
+        if command:
+            steps.append({"command": command, "comments": pending_comments, "label": pending_label})
+        pending_comments = []
+        pending_label = ""
+        pending_command_lines = []
+
     for line in str(item.get("commands") or "").splitlines():
-        value = line.strip()
-        if not value:
+        raw = line.rstrip()
+        value = raw.strip()
+        if not pending_command_lines and not value:
             continue
-        if value.startswith("#"):
+        if not pending_command_lines and value.startswith("#"):
             comment = value[1:].strip()
             if comment:
                 pending_comments.append(comment)
             continue
-        if value.startswith("@"):
+        if not pending_command_lines and value.startswith("@"):
             label = value[1:].strip()
             if label:
                 pending_label = label
             continue
-        steps.append({"command": value, "comments": pending_comments, "label": pending_label})
-        pending_comments = []
-        pending_label = ""
+        pending_command_lines.append(raw)
+        if not _shell_line_continues(raw):
+            append_step()
+    if pending_command_lines:
+        append_step()
     return steps
 
 

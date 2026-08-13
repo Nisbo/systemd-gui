@@ -52,7 +52,7 @@
           Commands
           <textarea name="commands" rows="8" required>{{ item.commands }}</textarea>
           <span class="field-help field-help-list">
-            <span>One command per line. Empty lines are skipped.</span>
+            <span>One command per step. Lines ending with <code>\</code> continue as part of the same step.</span>
             <span><code>@ Friendly step name</code> on the line before a command changes the displayed step title only.</span>
             <span><code># Comment</code> can be printed before the next command when comments are enabled.</span>
             <span>Placeholders like <code>{package}</code> ask for a value before running.</span>
