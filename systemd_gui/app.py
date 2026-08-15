@@ -2166,6 +2166,7 @@ def _local_dashboard_summary(app: Flask, refresh_git: bool = False) -> dict[str,
             "helper_ready": helper_status.ready,
             "helper_message": helper_status.message,
         },
+        "integrations": _local_integration_summary(app, helper_status),
         "updates": {
             "version": APP_VERSION,
             "branch": str(git_state.get("branch") or ""),
@@ -2227,6 +2228,8 @@ def _remote_dashboard_summary_payload(node: dict[str, object], result) -> dict[s
         summary["links"] = _dashboard_links(str(node_info.get("url") or ""))
         summary["status"] = "ok"
         summary["message"] = result.message
+        if not isinstance(summary.get("integrations"), dict):
+            summary["integrations"] = _empty_integration_summary("Remote node did not report integration status.")
         return summary
     return {
         "node": node_info,
@@ -2237,6 +2240,7 @@ def _remote_dashboard_summary_payload(node: dict[str, object], result) -> dict[s
         "logs": _empty_log_summary(result.message, result.status),
         "docker": _empty_docker_summary(result.message),
         "quick_shell": _empty_quick_shell_summary(result.message),
+        "integrations": _empty_integration_summary(result.message),
         "updates": _empty_update_summary(str(node_info.get("version") or "")),
     }
 
@@ -2332,6 +2336,7 @@ def _dashboard_links(base_url: str = "") -> dict[str, str]:
             "logs_warning_24h": remote("/logs", priority="warning", time="1d"),
             "docker": remote("/docker"),
             "quick_shell": remote("/quick-shell"),
+            "nodes": remote("/nodes"),
             "updates": remote("/settings", tab="updates"),
         }
     return {
@@ -2341,6 +2346,7 @@ def _dashboard_links(base_url: str = "") -> dict[str, str]:
         "logs_warning_24h": url_for("logs", priority="warning", time="1d"),
         "docker": url_for("docker_index"),
         "quick_shell": url_for("quick_shell"),
+        "nodes": url_for("nodes"),
         "updates": url_for("settings", tab="updates"),
     }
 
@@ -2377,8 +2383,100 @@ def _empty_quick_shell_summary(message: str) -> dict[str, object]:
     return {"categories": 0, "commands": 0, "sequences": 0, "total": 0, "helper_ready": False, "helper_message": message}
 
 
+def _empty_integration_summary(message: str) -> dict[str, object]:
+    return {
+        "api_tokens_total": 0,
+        "api_tokens_enabled": 0,
+        "api_allowlist": "unknown",
+        "api_allowlist_label": "unknown",
+        "lan_state": "unknown",
+        "lan_label": "unknown",
+        "qs_helper_ready": False,
+        "qs_helper_label": "unknown",
+        "shell_integration": "unknown",
+        "shell_integration_label": "unknown",
+        "history_timestamps": False,
+        "ssh_installed": False,
+        "sshpass_installed": False,
+        "login_enabled": False,
+        "message": message,
+    }
+
+
 def _empty_update_summary(version: str = "") -> dict[str, object]:
     return {"version": version, "branch": "", "commit": "", "git_available": False, "commit_update_available": False, "behind": 0, "ahead": 0, "dirty": False, "remote_ref": "", "git_message": "", "restart_pending": False}
+
+
+def _local_integration_summary(app: Flask, helper_status=None) -> dict[str, object]:
+    nodes_data = read_nodes(_nodes_path(app))
+    settings = nodes_data.get("settings") if isinstance(nodes_data.get("settings"), dict) else {}
+    api_access = read_api_access(_api_access_path(app))
+    api_settings = api_access.get("settings") if isinstance(api_access.get("settings"), dict) else {}
+    tokens = [token for token in api_access.get("tokens") if isinstance(token, dict)] if isinstance(api_access.get("tokens"), list) else []
+    enabled_tokens = [token for token in tokens if token.get("enabled")]
+    announcement = announcement_status(settings, app.config["SYSTEMD_GUI_PUBLIC_PORT"])
+    shell_integrations = shell_integration_statuses(_quick_shell_bin(app))
+    bash_history = bash_history_timestamp_status()
+    remote_ssh = remote_ssh_support_status()
+    helper = helper_status or quick_shell_helper_status(_quick_shell_bin(app), _app_root(app), _data_dir(app))
+    installed_shells = [str(item.label) for item in shell_integrations if item.installed]
+    detected_missing_shells = [str(item.label) for item in shell_integrations if item.detected and not item.installed]
+
+    if installed_shells:
+        shell_label = ", ".join(installed_shells)
+        shell_state = "ready" if not detected_missing_shells else "partial"
+    elif detected_missing_shells:
+        shell_label = "missing"
+        shell_state = "missing"
+    else:
+        shell_label = "not detected"
+        shell_state = "neutral"
+
+    if not bool(api_settings.get("enabled")):
+        api_allowlist = "disabled"
+        api_allowlist_label = "disabled"
+    elif bool(api_settings.get("allow_saved_nodes")) and str(api_settings.get("allowed_ips") or "").strip():
+        api_allowlist = "restricted"
+        api_allowlist_label = "IPs + saved nodes"
+    elif bool(api_settings.get("allow_saved_nodes")):
+        api_allowlist = "saved"
+        api_allowlist_label = "saved nodes"
+    elif str(api_settings.get("allowed_ips") or "").strip():
+        api_allowlist = "restricted"
+        api_allowlist_label = "restricted"
+    else:
+        api_allowlist = "open"
+        api_allowlist_label = "open"
+
+    if not announcement.get("wanted"):
+        lan_state = "disabled"
+        lan_label = "disabled"
+    elif announcement.get("installed") and announcement.get("current"):
+        lan_state = "ready"
+        lan_label = "announced"
+    elif announcement.get("available"):
+        lan_state = "partial"
+        lan_label = "setup needed"
+    else:
+        lan_state = "missing"
+        lan_label = "missing"
+
+    return {
+        "api_tokens_total": len(tokens),
+        "api_tokens_enabled": len(enabled_tokens),
+        "api_allowlist": api_allowlist,
+        "api_allowlist_label": api_allowlist_label,
+        "lan_state": lan_state,
+        "lan_label": lan_label,
+        "qs_helper_ready": bool(helper.ready),
+        "qs_helper_label": "ready" if helper.ready else "needs setup",
+        "shell_integration": shell_state,
+        "shell_integration_label": shell_label,
+        "history_timestamps": bool(bash_history.installed),
+        "ssh_installed": bool(remote_ssh.ssh_installed),
+        "sshpass_installed": bool(remote_ssh.sshpass_installed),
+        "login_enabled": bool(app.config["ADMIN_PASSWORD"]),
+    }
 
 
 def _dashboard_data(app: Flask) -> dict[str, object]:

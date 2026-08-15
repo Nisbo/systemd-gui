@@ -206,6 +206,133 @@
   <section class="dashboard-fleet-section dashboard-fleet-wide">
     <div class="dashboard-section-head">
       <div>
+        <h2>Integrations</h2>
+        <p>Setup features reported by each node.</p>
+      </div>
+      <a class="ghost-button compact-button" href="{{ url_for('nodes') }}">Open</a>
+    </div>
+    <div class="dashboard-table-wrap">
+      <table class="dashboard-table">
+        <thead>
+          <tr>
+            <th>Node</th>
+            <th>API tokens</th>
+            <th>API allowlist</th>
+            <th>LAN discovery</th>
+            <th>qs helper</th>
+            <th>Shell integration</th>
+            <th>History time</th>
+            <th>SSH</th>
+            <th>sshpass</th>
+            <th>Login</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for node_summary in summary.nodes %}
+            {% set integration = node_summary.integrations %}
+            <tr>
+              <td class="dashboard-node-name"><a class="table-link" href="{{ node_summary.links.nodes }}">{{ node_summary.node.name }}</a></td>
+              <td>
+                {% if node_summary.status != 'ok' %}
+                  <span class="tag neutral">unknown</span>
+                {% elif integration.api_tokens_enabled %}
+                  <span class="tag success">{{ integration.api_tokens_enabled }} active / {{ integration.api_tokens_total }} total</span>
+                {% elif integration.api_tokens_total %}
+                  <span class="tag neutral">0 active / {{ integration.api_tokens_total }} total</span>
+                {% else %}
+                  <span class="tag neutral">none</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if integration.api_allowlist in ['restricted', 'saved'] %}
+                  <span class="tag success">{{ integration.api_allowlist_label }}</span>
+                {% elif integration.api_allowlist == 'open' %}
+                  <span class="tag warning">open</span>
+                {% elif integration.api_allowlist == 'disabled' %}
+                  <span class="tag neutral">disabled</span>
+                {% else %}
+                  <span class="tag neutral">unknown</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if integration.lan_state == 'ready' %}
+                  <span class="tag success">{{ integration.lan_label }}</span>
+                {% elif integration.lan_state == 'partial' %}
+                  <span class="tag warning">{{ integration.lan_label }}</span>
+                {% elif integration.lan_state == 'missing' %}
+                  <span class="tag danger">{{ integration.lan_label }}</span>
+                {% elif integration.lan_state == 'disabled' %}
+                  <span class="tag neutral">disabled</span>
+                {% else %}
+                  <span class="tag neutral">unknown</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if integration.qs_helper_ready %}
+                  <span class="tag success">{{ integration.qs_helper_label }}</span>
+                {% elif node_summary.status == 'ok' %}
+                  <span class="tag warning">{{ integration.qs_helper_label }}</span>
+                {% else %}
+                  <span class="tag neutral">unknown</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if integration.shell_integration == 'ready' %}
+                  <span class="tag success">{{ integration.shell_integration_label }}</span>
+                {% elif integration.shell_integration == 'partial' %}
+                  <span class="tag warning">{{ integration.shell_integration_label }}</span>
+                {% elif integration.shell_integration == 'missing' %}
+                  <span class="tag danger">{{ integration.shell_integration_label }}</span>
+                {% else %}
+                  <span class="tag neutral">{{ integration.shell_integration_label }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if integration.history_timestamps %}
+                  <span class="tag success">enabled</span>
+                {% elif node_summary.status == 'ok' %}
+                  <span class="tag neutral">disabled</span>
+                {% else %}
+                  <span class="tag neutral">unknown</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if integration.ssh_installed %}
+                  <span class="tag success">installed</span>
+                {% elif node_summary.status == 'ok' %}
+                  <span class="tag danger">missing</span>
+                {% else %}
+                  <span class="tag neutral">unknown</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if integration.sshpass_installed %}
+                  <span class="tag success">installed</span>
+                {% elif node_summary.status == 'ok' %}
+                  <span class="tag neutral">optional</span>
+                {% else %}
+                  <span class="tag neutral">unknown</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if integration.login_enabled %}
+                  <span class="tag success">enabled</span>
+                {% elif node_summary.status == 'ok' %}
+                  <span class="tag warning">disabled</span>
+                {% else %}
+                  <span class="tag neutral">unknown</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="dashboard-fleet-section dashboard-fleet-wide">
+    <div class="dashboard-section-head">
+      <div>
         <h2>Updates</h2>
         <p>Current app version, Git branch and restart state.</p>
       </div>
