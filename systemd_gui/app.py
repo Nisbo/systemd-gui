@@ -1770,19 +1770,42 @@ def _api_access_path(app: Flask) -> Path:
     return _data_dir(app) / "api-access.json"
 
 
+def _remote_api_request_log_context(scope: str) -> dict[str, str]:
+    return {
+        "endpoint": request.path,
+        "scope": scope,
+        "remote_addr": request.remote_addr or "",
+        "x_forwarded_for": request.headers.get("X-Forwarded-For", ""),
+        "forwarded": request.headers.get("Forwarded", ""),
+    }
+
+
 def _require_remote_api_access(app: Flask, scope: str) -> tuple[Response, int] | None:
     access_data = read_api_access(_api_access_path(app))
     settings = access_data.get("settings") if isinstance(access_data.get("settings"), dict) else {}
     if not settings.get("enabled"):
+        app.logger.warning("Remote API denied: disabled %s", _remote_api_request_log_context(scope))
         return jsonify({"error": "Remote API access is disabled."}), 403
     nodes_data = read_nodes(_nodes_path(app))
     allowed, ip_message = client_ip_allowed(settings, request.remote_addr or "", list(nodes_data.get("nodes") or []))
     if not allowed:
+        app.logger.warning(
+            "Remote API denied: IP allowlist failed %s",
+            {**_remote_api_request_log_context(scope), "reason": ip_message},
+        )
         return jsonify({"error": ip_message}), 403
     token_value = bearer_token_from_header(request.headers.get("Authorization", ""))
-    ok, token_message, _token = verify_bearer_token(access_data, token_value, scope)
+    ok, token_message, token = verify_bearer_token(access_data, token_value, scope)
     if not ok:
         status = 403 if "scope" in token_message.lower() or "category" in token_message.lower() else 401
+        app.logger.warning(
+            "Remote API denied: token failed %s",
+            {
+                **_remote_api_request_log_context(scope),
+                "reason": token_message,
+                "token_prefix": str((token or {}).get("prefix") or ""),
+            },
+        )
         return jsonify({"error": token_message}), status
     write_api_access(_api_access_path(app), access_data)
     return None
