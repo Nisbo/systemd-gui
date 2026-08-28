@@ -352,40 +352,39 @@
       </section>
 
       <section class="settings-group">
-        <h3>IP filtering</h3>
-        <p>Optional extra protection for Remote API tokens. Use this only when you want to limit which source IPs or networks may use valid tokens.</p>
-        <div class="remote-api-settings-grid">
-          <div class="remote-api-column">
-            <label class="toggle-label">
-              <input type="checkbox" name="allow_saved_nodes" value="1" {% if api_access.settings.allow_saved_nodes %}checked{% endif %}>
-              <span class="toggle-copy">
-                <strong>Allow IPs from saved nodes</strong>
-                <small>Add the IP addresses resolved from saved node URLs, hosts or SSH hosts to the allowed Remote API sources.</small>
-              </span>
-            </label>
-            <label>
-              <strong>Allowed IPs and networks</strong>
-              <textarea name="allowed_ips" rows="5" placeholder="192.168.178.89&#10;192.168.178.0/24">{{ api_access.settings.allowed_ips }}</textarea>
-              <span class="field-help">One IP or CIDR range per line. These entries are checked in addition to saved-node IPs when that option is enabled.</span>
-            </label>
+        <div class="remote-api-settings-grid remote-api-ip-grid">
+          <div>
+            <h3>IP filtering</h3>
+            <p>Optional extra protection for Remote API tokens. Use this only when you want to limit which source IPs or networks may use valid tokens.</p>
           </div>
-
-          <div class="remote-api-column">
+          <div>
             <h3>Reverse proxy client IP</h3>
             <p>Needed only when IP filtering is enabled and Systemd Gui runs behind nginx or another local reverse proxy.</p>
-            <label class="toggle-label">
-              <input type="checkbox" name="trust_proxy_headers" value="1" {% if api_access.settings.trust_proxy_headers %}checked{% endif %}>
-              <span class="toggle-copy">
-                <strong>Trust client IP headers from trusted proxies</strong>
-                <small>Use the forwarded client IP only when the direct requester is one of the trusted proxy IPs below.</small>
-              </span>
-            </label>
-            <label>
-              Trusted reverse proxy IPs
-              <textarea name="trusted_proxy_ips" rows="4" placeholder="127.0.0.1&#10;::1">{{ api_access.settings.trusted_proxy_ips }}</textarea>
-              <span class="field-help"><code>127.0.0.1</code> is local IPv4. <code>::1</code> is local IPv6. Keep these defaults when nginx proxies locally to Gunicorn.</span>
-            </label>
           </div>
+          <label class="toggle-label">
+            <input type="checkbox" name="allow_saved_nodes" value="1" {% if api_access.settings.allow_saved_nodes %}checked{% endif %}>
+            <span class="toggle-copy">
+              <strong>Allow IPs from saved nodes</strong>
+              <small>Add the IP addresses resolved from saved node URLs, hosts or SSH hosts to the allowed Remote API sources.</small>
+            </span>
+          </label>
+          <label class="toggle-label">
+            <input type="checkbox" name="trust_proxy_headers" value="1" {% if api_access.settings.trust_proxy_headers %}checked{% endif %}>
+            <span class="toggle-copy">
+              <strong>Trust client IP headers from trusted proxies</strong>
+              <small>Use the forwarded client IP only when the direct requester is one of the trusted proxy IPs below.</small>
+            </span>
+          </label>
+          <label>
+            <strong>Allowed IPs and networks</strong>
+            <textarea name="allowed_ips" rows="5" placeholder="192.168.178.89&#10;192.168.178.0/24">{{ api_access.settings.allowed_ips }}</textarea>
+            <span class="field-help">One IP or CIDR range per line. These entries are checked in addition to saved-node IPs when that option is enabled.</span>
+          </label>
+          <label>
+            <strong>Trusted reverse proxy IPs</strong>
+            <textarea name="trusted_proxy_ips" rows="5" placeholder="127.0.0.1&#10;::1">{{ api_access.settings.trusted_proxy_ips }}</textarea>
+            <span class="field-help"><code>127.0.0.1</code> is local IPv4. <code>::1</code> is local IPv6. Keep these defaults when nginx proxies locally to Gunicorn.</span>
+          </label>
         </div>
         <div class="diagnostic compact">
           <strong>How IP filtering is checked</strong>
