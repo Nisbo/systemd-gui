@@ -341,43 +341,57 @@
 
     <form class="remote-api-settings" method="post" action="{{ url_for('update_nodes_api_access_settings') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <div class="remote-api-settings-grid">
-        <section class="settings-group">
-          <h3>API access</h3>
-          <p>Remote nodes need a valid token. The optional IP list limits which source networks may use those tokens.</p>
-          <label class="toggle-label">
-            <input type="checkbox" name="enabled" value="1" {% if api_access.settings.enabled %}checked{% endif %}>
-            <span>Enable Remote API access on this node</span>
-          </label>
-          <label class="toggle-label">
-            <input type="checkbox" name="allow_saved_nodes" value="1" {% if api_access.settings.allow_saved_nodes %}checked{% endif %}>
-            <span>Allow IPs from saved nodes</span>
-          </label>
-          <label>
-            Allow only these IPs
-            <textarea name="allowed_ips" rows="5" placeholder="192.168.178.89&#10;192.168.178.0/24">{{ api_access.settings.allowed_ips }}</textarea>
-            <span class="field-help">One IP or CIDR range per line. Leave empty to accept any IP with a valid token.</span>
-          </label>
-        </section>
+      <section class="settings-group remote-api-main-toggle">
+        <label class="toggle-label">
+          <input type="checkbox" name="enabled" value="1" {% if api_access.settings.enabled %}checked{% endif %}>
+          <span class="toggle-copy">
+            <strong>Enable Remote API access on this node</strong>
+            <small>Other Systemd Gui nodes can connect only with a valid token and the selected access categories.</small>
+          </span>
+        </label>
+      </section>
 
-        <section class="settings-group">
-          <h3>Reverse proxy client IP</h3>
-          <p>Enable this only when Systemd Gui runs behind a local proxy such as nginx and Gunicorn sees the proxy IP instead of the real client IP.</p>
-          <label class="toggle-label">
-            <input type="checkbox" name="trust_proxy_headers" value="1" {% if api_access.settings.trust_proxy_headers %}checked{% endif %}>
-            <span>Trust client IP headers from trusted proxies</span>
-          </label>
-          <label>
-            Trusted reverse proxy IPs
-            <textarea name="trusted_proxy_ips" rows="4" placeholder="127.0.0.1&#10;::1">{{ api_access.settings.trusted_proxy_ips }}</textarea>
-            <span class="field-help">These are the direct proxy addresses allowed to provide X-Real-IP or X-Forwarded-For. <code>127.0.0.1</code> is local IPv4, <code>::1</code> is local IPv6.</span>
-          </label>
-          <div class="diagnostic compact">
-            <strong>How this is checked</strong>
-            <span>If the direct requester is trusted, Systemd Gui checks the forwarded client IP against the API allowlist. Otherwise forwarded headers are ignored.</span>
+      <section class="settings-group">
+        <h3>IP filtering</h3>
+        <p>Optional extra protection for Remote API tokens. Use this only when you want to limit which source IPs or networks may use valid tokens.</p>
+        <div class="remote-api-settings-grid">
+          <div class="remote-api-column">
+            <label class="toggle-label">
+              <input type="checkbox" name="allow_saved_nodes" value="1" {% if api_access.settings.allow_saved_nodes %}checked{% endif %}>
+              <span class="toggle-copy">
+                <strong>Allow IPs from saved nodes</strong>
+                <small>Also allow the IP addresses resolved from saved node URLs, hosts or SSH hosts. This is convenient, but static addresses are safer than changing DHCP addresses.</small>
+              </span>
+            </label>
+            <label>
+              Allow only these IPs
+              <textarea name="allowed_ips" rows="5" placeholder="192.168.178.89&#10;192.168.178.0/24">{{ api_access.settings.allowed_ips }}</textarea>
+              <span class="field-help">One IP or CIDR range per line. Leave empty to accept any IP with a valid token, unless saved-node IPs are enabled above.</span>
+            </label>
           </div>
-        </section>
-      </div>
+
+          <div class="remote-api-column">
+            <h3>Reverse proxy client IP</h3>
+            <p>Needed only when IP filtering is enabled and Systemd Gui runs behind nginx or another local reverse proxy.</p>
+            <label class="toggle-label">
+              <input type="checkbox" name="trust_proxy_headers" value="1" {% if api_access.settings.trust_proxy_headers %}checked{% endif %}>
+              <span class="toggle-copy">
+                <strong>Trust client IP headers from trusted proxies</strong>
+                <small>Use the forwarded client IP only when the direct requester is one of the trusted proxy IPs below.</small>
+              </span>
+            </label>
+            <label>
+              Trusted reverse proxy IPs
+              <textarea name="trusted_proxy_ips" rows="4" placeholder="127.0.0.1&#10;::1">{{ api_access.settings.trusted_proxy_ips }}</textarea>
+              <span class="field-help"><code>127.0.0.1</code> is local IPv4. <code>::1</code> is local IPv6. Keep these defaults when nginx proxies locally to Gunicorn.</span>
+            </label>
+          </div>
+        </div>
+        <div class="diagnostic compact">
+          <strong>How IP filtering is checked</strong>
+          <span>Without a trusted proxy, Systemd Gui checks the direct requester IP. With a trusted local proxy, it checks the forwarded client IP against the allowlist.</span>
+        </div>
+      </section>
       <div class="diagnostic warning">
         <strong>HTTP warning</strong>
         <span>Tokens sent over plain HTTP can be read by other devices on the same network. Use this on a trusted LAN or behind HTTPS.</span>
