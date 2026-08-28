@@ -360,13 +360,13 @@
               <input type="checkbox" name="allow_saved_nodes" value="1" {% if api_access.settings.allow_saved_nodes %}checked{% endif %}>
               <span class="toggle-copy">
                 <strong>Allow IPs from saved nodes</strong>
-                <small>Also allow the IP addresses resolved from saved node URLs, hosts or SSH hosts. This is convenient, but static addresses are safer than changing DHCP addresses.</small>
+                <small>Add the IP addresses resolved from saved node URLs, hosts or SSH hosts to the allowed Remote API sources.</small>
               </span>
             </label>
             <label>
-              Allow only these IPs
+              <strong>Allowed IPs and networks</strong>
               <textarea name="allowed_ips" rows="5" placeholder="192.168.178.89&#10;192.168.178.0/24">{{ api_access.settings.allowed_ips }}</textarea>
-              <span class="field-help">One IP or CIDR range per line. Leave empty to accept any IP with a valid token, unless saved-node IPs are enabled above.</span>
+              <span class="field-help">One IP or CIDR range per line. These entries are checked in addition to saved-node IPs when that option is enabled.</span>
             </label>
           </div>
 
