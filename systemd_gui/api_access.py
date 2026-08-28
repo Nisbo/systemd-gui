@@ -92,6 +92,8 @@ def default_api_access_data() -> dict[str, object]:
             "enabled": False,
             "allowed_ips": "",
             "allow_saved_nodes": False,
+            "trust_proxy_headers": False,
+            "trusted_proxy_ips": "127.0.0.1\n::1",
         },
         "tokens": [],
     }
@@ -127,6 +129,8 @@ def normalize_api_access_data(data: object) -> dict[str, object]:
         "enabled": bool(raw_settings.get("enabled", defaults["settings"]["enabled"])),
         "allowed_ips": str(raw_settings.get("allowed_ips") or ""),
         "allow_saved_nodes": bool(raw_settings.get("allow_saved_nodes", defaults["settings"]["allow_saved_nodes"])),
+        "trust_proxy_headers": bool(raw_settings.get("trust_proxy_headers", defaults["settings"]["trust_proxy_headers"])),
+        "trusted_proxy_ips": str(raw_settings.get("trusted_proxy_ips") or defaults["settings"]["trusted_proxy_ips"]),
     }
     tokens = []
     for raw_token in data.get("tokens") if isinstance(data.get("tokens"), list) else []:
@@ -173,6 +177,8 @@ def update_api_settings(data: dict[str, object], form) -> dict[str, object]:
         "enabled": form.get("enabled") == "1",
         "allowed_ips": form.get("allowed_ips", ""),
         "allow_saved_nodes": form.get("allow_saved_nodes") == "1",
+        "trust_proxy_headers": form.get("trust_proxy_headers") == "1",
+        "trusted_proxy_ips": form.get("trusted_proxy_ips", ""),
     }
     return normalize_api_access_data(data)
 
@@ -265,6 +271,32 @@ def client_ip_allowed(settings: dict[str, object], client_ip: str, saved_nodes: 
     if str(address) in saved_ips:
         return True, "Client IP matches a saved node."
     return False, "Client IP is not allowed for Remote API access."
+
+
+def remote_api_client_ip(
+    settings: dict[str, object],
+    remote_addr: str,
+    x_real_ip: str = "",
+    x_forwarded_for: str = "",
+) -> tuple[str, str]:
+    direct_ip = str(remote_addr or "").strip()
+    if not settings.get("trust_proxy_headers"):
+        return direct_ip, "direct"
+    trusted_proxies = _parse_ip_rules(str(settings.get("trusted_proxy_ips") or ""))
+    try:
+        proxy_address = ipaddress.ip_address(direct_ip)
+    except ValueError:
+        return direct_ip, "direct"
+    if not any(proxy_address in network for network in trusted_proxies):
+        return direct_ip, "untrusted proxy"
+    for candidate in [str(x_real_ip or "").strip(), *_forwarded_for_candidates(x_forwarded_for)]:
+        if not candidate:
+            continue
+        try:
+            return str(ipaddress.ip_address(candidate)), f"trusted proxy {direct_ip}"
+        except ValueError:
+            continue
+    return direct_ip, "trusted proxy without client header"
 
 
 def check_remote_api_access(node: dict[str, object], timeout: float = 4.0) -> ApiTokenCheckResult:
@@ -632,6 +664,11 @@ def _parse_ip_rules(value: str) -> list[ipaddress._BaseNetwork]:
         except ValueError:
             continue
     return rules
+
+
+def _forwarded_for_candidates(value: str) -> list[str]:
+    parts = [part.strip() for part in str(value or "").split(",") if part.strip()]
+    return list(reversed(parts))
 
 
 def _saved_node_ips(nodes: list[dict[str, object]]) -> set[str]:

@@ -28,6 +28,7 @@ from .api_access import (
     fetch_remote_docker_containers,
     fetch_remote_quick_shell_export,
     regenerate_api_token,
+    remote_api_client_ip,
     read_api_access,
     trigger_remote_git_update,
     update_api_settings,
@@ -1775,6 +1776,7 @@ def _remote_api_request_log_context(scope: str) -> dict[str, str]:
         "endpoint": request.path,
         "scope": scope,
         "remote_addr": request.remote_addr or "",
+        "x_real_ip": request.headers.get("X-Real-IP", ""),
         "x_forwarded_for": request.headers.get("X-Forwarded-For", ""),
         "forwarded": request.headers.get("Forwarded", ""),
     }
@@ -1787,11 +1789,22 @@ def _require_remote_api_access(app: Flask, scope: str) -> tuple[Response, int] |
         app.logger.warning("Remote API denied: disabled %s", _remote_api_request_log_context(scope))
         return jsonify({"error": "Remote API access is disabled."}), 403
     nodes_data = read_nodes(_nodes_path(app))
-    allowed, ip_message = client_ip_allowed(settings, request.remote_addr or "", list(nodes_data.get("nodes") or []))
+    client_ip, client_ip_source = remote_api_client_ip(
+        settings,
+        request.remote_addr or "",
+        request.headers.get("X-Real-IP", ""),
+        request.headers.get("X-Forwarded-For", ""),
+    )
+    allowed, ip_message = client_ip_allowed(settings, client_ip, list(nodes_data.get("nodes") or []))
     if not allowed:
         app.logger.warning(
             "Remote API denied: IP allowlist failed %s",
-            {**_remote_api_request_log_context(scope), "reason": ip_message},
+            {
+                **_remote_api_request_log_context(scope),
+                "client_ip": client_ip,
+                "client_ip_source": client_ip_source,
+                "reason": ip_message,
+            },
         )
         return jsonify({"error": ip_message}), 403
     token_value = bearer_token_from_header(request.headers.get("Authorization", ""))

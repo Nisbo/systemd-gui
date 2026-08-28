@@ -349,10 +349,19 @@
         <input type="checkbox" name="allow_saved_nodes" value="1" {% if api_access.settings.allow_saved_nodes %}checked{% endif %}>
         <span>Allow IPs from saved nodes</span>
       </label>
+      <label class="toggle-label">
+        <input type="checkbox" name="trust_proxy_headers" value="1" {% if api_access.settings.trust_proxy_headers %}checked{% endif %}>
+        <span>Trust client IP headers from reverse proxies</span>
+      </label>
       <label>
         Allow only these IPs
         <textarea name="allowed_ips" rows="4" placeholder="192.168.178.89&#10;192.168.178.0/24">{{ api_access.settings.allowed_ips }}</textarea>
         <span class="field-help">Optional. One IP or CIDR range per line. Leave empty to accept any IP with a valid token. Static DHCP leases are recommended; dynamic IPs can change and block access later.</span>
+      </label>
+      <label>
+        Trusted reverse proxy IPs
+        <textarea name="trusted_proxy_ips" rows="3" placeholder="127.0.0.1&#10;::1">{{ api_access.settings.trusted_proxy_ips }}</textarea>
+        <span class="field-help">Only these direct proxy IPs may provide the real client IP through X-Real-IP or X-Forwarded-For. Use this when nginx proxies Systemd Gui locally.</span>
       </label>
       <div class="diagnostic warning">
         <strong>HTTP warning</strong>
