@@ -217,7 +217,7 @@
 
       <footer class="app-footer">
         <a href="{{ repo_url }}" target="_blank" rel="noopener noreferrer">{{ app_name }}</a>
-        <span>{{ app_version }}</span>
+        <span>{{ app_version }}{% if app_build_label %} ({{ app_build_label }}){% endif %}</span>
       </footer>
     </main>
     <script src="{{ url_for('static', filename='app.js', v=asset_version) }}"></script>

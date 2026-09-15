@@ -202,6 +202,7 @@ def create_app() -> Flask:
         return {
             "app_name": APP_NAME,
             "app_version": APP_VERSION,
+            "app_build_label": _app_build_label(app),
             "asset_version": _asset_version(app),
             "repo_url": REPO_URL,
             "csrf_token": session["csrf_token"],
@@ -2834,6 +2835,39 @@ def _asset_version(app: Flask) -> str:
         except OSError:
             continue
     return f"{APP_VERSION}-{newest_mtime}"
+
+
+def _app_build_label(app: Flask) -> str:
+    app_root = _app_root(app)
+    if not (app_root / ".git").exists() or not shutil.which("git"):
+        return ""
+    branch = _run_git_value(app_root, ["branch", "--show-current"])
+    if not branch or branch in {"main", "master"}:
+        return ""
+    commit = _run_git_value(app_root, ["rev-parse", "--short", "HEAD"])
+    commit_date = _run_git_value(app_root, ["show", "-s", "--format=%cs", "HEAD"])
+    if commit and commit_date:
+        return f"{branch} {commit}, {commit_date}"
+    if commit:
+        return f"{branch} {commit}"
+    return branch
+
+
+def _run_git_value(app_root: Path, args: list[str]) -> str:
+    try:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=app_root,
+            capture_output=True,
+            text=True,
+            timeout=1,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    if result.returncode != 0:
+        return ""
+    return result.stdout.strip()
 
 
 def _update_result_dict(result) -> dict[str, object]:
