@@ -2845,7 +2845,7 @@ def _app_build_label(app: Flask) -> str:
     if not branch or branch in {"main", "master"}:
         return ""
     commit = _run_git_value(app_root, ["rev-parse", "--short", "HEAD"])
-    commit_date = _run_git_value(app_root, ["show", "-s", "--format=%cs", "HEAD"])
+    commit_date = _run_git_value(app_root, ["show", "-s", "--date=format-local:%Y%m%dT%H%M%S", "--format=%cd", "HEAD"])
     if commit and commit_date:
         return f"{branch} {commit}, {commit_date}"
     if commit:
