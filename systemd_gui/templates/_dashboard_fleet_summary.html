@@ -1,7 +1,7 @@
 {% if summary.checking %}
   <div class="dashboard-status-note">
-    <strong>Checking remote nodes...</strong>
-    <span>Local values are shown now; saved nodes load in the background.</span>
+    <strong>Checking dashboard...</strong>
+    <span>Service, Docker, log, update and remote-node values are loading in the background.</span>
   </div>
 {% endif %}
 
@@ -45,6 +45,8 @@
               <td>
                 {% if node_summary.status == 'ok' %}
                   <span class="tag success">connected</span>
+                {% elif node_summary.status == 'checking' %}
+                  <span class="tag neutral">checking</span>
                 {% elif node_summary.status in ['missing', 'unsupported'] %}
                   <span class="tag neutral">{{ node_summary.status }}</span>
                 {% elif node_summary.status == 'denied' %}

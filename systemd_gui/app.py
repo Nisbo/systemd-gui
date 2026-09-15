@@ -2224,7 +2224,7 @@ def _dashboard_fleet_summary_initial(app: Flask) -> dict[str, object]:
     saved_nodes = [node for node in nodes.get("nodes") if isinstance(node, dict)] if isinstance(nodes.get("nodes"), list) else []
     return {
         "checking": True,
-        "nodes": [_local_dashboard_summary(app)],
+        "nodes": [_dashboard_placeholder_summary(app)],
         "remote_count": len(saved_nodes),
         "actions": [],
     }
@@ -2384,6 +2384,22 @@ def _dashboard_links(base_url: str = "") -> dict[str, str]:
         "quick_shell": url_for("quick_shell"),
         "nodes": url_for("nodes"),
         "updates": url_for("settings", tab="updates"),
+    }
+
+
+def _dashboard_placeholder_summary(app: Flask) -> dict[str, object]:
+    message = "Dashboard checks are still running."
+    return {
+        "node": _node_identity(app),
+        "links": _dashboard_links(),
+        "status": "checking",
+        "message": message,
+        "services": _empty_service_summary(),
+        "logs": _empty_log_summary(message, "checking"),
+        "docker": _empty_docker_summary(message),
+        "quick_shell": _empty_quick_shell_summary(message),
+        "integrations": _empty_integration_summary(message),
+        "updates": _empty_update_summary(APP_VERSION),
     }
 
 
